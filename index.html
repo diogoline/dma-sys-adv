@@ -1,0 +1,268 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>DMA SYS - Advocacia</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+  <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+  <style>
+    body { background-color: #f4f6f9; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
+    .sidebar { min-height: 100vh; background-color: #1e293b; color: #fff; }
+    .sidebar .nav-link { color: #cbd5e1; font-weight: 500; margin-bottom: 0.3rem; border-radius: 0.375rem; cursor: pointer; }
+    .sidebar .nav-link:hover, .sidebar .nav-link.active { background-color: #334155; color: #fff; }
+    .card-custom { border: none; border-radius: 0.75rem; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1); }
+    .brand-header { font-weight: 700; letter-spacing: 1px; color: #38bdf8; }
+  </style>
+</head>
+<body>
+
+<div class="container-fluid">
+  <div class="row">
+    <!-- Menu Lateral -->
+    <nav class="col-md-3 col-lg-2 d-md-block sidebar p-3 collapse show">
+      <div class="d-flex align-items-center mb-4 text-decoration-none">
+        <i class="fa-solid fa-scale-balanced fa-2x me-2 text-info"></i>
+        <span class="fs-4 brand-header">DMA SYS <small class="fs-6 text-muted d-block">ADV</small></span>
+      </div>
+      <hr class="text-secondary">
+      <ul class="nav flex-column nav-pills" id="mainTabs" role="tablist">
+        <li class="nav-item">
+          <button class="nav-link active w-100 text-start" data-bs-toggle="pill" data-bs-target="#content-home">
+            <i class="fa-solid fa-chart-line me-2"></i> Dashboard
+          </button>
+        </li>
+        <li class="nav-item">
+          <button class="nav-link w-100 text-start" data-bs-toggle="pill" data-bs-target="#content-clientes">
+            <i class="fa-solid fa-user-tie me-2"></i> Clientes
+          </button>
+        </li>
+        <li class="nav-item">
+          <button class="nav-link w-100 text-start" data-bs-toggle="pill" data-bs-target="#content-processos" onclick="carregarClientesNoSelect()">
+            <i class="fa-solid fa-folder-open me-2"></i> Processos
+          </button>
+        </li>
+      </ul>
+    </nav>
+
+    <!-- Conteúdo Principal -->
+    <main class="col-md-9 ms-sm-auto col-lg-10 px-md-4 py-4">
+      <div class="tab-content">
+        
+        <!-- Dashboard -->
+        <div class="tab-pane fade show active" id="content-home">
+          <h2 class="mb-4 text-dark fw-bold"><i class="fa-solid fa-gauge me-2 text-primary"></i> Painel Geral</h2>
+          <div class="card card-custom p-4 bg-white">
+            <p class="text-secondary mb-0">Sistema conectado via API ao Google Sheets da conta admsys.adv@gmail.com.</p>
+          </div>
+        </div>
+
+        <!-- Clientes -->
+        <div class="tab-pane fade" id="content-clientes">
+          <h2 class="mb-4 text-dark fw-bold"><i class="fa-solid fa-user-plus me-2 text-primary"></i> Cadastro de Cliente</h2>
+          <div class="card card-custom p-4 bg-white">
+            <form id="formCliente" onsubmit="salvarCliente(event)">
+              <div class="row g-3">
+                <div class="col-md-3">
+                  <label class="form-label">Tipo</label>
+                  <select class="form-select" id="cli_tipo" required>
+                    <option value="PF">Pessoa Física (PF)</option>
+                    <option value="PJ">Pessoa Jurídica (PJ)</option>
+                  </select>
+                </div>
+                <div class="col-md-6">
+                  <label class="form-label">Nome Completo / Razão Social</label>
+                  <input type="text" class="form-control" id="cli_nome" required>
+                </div>
+                <div class="col-md-3">
+                  <label class="form-label">CPF / CNPJ</label>
+                  <input type="text" class="form-control" id="cli_cpf" required>
+                </div>
+                <div class="col-md-3">
+                  <label class="form-label">RG / IE</label>
+                  <input type="text" class="form-control" id="cli_rg">
+                </div>
+                <div class="col-md-3">
+                  <label class="form-label">Estado Civil</label>
+                  <input type="text" class="form-control" id="cli_estado_civil">
+                </div>
+                <div class="col-md-3">
+                  <label class="form-label">Profissão</label>
+                  <input type="text" class="form-control" id="cli_profissao">
+                </div>
+                <div class="col-md-3">
+                  <label class="form-label">Telefone / WhatsApp</label>
+                  <input type="text" class="form-control" id="cli_telefone">
+                </div>
+                <div class="col-md-6">
+                  <label class="form-label">Endereço Completo</label>
+                  <input type="text" class="form-control" id="cli_endereco">
+                </div>
+                <div class="col-md-6">
+                  <label class="form-label">E-mail</label>
+                  <input type="email" class="form-control" id="cli_email">
+                </div>
+                <div class="col-12">
+                  <label class="form-label">Observações</label>
+                  <textarea class="form-control" id="cli_obs" rows="2"></textarea>
+                </div>
+                <div class="col-12 text-end">
+                  <button type="submit" class="btn btn-primary px-4" id="btnSalvarCli">
+                    <i class="fa-solid fa-save me-1"></i> Salvar Cliente
+                  </button>
+                </div>
+              </div>
+            </form>
+          </div>
+        </div>
+
+        <!-- Processos -->
+        <div class="tab-pane fade" id="content-processos">
+          <h2 class="mb-4 text-dark fw-bold"><i class="fa-solid fa-gavel me-2 text-primary"></i> Cadastrar Processo</h2>
+          <div class="card card-custom p-4 bg-white">
+            <form id="formProcesso" onsubmit="salvarProcesso(event)">
+              <div class="row g-3">
+                <div class="col-md-6">
+                  <label class="form-label">Selecione o Cliente</label>
+                  <select class="form-select" id="proc_id_cliente" required>
+                    <option value="">Clique para carregar clientes...</option>
+                  </select>
+                </div>
+                <div class="col-md-6">
+                  <label class="form-label">Número do Processo (CNJ)</label>
+                  <input type="text" class="form-control" id="proc_num" placeholder="0000000-00.2026.8.26.0000" required>
+                </div>
+                <div class="col-md-4">
+                  <label class="form-label">Tipo de Ação</label>
+                  <input type="text" class="form-control" id="proc_tipo" required>
+                </div>
+                <div class="col-md-4">
+                  <label class="form-label">Polo</label>
+                  <select class="form-select" id="proc_polo">
+                    <option value="Autor">Polo Ativo (Autor)</option>
+                    <option value="Réu">Polo Passivo (Réu)</option>
+                  </select>
+                </div>
+                <div class="col-md-4">
+                  <label class="form-label">Parte Contrária</label>
+                  <input type="text" class="form-control" id="proc_parte_contraria">
+                </div>
+                <div class="col-md-6">
+                  <label class="form-label">Vara / Tribunal</label>
+                  <input type="text" class="form-control" id="proc_vara">
+                </div>
+                <div class="col-md-3">
+                  <label class="form-label">Valor Causa (R$)</label>
+                  <input type="text" class="form-control" id="proc_valor">
+                </div>
+                <div class="col-md-3">
+                  <label class="form-label">Honorários Combinados</label>
+                  <input type="text" class="form-control" id="proc_honorarios">
+                </div>
+                <div class="col-12 text-end">
+                  <button type="submit" class="btn btn-success px-4" id="btnSalvarProc">
+                    <i class="fa-solid fa-save me-1"></i> Cadastrar Processo
+                  </button>
+                </div>
+              </div>
+            </form>
+          </div>
+        </div>
+
+      </div>
+    </main>
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+<script>
+  // COLE O URL DA IMPLANTAÇÃO DO APPS SCRIPT AQUI ABAIXO:
+  const API_URL = "SEU_URL_DO_APPS_SCRIPT_AQUI";
+
+  async function salvarCliente(e) {
+    e.preventDefault();
+    const btn = document.getElementById('btnSalvarCli');
+    btn.disabled = true;
+    btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin me-1"></i> Salvando...';
+
+    const payload = {
+      tipo: document.getElementById('cli_tipo').value,
+      nome_razao: document.getElementById('cli_nome').value,
+      cpf_cnpj: document.getElementById('cli_cpf').value,
+      rg_ie: document.getElementById('cli_rg').value,
+      estado_civil: document.getElementById('cli_estado_civil').value,
+      profissao: document.getElementById('cli_profissao').value,
+      telefone: document.getElementById('cli_telefone').value,
+      endereco: document.getElementById('cli_endereco').value,
+      email: document.getElementById('cli_email').value,
+      obs: document.getElementById('cli_obs').value
+    };
+
+    try {
+      const res = await fetch(API_URL, {
+        method: 'POST',
+        body: JSON.stringify({ action: 'cadastrarCliente', payload: payload })
+      });
+      const data = await res.json();
+      alert(data.message);
+      if(data.success) document.getElementById('formCliente').reset();
+    } catch (err) {
+      alert("Erro de conexão com o servidor.");
+    } finally {
+      btn.disabled = false;
+      btn.innerHTML = '<i class="fa-solid fa-save me-1"></i> Salvar Cliente';
+    }
+  }
+
+  async function carregarClientesNoSelect() {
+    const select = document.getElementById('proc_id_cliente');
+    select.innerHTML = '<option value="">Carregando...</option>';
+    try {
+      const res = await fetch(`${API_URL}?action=getClientes`);
+      const result = await res.json();
+      if(result.success) {
+        select.innerHTML = '<option value="">-- Selecione o Cliente --</option>';
+        result.data.forEach(cli => {
+          select.innerHTML += `<option value="${cli.id}">${cli.nome} (${cli.cpf_cnpj})</option>`;
+        });
+      }
+    } catch(err) {
+      select.innerHTML = '<option value="">Erro ao carregar clientes</option>';
+    }
+  }
+
+  async function salvarProcesso(e) {
+    e.preventDefault();
+    const btn = document.getElementById('btnSalvarProc');
+    btn.disabled = true;
+    btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin me-1"></i> Salvando...';
+
+    const payload = {
+      id_cliente: document.getElementById('proc_id_cliente').value,
+      num_processo: document.getElementById('proc_num').value,
+      acao_tipo: document.getElementById('proc_tipo').value,
+      polo: document.getElementById('proc_polo').value,
+      parte_contraria: document.getElementById('proc_parte_contraria').value,
+      vara_tribunal: document.getElementById('proc_vara').value,
+      valor_causa: document.getElementById('proc_valor').value,
+      honorarios: document.getElementById('proc_honorarios').value
+    };
+
+    try {
+      const res = await fetch(API_URL, {
+        method: 'POST',
+        body: JSON.stringify({ action: 'cadastrarProcesso', payload: payload })
+      });
+      const data = await res.json();
+      alert(data.message);
+      if(data.success) document.getElementById('formProcesso').reset();
+    } catch(err) {
+      alert("Erro ao salvar processo.");
+    } finally {
+      btn.disabled = false;
+      btn.innerHTML = '<i class="fa-solid fa-save me-1"></i> Cadastrar Processo';
+    }
+  }
+</script>
+</body>
+</html>
