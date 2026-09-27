@@ -63,7 +63,7 @@
         <div class="tab-pane fade" id="content-clientes">
           <h2 class="mb-4 text-dark fw-bold"><i class="fa-solid fa-user-plus me-2 text-primary"></i> Cadastro de Cliente</h2>
           <div class="card card-custom p-4 bg-white">
-            <form id="formCliente" onsubmit="salvarCliente(event)">
+            <form id="formCliente" onsubmit="validarESalvarCliente(event)">
               <div class="row g-3">
                 <div class="col-md-3">
                   <label class="form-label font-weight-bold">Tipo de Pessoa</label>
@@ -134,14 +134,10 @@
             <form id="formProcesso" onsubmit="salvarProcesso(event)">
               <div class="row g-3">
                 <div class="col-md-6">
-                  <div class="d-flex justify-content-between align-items-center mb-1">
-                    <label class="form-label mb-0">Selecione o Cliente</label>
-                    <button type="button" class="btn btn-sm btn-outline-primary py-0" onclick="carregarClientesNoSelect()">
-                      <i class="fa-solid fa-arrows-rotate"></i> Atualizar Lista
-                    </button>
-                  </div>
+                  <label class="form-label">Buscar / Selecionar Cliente (por Nome, CPF/CNPJ ou RG)</label>
+                  <input type="text" class="form-control mb-2" id="proc_busca_cliente" oninput="filtrarListaClientes()" placeholder="Digite para buscar cliente...">
                   <select class="form-select" id="proc_id_cliente" required>
-                    <option value="">Clique para carregar clientes...</option>
+                    <option value="">Aguardando busca de clientes...</option>
                   </select>
                 </div>
                 <div class="col-md-6">
@@ -150,7 +146,18 @@
                 </div>
                 <div class="col-md-4">
                   <label class="form-label">Tipo de Ação</label>
-                  <input type="text" class="form-control" id="proc_tipo" required>
+                  <select class="form-select" id="proc_tipo" required>
+                    <option value="">-- Selecione a Área/Ação --</option>
+                    <option value="Trabalhista">Trabalhista</option>
+                    <option value="Cível Geral">Cível Geral</option>
+                    <option value="Família e Sucessões">Família e Sucessões</option>
+                    <option value="Tributário">Tributário</option>
+                    <option value="Previdenciário">Previdenciário</option>
+                    <option value="Criminal / Penal">Criminal / Penal</option>
+                    <option value="Direito do Consumidor">Direito do Consumidor</option>
+                    <option value="Empresarial / Societário">Empresarial / Societário</option>
+                    <option value="Outros">Outros</option>
+                  </select>
                 </div>
                 <div class="col-md-4">
                   <label class="form-label">Polo</label>
@@ -193,6 +200,7 @@
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
 <script>
   const API_URL = "https://script.google.com/macros/s/AKfycbzmREya4ujybG5vN_2ivDF7E8JZGbHdLW8gsQkTHCrj4FzT23m_zVWmNz6uJUaghetLrA/exec";
+  let listaClientesGlobal = [];
 
   // --- MÁSCARAS E FORMATAÇÕES AUTOMÁTICAS ---
 
@@ -268,9 +276,10 @@
         body: formData
       });
 
-      alert('Registro salvo com sucesso!');
+      alert('Operação realizada com sucesso!');
       if (formElement) formElement.reset();
       atualizarMascarasTipo();
+      carregarClientesNoSelect();
     } catch (err) {
       alert('Erro de envio: ' + err);
     } finally {
@@ -279,8 +288,22 @@
     }
   }
 
-  function salvarCliente(e) {
+  function validarESalvarCliente(e) {
     e.preventDefault();
+    const docInput = document.getElementById('cli_cpf').value.replace(/\D/g, "");
+    
+    // Verifica se documento já existe na lista carregada
+    const existente = listaClientesGlobal.find(c => String(c.cpf_cnpj).replace(/\D/g, "") === docInput && docInput !== "");
+    
+    if (existente) {
+      const confirma = confirm(`Atenção: O documento informado já está cadastrado para o cliente "${existente.nome}".\n\nDeseja ATUALIZAR os dados deste cliente existente?`);
+      if (!confirma) return;
+    }
+
+    salvarCliente();
+  }
+
+  function salvarCliente() {
     const btn = document.getElementById('btnSalvarCli');
     const form = document.getElementById('formCliente');
 
@@ -325,38 +348,66 @@
     enviarDados(payload, btn, form);
   }
 
-  // --- LEITURA DE CLIENTES GARANTIDA (JSONP) ---
+  // --- LEITURA DE CLIENTES E BUSCA DINÂMICA ---
 
   function carregarClientesNoSelect() {
     const select = document.getElementById('proc_id_cliente');
     select.innerHTML = '<option value="">Carregando clientes do banco...</option>';
 
-    // Remove script antigo se existir
     const scriptAntigo = document.getElementById('script_jsonp_clientes');
     if (scriptAntigo) scriptAntigo.remove();
 
-    // Registra a função de callback global
     window.cbClientes = function(res) {
       if (res && res.success && res.data && res.data.length > 0) {
-        select.innerHTML = '<option value="">-- Selecione o Cliente --</option>';
-        res.data.forEach(cli => {
-          select.innerHTML += `<option value="${cli.id}">${cli.nome} (${cli.cpf_cnpj})</option>`;
-        });
+        listaClientesGlobal = res.data;
+        renderizarOptionsClientes(listaClientesGlobal);
       } else {
-        select.innerHTML = '<option value="">Nenhum cliente encontrado na planilha</option>';
+        listaClientesGlobal = [];
+        select.innerHTML = '<option value="">Nenhum cliente cadastrado ainda</option>';
       }
     };
 
-    // Cria tag script dinâmica para burlar CORS
     const script = document.createElement('script');
     script.id = 'script_jsonp_clientes';
     script.src = `${API_URL}?action=getClientes&callback=cbClientes&t=${new Date().getTime()}`;
     script.onerror = function() {
-      select.innerHTML = '<option value="">Erro de conexão ao carregar clientes</option>';
+      select.innerHTML = '<option value="">Erro ao carregar lista de clientes</option>';
     };
 
     document.body.appendChild(script);
   }
+
+  function renderizarOptionsClientes(lista) {
+    const select = document.getElementById('proc_id_cliente');
+    select.innerHTML = '<option value="">-- Selecione o Cliente --</option>';
+    lista.forEach(cli => {
+      const doc = cli.cpf_cnpj ? ` - Doc: ${cli.cpf_cnpj}` : '';
+      const rg = cli.rg_ie ? ` | RG: ${cli.rg_ie}` : '';
+      select.innerHTML += `<option value="${cli.id}">${cli.nome}${doc}${rg}</option>`;
+    });
+  }
+
+  function filtrarListaClientes() {
+    const termo = document.getElementById('proc_busca_cliente').value.toLowerCase().trim();
+    if (!termo) {
+      renderizarOptionsClientes(listaClientesGlobal);
+      return;
+    }
+
+    const filtrados = listaClientesGlobal.filter(cli => {
+      const nome = String(cli.nome).toLowerCase();
+      const doc = String(cli.cpf_cnpj).toLowerCase();
+      const rg = String(cli.rg_ie).toLowerCase();
+      return nome.includes(termo) || doc.includes(termo) || rg.includes(termo);
+    });
+
+    renderizarOptionsClientes(filtrados);
+  }
+
+  // Carrega a lista na inicialização para validação de duplicados
+  window.onload = function() {
+    carregarClientesNoSelect();
+  };
 </script>
 </body>
 </html>
