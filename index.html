@@ -134,7 +134,12 @@
             <form id="formProcesso" onsubmit="salvarProcesso(event)">
               <div class="row g-3">
                 <div class="col-md-6">
-                  <label class="form-label">Selecione o Cliente</label>
+                  <div class="d-flex justify-content-between align-items-center mb-1">
+                    <label class="form-label mb-0">Selecione o Cliente</label>
+                    <button type="button" class="btn btn-sm btn-outline-primary py-0" onclick="carregarClientesNoSelect()">
+                      <i class="fa-solid fa-arrows-rotate"></i> Atualizar Lista
+                    </button>
+                  </div>
                   <select class="form-select" id="proc_id_cliente" required>
                     <option value="">Clique para carregar clientes...</option>
                   </select>
@@ -187,7 +192,6 @@
 
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
 <script>
-  // SUA URL OFICIAL DE IMPLANTAÇÃO CONFIGURADA:
   const API_URL = "https://script.google.com/macros/s/AKfycbzmREya4ujybG5vN_2ivDF7E8JZGbHdLW8gsQkTHCrj4FzT23m_zVWmNz6uJUaghetLrA/exec";
 
   // --- MÁSCARAS E FORMATAÇÕES AUTOMÁTICAS ---
@@ -321,31 +325,34 @@
     enviarDados(payload, btn, form);
   }
 
-  // --- LEITURA DE CLIENTES (JSONP) ---
+  // --- LEITURA DE CLIENTES GARANTIDA (JSONP) ---
 
   function carregarClientesNoSelect() {
     const select = document.getElementById('proc_id_cliente');
-    select.innerHTML = '<option value="">Carregando clientes...</option>';
+    select.innerHTML = '<option value="">Carregando clientes do banco...</option>';
 
-    const oldScript = document.getElementById('jsonp_script');
-    if (oldScript) oldScript.remove();
+    // Remove script antigo se existir
+    const scriptAntigo = document.getElementById('script_jsonp_clientes');
+    if (scriptAntigo) scriptAntigo.remove();
 
-    window.processarClientes = function(result) {
-      if(result.success && result.data && result.data.length > 0) {
+    // Registra a função de callback global
+    window.cbClientes = function(res) {
+      if (res && res.success && res.data && res.data.length > 0) {
         select.innerHTML = '<option value="">-- Selecione o Cliente --</option>';
-        result.data.forEach(cli => {
+        res.data.forEach(cli => {
           select.innerHTML += `<option value="${cli.id}">${cli.nome} (${cli.cpf_cnpj})</option>`;
         });
       } else {
-        select.innerHTML = '<option value="">Nenhum cliente cadastrado ainda</option>';
+        select.innerHTML = '<option value="">Nenhum cliente encontrado na planilha</option>';
       }
     };
 
+    // Cria tag script dinâmica para burlar CORS
     const script = document.createElement('script');
-    script.id = 'jsonp_script';
-    script.src = `${API_URL}?action=getClientes&callback=processarClientes`;
+    script.id = 'script_jsonp_clientes';
+    script.src = `${API_URL}?action=getClientes&callback=cbClientes&t=${new Date().getTime()}`;
     script.onerror = function() {
-      select.innerHTML = '<option value="">Erro ao carregar clientes</option>';
+      select.innerHTML = '<option value="">Erro de conexão ao carregar clientes</option>';
     };
 
     document.body.appendChild(script);
