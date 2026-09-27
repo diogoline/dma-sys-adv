@@ -187,8 +187,8 @@
 
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
 <script>
-  // COLE SUA URL DE IMPLANTAÇÃO DO APPS SCRIPT NA LINHA ABAIXO:
-  const API_URL = "https://script.google.com/macros/s/SUA_IMPLANTACAO_AQUI/exec";
+  // SUA URL OFICIAL DE IMPLANTAÇÃO CONFIGURADA:
+  const API_URL = "https://script.google.com/macros/s/AKfycbzmREya4ujybG5vN_2ivDF7E8JZGbHdLW8gsQkTHCrj4FzT23m_zVWmNz6uJUaghetLrA/exec";
 
   // --- MÁSCARAS E FORMATAÇÕES AUTOMÁTICAS ---
 
@@ -248,43 +248,31 @@
     input.value = v;
   }
 
-  // --- GRAVAÇÃO GARANTIDA (SEM BLOQUEIO DE CORS) ---
+  // --- GRAVAÇÃO DIRETA (POST) ---
 
-  function enviarParaAppsScript(payload, btnElement, formElement) {
+  async function enviarDados(payload, btnElement, formElement) {
     btnElement.disabled = true;
     btnElement.innerHTML = '<i class="fa-solid fa-spinner fa-spin me-1"></i> Salvando...';
 
-    let iframe = document.getElementById('hidden_iframe');
-    if (!iframe) {
-      iframe = document.createElement('iframe');
-      iframe.id = 'hidden_iframe';
-      iframe.name = 'hidden_iframe';
-      iframe.style.display = 'none';
-      document.body.appendChild(iframe);
-    }
+    const formData = new FormData();
+    formData.append('data', JSON.stringify(payload));
 
-    const form = document.createElement('form');
-    form.method = 'POST';
-    form.action = API_URL;
-    form.target = 'hidden_iframe';
+    try {
+      await fetch(API_URL, {
+        method: 'POST',
+        mode: 'no-cors',
+        body: formData
+      });
 
-    const inputData = document.createElement('input');
-    inputData.type = 'hidden';
-    inputData.name = 'data';
-    inputData.value = JSON.stringify(payload);
-    form.appendChild(inputData);
-
-    document.body.appendChild(form);
-    form.submit();
-
-    setTimeout(() => {
-      alert('Registro enviado e salvo na planilha!');
+      alert('Registro salvo com sucesso!');
       if (formElement) formElement.reset();
       atualizarMascarasTipo();
+    } catch (err) {
+      alert('Erro de envio: ' + err);
+    } finally {
       btnElement.disabled = false;
       btnElement.innerHTML = '<i class="fa-solid fa-save me-1"></i> Salvar';
-      document.body.removeChild(form);
-    }, 1500);
+    }
   }
 
   function salvarCliente(e) {
@@ -308,7 +296,7 @@
       }
     };
 
-    enviarParaAppsScript(payload, btn, form);
+    enviarDados(payload, btn, form);
   }
 
   function salvarProcesso(e) {
@@ -330,20 +318,19 @@
       }
     };
 
-    enviarParaAppsScript(payload, btn, form);
+    enviarDados(payload, btn, form);
   }
 
-  // --- LEITURA VIA JSONP (BURLA O CORS DO NAVEGADOR) ---
+  // --- LEITURA DE CLIENTES (JSONP) ---
 
   function carregarClientesNoSelect() {
     const select = document.getElementById('proc_id_cliente');
     select.innerHTML = '<option value="">Carregando clientes...</option>';
 
-    // Cria script JSONP dinâmico
-    const oldScript = document.getElementById('jsonp_clientes');
+    const oldScript = document.getElementById('jsonp_script');
     if (oldScript) oldScript.remove();
 
-    window.processarListaClientes = function(result) {
+    window.processarClientes = function(result) {
       if(result.success && result.data && result.data.length > 0) {
         select.innerHTML = '<option value="">-- Selecione o Cliente --</option>';
         result.data.forEach(cli => {
@@ -355,8 +342,8 @@
     };
 
     const script = document.createElement('script');
-    script.id = 'jsonp_clientes';
-    script.src = `${API_URL}?action=getClientes&callback=processarListaClientes`;
+    script.id = 'jsonp_script';
+    script.src = `${API_URL}?action=getClientes&callback=processarClientes`;
     script.onerror = function() {
       select.innerHTML = '<option value="">Erro ao carregar clientes</option>';
     };
