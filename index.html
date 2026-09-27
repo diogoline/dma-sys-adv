@@ -40,7 +40,7 @@
           </button>
         </li>
         <li class="nav-item">
-          <button class="nav-link w-100 text-start" data-bs-toggle="pill" data-bs-target="#content-processos" onclick="carregarClientesNoSelect()">
+          <button class="nav-link w-100 text-start" data-bs-toggle="pill" data-bs-target="#content-processos">
             <i class="fa-solid fa-folder-open me-2"></i> Processos
           </button>
         </li>
@@ -61,9 +61,33 @@
 
         <!-- Clientes -->
         <div class="tab-pane fade" id="content-clientes">
-          <h2 class="mb-4 text-dark fw-bold"><i class="fa-solid fa-user-plus me-2 text-primary"></i> Cadastro de Cliente</h2>
+          <div class="d-flex justify-content-between align-items-center mb-4">
+            <h2 class="text-dark fw-bold mb-0"><i class="fa-solid fa-user-plus me-2 text-primary"></i> Gestão de Clientes</h2>
+            <button class="btn btn-outline-secondary btn-sm" onclick="limparFormularioCliente()">
+              <i class="fa-solid fa-file-circle-plus me-1"></i> Novo Cadastro
+            </button>
+          </div>
+
+          <!-- Busca Inteligente de Cliente -->
+          <div class="card card-custom p-3 bg-white mb-4 border-start border-4 border-info">
+            <label class="form-label font-weight-bold text-dark"><i class="fa-solid fa-magnifying-glass me-1 text-info"></i> Busca Inteligente (ID, Nome, CPF/CNPJ ou RG)</label>
+            <div class="row g-2">
+              <div class="col-md-10">
+                <input type="text" class="form-control" id="busca_cliente_input" oninput="filtrarBuscaClienteTela()" placeholder="Digite o ID (ex: CLI-0001), Nome, CPF ou RG...">
+              </div>
+              <div class="col-md-2">
+                <button class="btn btn-info text-white w-100" onclick="carregarBancoDadosGlobal()">
+                  <i class="fa-solid fa-arrows-rotate"></i> Atualizar
+                </button>
+              </div>
+            </div>
+            <select class="form-select mt-2 d-none" id="busca_cliente_select" onchange="preencherCamposClienteSelecionado()"></select>
+          </div>
+
+          <!-- Form Cadastro / Edição -->
           <div class="card card-custom p-4 bg-white">
             <form id="formCliente" onsubmit="validarESalvarCliente(event)">
+              <input type="hidden" id="cli_id_hidden">
               <div class="row g-3">
                 <div class="col-md-3">
                   <label class="form-label font-weight-bold">Tipo de Pessoa</label>
@@ -134,10 +158,10 @@
             <form id="formProcesso" onsubmit="salvarProcesso(event)">
               <div class="row g-3">
                 <div class="col-md-6">
-                  <label class="form-label">Buscar / Selecionar Cliente (por Nome, CPF/CNPJ ou RG)</label>
-                  <input type="text" class="form-control mb-2" id="proc_busca_cliente" oninput="filtrarListaClientes()" placeholder="Digite para buscar cliente...">
+                  <label class="form-label">Buscar / Selecionar Cliente (por ID, Nome, CPF ou RG)</label>
+                  <input type="text" class="form-control mb-2" id="proc_busca_cliente" oninput="filtrarListaClientesProcesso()" placeholder="Digite para buscar...">
                   <select class="form-select" id="proc_id_cliente" required>
-                    <option value="">Aguardando busca de clientes...</option>
+                    <option value="">Aguardando seleção...</option>
                   </select>
                 </div>
                 <div class="col-md-6">
@@ -200,9 +224,7 @@
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
 <script>
   const API_URL = "https://script.google.com/macros/s/AKfycbzmREya4ujybG5vN_2ivDF7E8JZGbHdLW8gsQkTHCrj4FzT23m_zVWmNz6uJUaghetLrA/exec";
-  let listaClientesGlobal = [];
-
-  // --- MÁSCARAS E FORMATAÇÕES AUTOMÁTICAS ---
+  let dbClientes = [];
 
   function atualizarMascarasTipo() {
     const tipo = document.getElementById('cli_tipo').value;
@@ -212,20 +234,17 @@
     const lblRg = document.getElementById('lbl_rg');
     const selectEstadoCivil = document.getElementById('cli_estado_civil');
 
-    inputCpf.value = '';
-
     if (tipo === 'PJ') {
       lblNome.innerText = "Razão Social";
       lblCpf.innerText = "CNPJ";
       lblRg.innerText = "Inscrição Estadual (IE)";
       inputCpf.placeholder = "00.000.000/0000-00";
-      selectEstadoCivil.value = "Não Aplicável (PJ)";
+      if(!selectEstadoCivil.value) selectEstadoCivil.value = "Não Aplicável (PJ)";
     } else {
       lblNome.innerText = "Nome Completo";
       lblCpf.innerText = "CPF";
       lblRg.innerText = "RG";
       inputCpf.placeholder = "000.000.000-00";
-      selectEstadoCivil.value = "";
     }
   }
 
@@ -260,11 +279,87 @@
     input.value = v;
   }
 
-  // --- GRAVAÇÃO DIRETA (POST) ---
+  function carregarBancoDadosGlobal() {
+    const oldScript = document.getElementById('jsonp_db');
+    if (oldScript) oldScript.remove();
+
+    window.cbBancoCompleto = function(res) {
+      if (res && res.success && res.data) {
+        dbClientes = res.data;
+        renderizarOptionsProcessos(dbClientes);
+      }
+    };
+
+    const script = document.createElement('script');
+    script.id = 'jsonp_db';
+    script.src = API_URL + "?action=getClientesCompleto&callback=cbBancoCompleto&t=" + new Date().getTime();
+    document.body.appendChild(script);
+  }
+
+  function filtrarBuscaClienteTela() {
+    const termo = document.getElementById('busca_cliente_input').value.toLowerCase().trim();
+    const select = document.getElementById('busca_cliente_select');
+
+    if (!termo) {
+      select.classList.add('d-none');
+      return;
+    }
+
+    const encontrados = dbClientes.filter(function(c) {
+      return String(c.id).toLowerCase().indexOf(termo) !== -1 ||
+             String(c.nome_razao).toLowerCase().indexOf(termo) !== -1 ||
+             String(c.cpf_cnpj).replace(/\D/g, "").indexOf(termo.replace(/\D/g, "")) !== -1 ||
+             String(c.rg_ie).toLowerCase().indexOf(termo) !== -1;
+    });
+
+    if (encontrados.length > 0) {
+      select.innerHTML = '<option value="">-- Clique para selecionar e preencher os campos --</option>';
+      encontrados.forEach(function(c) {
+        select.innerHTML += '<option value="' + c.id + '">[' + c.id + '] ' + c.nome_razao + ' - Doc: ' + c.cpf_cnpj + '</option>';
+      });
+      select.classList.remove('d-none');
+    } else {
+      select.innerHTML = '<option value="">Nenhum cliente encontrado com esse termo</option>';
+      select.classList.remove('d-none');
+    }
+  }
+
+  function preencherCamposClienteSelecionado() {
+    const id = document.getElementById('busca_cliente_select').value;
+    if (!id) return;
+
+    const cliente = dbClientes.find(function(c) { return c.id === id; });
+    if (cliente) {
+      document.getElementById('cli_id_hidden').value = cliente.id;
+      document.getElementById('cli_tipo').value = cliente.tipo || 'PF';
+      atualizarMascarasTipo();
+      
+      document.getElementById('cli_nome').value = cliente.nome_razao || '';
+      document.getElementById('cli_cpf').value = cliente.cpf_cnpj || '';
+      document.getElementById('cli_rg').value = cliente.rg_ie || '';
+      document.getElementById('cli_estado_civil').value = cliente.estado_civil || '';
+      document.getElementById('cli_profissao').value = cliente.profissao || '';
+      document.getElementById('cli_telefone').value = cliente.telefone || '';
+      document.getElementById('cli_endereco').value = cliente.endereco || '';
+      document.getElementById('cli_email').value = cliente.email || '';
+      document.getElementById('cli_obs').value = cliente.obs || '';
+
+      document.getElementById('busca_cliente_select').classList.add('d-none');
+      alert('Dados do cliente [' + cliente.id + '] preenchidos na tela! Você pode alterar os campos e clicar em Salvar para atualizar.');
+    }
+  }
+
+  function limparFormularioCliente() {
+    document.getElementById('cli_id_hidden').value = '';
+    document.getElementById('formCliente').reset();
+    document.getElementById('busca_cliente_input').value = '';
+    document.getElementById('busca_cliente_select').classList.add('d-none');
+    atualizarMascarasTipo();
+  }
 
   async function enviarDados(payload, btnElement, formElement) {
     btnElement.disabled = true;
-    btnElement.innerHTML = '<i class="fa-solid fa-spinner fa-spin me-1"></i> Salvando...';
+    btnElement.innerHTML = '<i class="fa-solid fa-spinner fa-spin me-1"></i> Processando...';
 
     const formData = new FormData();
     formData.append('data', JSON.stringify(payload));
@@ -276,12 +371,12 @@
         body: formData
       });
 
-      alert('Operação realizada com sucesso!');
+      alert('Registro gravado com sucesso no banco de dados!');
       if (formElement) formElement.reset();
-      atualizarMascarasTipo();
-      carregarClientesNoSelect();
+      limparFormularioCliente();
+      carregarBancoDadosGlobal();
     } catch (err) {
-      alert('Erro de envio: ' + err);
+      alert('Erro ao enviar dados: ' + err);
     } finally {
       btnElement.disabled = false;
       btnElement.innerHTML = '<i class="fa-solid fa-save me-1"></i> Salvar';
@@ -291,13 +386,16 @@
   function validarESalvarCliente(e) {
     e.preventDefault();
     const docInput = document.getElementById('cli_cpf').value.replace(/\D/g, "");
-    
-    // Verifica se documento já existe na lista carregada
-    const existente = listaClientesGlobal.find(c => String(c.cpf_cnpj).replace(/\D/g, "") === docInput && docInput !== "");
-    
+    const idAtual = document.getElementById('cli_id_hidden').value;
+
+    const existente = dbClientes.find(function(c) {
+      return String(c.cpf_cnpj).replace(/\D/g, "") === docInput && docInput !== "" && c.id !== idAtual;
+    });
+
     if (existente) {
-      const confirma = confirm(`Atenção: O documento informado já está cadastrado para o cliente "${existente.nome}".\n\nDeseja ATUALIZAR os dados deste cliente existente?`);
+      const confirma = confirm("ATENÇÃO DE DUPLICIDADE:\n\nJá existe um cliente cadastrado com este documento!\n\nID: " + existente.id + "\nNome: " + existente.nome_razao + "\n\nDeseja ATUALIZAR o cadastro deste cliente com as novas informações?");
       if (!confirma) return;
+      document.getElementById('cli_id_hidden').value = existente.id;
     }
 
     salvarCliente();
@@ -308,8 +406,9 @@
     const form = document.getElementById('formCliente');
 
     const payload = {
-      action: 'cadastrarCliente',
+      action: 'salvarCliente',
       payload: {
+        id_cliente: document.getElementById('cli_id_hidden').value,
         tipo: document.getElementById('cli_tipo').value,
         nome_razao: document.getElementById('cli_nome').value,
         cpf_cnpj: document.getElementById('cli_cpf').value,
@@ -348,65 +447,38 @@
     enviarDados(payload, btn, form);
   }
 
-  // --- LEITURA DE CLIENTES E BUSCA DINÂMICA ---
-
-  function carregarClientesNoSelect() {
+  function renderizarOptionsProcessos(lista) {
     const select = document.getElementById('proc_id_cliente');
-    select.innerHTML = '<option value="">Carregando clientes do banco...</option>';
-
-    const scriptAntigo = document.getElementById('script_jsonp_clientes');
-    if (scriptAntigo) scriptAntigo.remove();
-
-    window.cbClientes = function(res) {
-      if (res && res.success && res.data && res.data.length > 0) {
-        listaClientesGlobal = res.data;
-        renderizarOptionsClientes(listaClientesGlobal);
-      } else {
-        listaClientesGlobal = [];
-        select.innerHTML = '<option value="">Nenhum cliente cadastrado ainda</option>';
-      }
-    };
-
-    const script = document.createElement('script');
-    script.id = 'script_jsonp_clientes';
-    script.src = `${API_URL}?action=getClientes&callback=cbClientes&t=${new Date().getTime()}`;
-    script.onerror = function() {
-      select.innerHTML = '<option value="">Erro ao carregar lista de clientes</option>';
-    };
-
-    document.body.appendChild(script);
-  }
-
-  function renderizarOptionsClientes(lista) {
-    const select = document.getElementById('proc_id_cliente');
+    if (!lista || lista.length === 0) {
+      select.innerHTML = '<option value="">Nenhum cliente cadastrado no banco</option>';
+      return;
+    }
     select.innerHTML = '<option value="">-- Selecione o Cliente --</option>';
-    lista.forEach(cli => {
-      const doc = cli.cpf_cnpj ? ` - Doc: ${cli.cpf_cnpj}` : '';
-      const rg = cli.rg_ie ? ` | RG: ${cli.rg_ie}` : '';
-      select.innerHTML += `<option value="${cli.id}">${cli.nome}${doc}${rg}</option>`;
+    lista.forEach(function(c) {
+      const doc = c.cpf_cnpj ? ' - Doc: ' + c.cpf_cnpj : '';
+      select.innerHTML += '<option value="' + c.id + '">[' + c.id + '] ' + c.nome_razao + doc + '</option>';
     });
   }
 
-  function filtrarListaClientes() {
+  function filtrarListaClientesProcesso() {
     const termo = document.getElementById('proc_busca_cliente').value.toLowerCase().trim();
     if (!termo) {
-      renderizarOptionsClientes(listaClientesGlobal);
+      renderizarOptionsProcessos(dbClientes);
       return;
     }
 
-    const filtrados = listaClientesGlobal.filter(cli => {
-      const nome = String(cli.nome).toLowerCase();
-      const doc = String(cli.cpf_cnpj).toLowerCase();
-      const rg = String(cli.rg_ie).toLowerCase();
-      return nome.includes(termo) || doc.includes(termo) || rg.includes(termo);
+    const filtrados = dbClientes.filter(function(c) {
+      return String(c.id).toLowerCase().indexOf(termo) !== -1 ||
+             String(c.nome_razao).toLowerCase().indexOf(termo) !== -1 ||
+             String(c.cpf_cnpj).replace(/\D/g, "").indexOf(termo.replace(/\D/g, "")) !== -1 ||
+             String(c.rg_ie).toLowerCase().indexOf(termo) !== -1;
     });
 
-    renderizarOptionsClientes(filtrados);
+    renderizarOptionsProcessos(filtrados);
   }
 
-  // Carrega a lista na inicialização para validação de duplicados
   window.onload = function() {
-    carregarClientesNoSelect();
+    carregarBancoDadosGlobal();
   };
 </script>
 </body>
