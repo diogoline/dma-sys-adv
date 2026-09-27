@@ -73,7 +73,7 @@
             <label class="form-label font-weight-bold text-dark"><i class="fa-solid fa-magnifying-glass me-1 text-info"></i> Busca Inteligente (ID, Nome, CPF/CNPJ ou RG)</label>
             <div class="row g-2">
               <div class="col-md-10">
-                <input type="text" class="form-control" id="busca_cliente_input" oninput="filtrarBuscaClienteTela()" placeholder="Digite o ID (ex: CLI-0001), Nome, CPF ou RG...">
+                <input type="text" class="form-control" id="busca_cliente_input" oninput="filtrarBuscaClienteTela()" placeholder="Digite o ID (ex: CLI-0002), Nome, CPF ou RG...">
               </div>
               <div class="col-md-2">
                 <button class="btn btn-info text-white w-100" onclick="carregarBancoDadosGlobal()">
@@ -279,6 +279,7 @@
     input.value = v;
   }
 
+  // --- CARREGAMENTO DO BANCO DE DADOS GLOBAL VIA JSONP ---
   function carregarBancoDadosGlobal() {
     const oldScript = document.getElementById('jsonp_db');
     if (oldScript) oldScript.remove();
@@ -307,10 +308,12 @@
     }
 
     const encontrados = dbClientes.filter(function(c) {
-      return String(c.id).toLowerCase().indexOf(termo) !== -1 ||
-             String(c.nome_razao).toLowerCase().indexOf(termo) !== -1 ||
-             String(c.cpf_cnpj).replace(/\D/g, "").indexOf(termo.replace(/\D/g, "")) !== -1 ||
-             String(c.rg_ie).toLowerCase().indexOf(termo) !== -1;
+      const docLimpo = String(c.cpf_cnpj || "").replace(/\D/g, "");
+      const termoLimpo = termo.replace(/\D/g, "");
+      return String(c.id || "").toLowerCase().indexOf(termo) !== -1 ||
+             String(c.nome_razao || "").toLowerCase().indexOf(termo) !== -1 ||
+             (termoLimpo !== "" && docLimpo.indexOf(termoLimpo) !== -1) ||
+             String(c.rg_ie || "").toLowerCase().indexOf(termo) !== -1;
     });
 
     if (encontrados.length > 0) {
@@ -469,10 +472,12 @@
     }
 
     const filtrados = dbClientes.filter(function(c) {
-      return String(c.id).toLowerCase().indexOf(termo) !== -1 ||
-             String(c.nome_razao).toLowerCase().indexOf(termo) !== -1 ||
-             String(c.cpf_cnpj).replace(/\D/g, "").indexOf(termo.replace(/\D/g, "")) !== -1 ||
-             String(c.rg_ie).toLowerCase().indexOf(termo) !== -1;
+      const docLimpo = String(c.cpf_cnpj || "").replace(/\D/g, "");
+      const termoLimpo = termo.replace(/\D/g, "");
+      return String(c.id || "").toLowerCase().indexOf(termo) !== -1 ||
+             String(c.nome_razao || "").toLowerCase().indexOf(termo) !== -1 ||
+             (termoLimpo !== "" && docLimpo.indexOf(termoLimpo) !== -1) ||
+             String(c.rg_ie || "").toLowerCase().indexOf(termo) !== -1;
     });
 
     renderizarOptionsProcessos(filtrados);
