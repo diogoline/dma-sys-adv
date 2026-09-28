@@ -20,7 +20,7 @@
 </head>
 <body>
 
-<!-- TELA DE LOGIN (Exibida por padrão se não houver sessão) -->
+<!-- TELA DE LOGIN -->
 <div id="screen-login" class="container login-container">
   <div class="card card-custom p-4 bg-white shadow-lg">
     <div class="text-center mb-4">
@@ -33,14 +33,14 @@
         <label class="form-label font-weight-bold">Usuário / E-mail</label>
         <div class="input-group">
           <span class="input-group-text bg-light"><i class="fa-solid fa-user text-secondary"></i></span>
-          <input type="text" class="form-control" id="login_usuario" required placeholder="Digite seu usuário ou e-mail">
+          <input type="text" class="form-control" id="login_usuario" required placeholder="admsys.adv@gmail.com">
         </div>
       </div>
       <div class="mb-4">
         <label class="form-label font-weight-bold">Senha</label>
         <div class="input-group">
           <span class="input-group-text bg-light"><i class="fa-solid fa-lock text-secondary"></i></span>
-          <input type="password" class="form-control" id="login_senha" required placeholder="Digite sua senha">
+          <input type="password" class="form-control" id="login_senha" required placeholder="******">
         </div>
       </div>
       <button type="submit" class="btn btn-primary w-100 py-2 fw-bold" id="btnLogin">
@@ -50,7 +50,7 @@
   </div>
 </div>
 
-<!-- SISTEMA PRINCIPAL (Oculto até realizar o login) -->
+<!-- SISTEMA PRINCIPAL -->
 <div id="screen-app" class="container-fluid d-none">
   <div class="row">
     <!-- Menu Lateral -->
@@ -284,7 +284,7 @@
     }
   }
 
-  async function executarLogin(e) {
+  function executarLogin(e) {
     e.preventDefault();
     const btn = document.getElementById('btnLogin');
     btn.disabled = true;
@@ -298,25 +298,29 @@
       }
     };
 
-    try {
-      const response = await fetch(API_URL, {
-        method: 'POST',
-        body: JSON.stringify(payload)
-      });
-      const result = await response.json();
+    const formData = new FormData();
+    formData.append('data', JSON.stringify(payload));
 
+    fetch(API_URL, {
+      method: 'POST',
+      body: formData
+    })
+    .then(res => res.json())
+    .then(result => {
       if (result.success) {
         sessionStorage.setItem('dma_user', JSON.stringify({ usuario: result.usuario, chave: result.chave }));
         verificarSessao();
       } else {
         alert(result.message || 'Falha ao autenticar.');
       }
-    } catch (err) {
-      alert('Erro de conexão com o servidor de autenticação.');
-    } finally {
+    })
+    .catch(err => {
+      alert('Erro de conexão ou autenticação. Verifique os dados e tente novamente.');
+    })
+    .finally(() => {
       btn.disabled = false;
       btn.innerHTML = '<i class="fa-solid fa-right-to-bracket me-1"></i> Entrar no Sistema';
-    }
+    });
   }
 
   function fazerLogout() {
@@ -469,7 +473,6 @@
     btnElement.disabled = true;
     btnElement.innerHTML = '<i class="fa-solid fa-spinner fa-spin me-1"></i> Processando...';
 
-    // Anexa o usuário logado no payload para gravar no log de alteração
     payload.payload.usuario_operador = usuarioLogado ? usuarioLogado.usuario : "Desconhecido";
 
     const formData = new FormData();
@@ -590,7 +593,6 @@
     renderizarOptionsProcessos(filtrados);
   }
 
-  // Executa verificação de sessão ao carregar a página
   window.onload = function() {
     verificarSessao();
   };
