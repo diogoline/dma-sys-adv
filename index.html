@@ -73,7 +73,7 @@
             <label class="form-label font-weight-bold text-dark"><i class="fa-solid fa-magnifying-glass me-1 text-info"></i> Busca Inteligente (ID, Nome, CPF/CNPJ ou RG)</label>
             <div class="row g-2">
               <div class="col-md-10">
-                <input type="text" class="form-control" id="busca_cliente_input" oninput="filtrarBuscaClienteTela()" placeholder="Digite o ID (ex: CLI-0002), Nome, CPF ou RG...">
+                <input type="text" class="form-control" id="busca_cliente_input" onkeyup="filtrarBuscaClienteTela()" placeholder="Digite o ID (ex: CLI-0002), Nome, CPF ou RG...">
               </div>
               <div class="col-md-2">
                 <button class="btn btn-info text-white w-100" onclick="carregarBancoDadosGlobal()">
@@ -159,9 +159,9 @@
               <div class="row g-3">
                 <div class="col-md-6">
                   <label class="form-label">Buscar / Selecionar Cliente (por ID, Nome, CPF ou RG)</label>
-                  <input type="text" class="form-control mb-2" id="proc_busca_cliente" oninput="filtrarListaClientesProcesso()" placeholder="Digite para buscar...">
+                  <input type="text" class="form-control mb-2" id="proc_busca_cliente" onkeyup="filtrarListaClientesProcesso()" placeholder="Digite para filtrar a lista abaixo...">
                   <select class="form-select" id="proc_id_cliente" required>
-                    <option value="">Aguardando seleção...</option>
+                    <option value="">Aguardando seleção de cliente...</option>
                   </select>
                 </div>
                 <div class="col-md-6">
@@ -279,12 +279,13 @@
     input.value = v;
   }
 
-  // --- CARREGAMENTO DO BANCO DE DADOS GLOBAL VIA JSONP ---
+  // --- CARREGAMENTO GLOBAL VIA JSONP ---
   function carregarBancoDadosGlobal() {
-    const oldScript = document.getElementById('jsonp_db');
+    const scriptId = 'jsonp_db_script';
+    const oldScript = document.getElementById(scriptId);
     if (oldScript) oldScript.remove();
 
-    window.cbBancoCompleto = function(res) {
+    window.processarRetornoBanco = function(res) {
       if (res && res.success && res.data) {
         dbClientes = res.data;
         renderizarOptionsProcessos(dbClientes);
@@ -293,8 +294,8 @@
     };
 
     const script = document.createElement('script');
-    script.id = 'jsonp_db';
-    script.src = API_URL + "?action=getClientesCompleto&callback=cbBancoCompleto&t=" + new Date().getTime();
+    script.id = scriptId;
+    script.src = API_URL + "?action=getClientesCompleto&callback=processarRetornoBanco&t=" + new Date().getTime();
     document.body.appendChild(script);
   }
 
@@ -317,13 +318,13 @@
     });
 
     if (encontrados.length > 0) {
-      select.innerHTML = '<option value="">-- Clique para selecionar e preencher os campos --</option>';
+      select.innerHTML = '<option value="">-- Clique abaixo para preencher os campos --</option>';
       encontrados.forEach(function(c) {
         select.innerHTML += '<option value="' + c.id + '">[' + c.id + '] ' + c.nome_razao + ' - Doc: ' + c.cpf_cnpj + '</option>';
       });
       select.classList.remove('d-none');
     } else {
-      select.innerHTML = '<option value="">Nenhum cliente encontrado com esse termo</option>';
+      select.innerHTML = '<option value="">Nenhum cliente encontrado</option>';
       select.classList.remove('d-none');
     }
   }
@@ -349,7 +350,7 @@
       document.getElementById('cli_obs').value = cliente.obs || '';
 
       document.getElementById('busca_cliente_select').classList.add('d-none');
-      alert('Dados do cliente [' + cliente.id + '] preenchidos na tela!');
+      alert('Cliente [' + cliente.id + '] carregado com sucesso!');
     }
   }
 
@@ -375,12 +376,12 @@
         body: formData
       });
 
-      alert('Registro gravado com sucesso no banco de dados!');
+      alert('Operação gravada no banco de dados!');
       if (formElement) formElement.reset();
       limparFormularioCliente();
       carregarBancoDadosGlobal();
     } catch (err) {
-      alert('Erro ao enviar dados: ' + err);
+      alert('Erro de envio: ' + err);
     } finally {
       btnElement.disabled = false;
       btnElement.innerHTML = '<i class="fa-solid fa-save me-1"></i> Salvar';
