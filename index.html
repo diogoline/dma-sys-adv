@@ -15,18 +15,59 @@
     .sidebar .nav-link:hover, .sidebar .nav-link.active { background-color: #334155; color: #fff; }
     .card-custom { border: none; border-radius: 0.75rem; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1); }
     .brand-header { font-weight: 700; letter-spacing: 1px; color: #38bdf8; }
+    .login-container { max-width: 420px; margin: 80px auto; }
   </style>
 </head>
 <body>
 
-<div class="container-fluid">
+<!-- TELA DE LOGIN (Exibida por padrão se não houver sessão) -->
+<div id="screen-login" class="container login-container">
+  <div class="card card-custom p-4 bg-white shadow-lg">
+    <div class="text-center mb-4">
+      <i class="fa-solid fa-scale-balanced fa-3x text-primary mb-2"></i>
+      <h3 class="fw-bold text-dark mb-0">DMA SYS</h3>
+      <p class="text-muted small">Acesso Restrito ao Sistema Jurídico</p>
+    </div>
+    <form id="formLogin" onsubmit="executarLogin(event)">
+      <div class="mb-3">
+        <label class="form-label font-weight-bold">Usuário / E-mail</label>
+        <div class="input-group">
+          <span class="input-group-text bg-light"><i class="fa-solid fa-user text-secondary"></i></span>
+          <input type="text" class="form-control" id="login_usuario" required placeholder="Digite seu usuário ou e-mail">
+        </div>
+      </div>
+      <div class="mb-4">
+        <label class="form-label font-weight-bold">Senha</label>
+        <div class="input-group">
+          <span class="input-group-text bg-light"><i class="fa-solid fa-lock text-secondary"></i></span>
+          <input type="password" class="form-control" id="login_senha" required placeholder="Digite sua senha">
+        </div>
+      </div>
+      <button type="submit" class="btn btn-primary w-100 py-2 fw-bold" id="btnLogin">
+        <i class="fa-solid fa-right-to-bracket me-1"></i> Entrar no Sistema
+      </button>
+    </form>
+  </div>
+</div>
+
+<!-- SISTEMA PRINCIPAL (Oculto até realizar o login) -->
+<div id="screen-app" class="container-fluid d-none">
   <div class="row">
     <!-- Menu Lateral -->
     <nav class="col-md-3 col-lg-2 d-md-block sidebar p-3 collapse show">
-      <div class="d-flex align-items-center mb-4 text-decoration-none">
+      <div class="d-flex align-items-center mb-3 text-decoration-none">
         <i class="fa-solid fa-scale-balanced fa-2x me-2 text-info"></i>
         <span class="fs-4 brand-header">DMA SYS <small class="fs-6 text-muted d-block">ADV</small></span>
       </div>
+      
+      <!-- Usuário Logado -->
+      <div class="p-2 mb-3 bg-dark rounded text-light small border border-secondary">
+        <i class="fa-solid fa-user-check text-success me-1"></i> <span id="label_user_logged">Carregando...</span>
+        <button class="btn btn-link btn-sm text-danger p-0 ms-2 float-end" onclick="fazerLogout()" title="Sair do Sistema">
+          <i class="fa-solid fa-power-off"></i> Sair
+        </button>
+      </div>
+
       <hr class="text-secondary">
       <ul class="nav flex-column nav-pills" id="mainTabs" role="tablist">
         <li class="nav-item">
@@ -55,7 +96,7 @@
         <div class="tab-pane fade show active" id="content-home">
           <h2 class="mb-4 text-dark fw-bold"><i class="fa-solid fa-gauge me-2 text-primary"></i> Painel Geral</h2>
           <div class="card card-custom p-4 bg-white">
-            <p class="text-secondary mb-0">Sistema conectado via API ao Google Sheets da conta admsys.adv@gmail.com.</p>
+            <p class="text-secondary mb-0">Sistema conectado e protegido com autenticação de usuário no Google Sheets.</p>
           </div>
         </div>
 
@@ -225,6 +266,66 @@
 <script>
   const API_URL = "https://script.google.com/macros/s/AKfycbzmREya4ujybG5vN_2ivDF7E8JZGbHdLW8gsQkTHCrj4FzT23m_zVWmNz6uJUaghetLrA/exec";
   let dbClientes = [];
+  let usuarioLogado = null;
+
+  // --- CONTROLE DE LOGIN E SESSÃO ---
+
+  function verificarSessao() {
+    const userSession = sessionStorage.getItem('dma_user');
+    if (userSession) {
+      usuarioLogado = JSON.parse(userSession);
+      document.getElementById('screen-login').classList.add('d-none');
+      document.getElementById('screen-app').classList.remove('d-none');
+      document.getElementById('label_user_logged').innerText = usuarioLogado.usuario;
+      carregarBancoDadosGlobal();
+    } else {
+      document.getElementById('screen-login').classList.remove('d-none');
+      document.getElementById('screen-app').classList.add('d-none');
+    }
+  }
+
+  async function executarLogin(e) {
+    e.preventDefault();
+    const btn = document.getElementById('btnLogin');
+    btn.disabled = true;
+    btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin me-1"></i> Verificando...';
+
+    const payload = {
+      action: 'login',
+      payload: {
+        usuario: document.getElementById('login_usuario').value,
+        senha: document.getElementById('login_senha').value
+      }
+    };
+
+    try {
+      const response = await fetch(API_URL, {
+        method: 'POST',
+        body: JSON.stringify(payload)
+      });
+      const result = await response.json();
+
+      if (result.success) {
+        sessionStorage.setItem('dma_user', JSON.stringify({ usuario: result.usuario, chave: result.chave }));
+        verificarSessao();
+      } else {
+        alert(result.message || 'Falha ao autenticar.');
+      }
+    } catch (err) {
+      alert('Erro de conexão com o servidor de autenticação.');
+    } finally {
+      btn.disabled = false;
+      btn.innerHTML = '<i class="fa-solid fa-right-to-bracket me-1"></i> Entrar no Sistema';
+    }
+  }
+
+  function fazerLogout() {
+    sessionStorage.removeItem('dma_user');
+    usuarioLogado = null;
+    verificarSessao();
+  }
+
+  // --- FUNÇÕES DA INTERFACE ---
 
   function atualizarMascarasTipo() {
     const tipo = document.getElementById('cli_tipo').value;
@@ -281,6 +382,8 @@
 
   // --- CARREGAMENTO GLOBAL VIA JSONP ---
   function carregarBancoDadosGlobal() {
+    if (!usuarioLogado) return;
+    
     const scriptId = 'jsonp_db_script';
     const oldScript = document.getElementById(scriptId);
     if (oldScript) oldScript.remove();
@@ -366,6 +469,9 @@
     btnElement.disabled = true;
     btnElement.innerHTML = '<i class="fa-solid fa-spinner fa-spin me-1"></i> Processando...';
 
+    // Anexa o usuário logado no payload para gravar no log de alteração
+    payload.payload.usuario_operador = usuarioLogado ? usuarioLogado.usuario : "Desconhecido";
+
     const formData = new FormData();
     formData.append('data', JSON.stringify(payload));
 
@@ -376,7 +482,7 @@
         body: formData
       });
 
-      alert('Operação gravada no banco de dados!');
+      alert('Operação gravada com sucesso!');
       if (formElement) formElement.reset();
       limparFormularioCliente();
       carregarBancoDadosGlobal();
@@ -484,8 +590,9 @@
     renderizarOptionsProcessos(filtrados);
   }
 
+  // Executa verificação de sessão ao carregar a página
   window.onload = function() {
-    carregarBancoDadosGlobal();
+    verificarSessao();
   };
 </script>
 </body>
