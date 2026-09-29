@@ -17,6 +17,15 @@
     .brand-header { font-weight: 700; letter-spacing: 1px; color: #38bdf8; }
     .login-container { max-width: 420px; margin: 80px auto; }
     .cursor-pointer { cursor: pointer; }
+    
+    /* Estilos de Impressão do Contrato/Procuração */
+    @media print {
+      body * { visibility: hidden; }
+      #printArea, #printArea * { visibility: visible; }
+      #printArea { position: absolute; left: 0; top: 0; width: 100%; font-family: 'Times New Roman', Times, serif; font-size: 12pt; line-height: 1.5; color: #000; }
+      .no-print { display: none !important; }
+      .page-break { page-break-before: always; }
+    }
   </style>
 </head>
 <body>
@@ -55,7 +64,7 @@
 <div id="screen-app" class="container-fluid d-none">
   <div class="row">
     <!-- Menu Lateral -->
-    <nav class="col-md-3 col-lg-2 d-md-block sidebar p-3 collapse show">
+    <nav class="col-md-3 col-lg-2 d-md-block sidebar p-3 collapse show no-print">
       <div class="d-flex align-items-center mb-3 text-decoration-none">
         <i class="fa-solid fa-scale-balanced fa-2x me-2 text-info"></i>
         <span class="fs-4 brand-header">DMA SYS <small class="fs-6 text-muted d-block">ADV</small></span>
@@ -97,7 +106,6 @@
         <div class="tab-pane fade show active" id="content-home">
           <h2 class="mb-4 text-dark fw-bold"><i class="fa-solid fa-gauge me-2 text-primary"></i> Painel Geral</h2>
           
-          <!-- Cards Resumo de Indicadores -->
           <div class="row g-3 mb-4">
             <div class="col-md-3">
               <div class="card card-custom p-3 bg-white border-start border-4 border-primary">
@@ -125,7 +133,6 @@
             </div>
           </div>
 
-          <!-- Tabela de Processos com Filtros Inteligentes -->
           <div class="card card-custom p-4 bg-white">
             <div class="d-flex justify-content-between align-items-center mb-3">
               <h4 class="fw-bold text-dark mb-0"><i class="fa-solid fa-list-check text-primary me-2"></i> Grade Geral de Processos</h4>
@@ -134,7 +141,6 @@
               </button>
             </div>
 
-            <!-- Filtros em Tempo Real -->
             <div class="row g-2 mb-3">
               <div class="col-md-6">
                 <input type="text" class="form-control" id="grid_search_input" onkeyup="filtrarGradeProcessos()" placeholder="🔍 Pesquisar por Cliente, CNJ, CPF, Ação ou Parte Contrária...">
@@ -156,7 +162,6 @@
               </div>
             </div>
 
-            <!-- Grade de Dados -->
             <div class="table-responsive">
               <table class="table table-hover align-middle">
                 <thead class="table-light">
@@ -317,8 +322,8 @@
                   </select>
                 </div>
                 <div class="col-md-4">
-                  <label class="form-label">Parte Contrária</label>
-                  <input type="text" class="form-control" id="proc_parte_contraria">
+                  <label class="form-label">Parte Contrária / Empresa</label>
+                  <input type="text" class="form-control" id="proc_parte_contraria" placeholder="Ex: COELBA / Neoenergia">
                 </div>
                 <div class="col-md-4">
                   <label class="form-label">Vara / Tribunal</label>
@@ -355,7 +360,7 @@
   </div>
 </div>
 
-<!-- MODAL DE VISUALIZAÇÃO E GERADOR DE DOCUMENTOS -->
+<!-- MODAL DE DETALHES -->
 <div class="modal fade" id="modalProcesso" tabindex="-1" aria-hidden="true">
   <div class="modal-dialog modal-lg">
     <div class="modal-content">
@@ -366,15 +371,15 @@
       <div class="modal-body" id="modal_corpo">
         <p class="text-muted">Carregando informações...</p>
       </div>
-      <div class="modal-footer bg-light">
+      <div class="modal-footer bg-light" id="modal_footer">
         <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Fechar</button>
-        <button type="button" class="btn btn-primary" onclick="alert('Iniciando gerador de Contrato e Procuração...')">
-          <i class="fa-solid fa-file-pdf me-1"></i> Gerar Contrato & Procuração (PDF)
-        </button>
       </div>
     </div>
   </div>
 </div>
+
+<!-- ÁREA OCULTA PARA GERAÇÃO E IMPRESSÃO DO CONTRATO E PROCURAÇÃO -->
+<div id="printArea" class="d-none"></div>
 
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
 <script>
@@ -444,7 +449,7 @@
     verificarSessao();
   }
 
-  // --- LEITURA DE DADOS E RENDERIZAÇÃO DA GRADE ---
+  // --- BANCO DE DADOS E RENDERIZAÇÃO DA GRADE ---
 
   function carregarBancoDadosGlobal() {
     if (!usuarioLogado) return;
@@ -572,11 +577,117 @@
       </div>
     `;
 
+    document.getElementById('modal_footer').innerHTML = `
+      <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Fechar</button>
+      <button type="button" class="btn btn-primary" onclick="gerarDocumentoPDF('${proc.id}')">
+        <i class="fa-solid fa-file-pdf me-1"></i> Gerar Contrato & Procuração (PDF)
+      </button>
+    `;
+
     const myModal = new bootstrap.Modal(document.getElementById('modalProcesso'));
     myModal.show();
   }
 
-  // --- FUNÇÕES DE FORMULÁRIO E MÁSCARAS ---
+  // --- GERADOR DINÂMICO DE CONTRATO E PROCURAÇÃO EM PDF ---
+
+  function gerarDocumentoPDF(idProcesso) {
+    const proc = dbProcessos.find(p => p.id === idProcesso);
+    if (!proc) return;
+
+    const cliente = dbClientes.find(c => c.id === proc.id_cliente);
+    if (!cliente) {
+      alert("Erro: Cliente não localizado para este processo.");
+      return;
+    }
+
+    const dataHoje = new Date().toLocaleDateString('pt-BR', { day: '2-digit', month: 'long', year: 'numeric' });
+    const localData = (proc.unidade === "Casa Nova" ? "Casa Nova/BA, " : "Distrito de Bem Bom, Casa Nova/BA, ") + dataHoje;
+
+    // Qualificação do Advogado com base na Unidade
+    let advQualificacao = "";
+    if (proc.unidade === "Casa Nova") {
+      advQualificacao = `
+        <strong>GABRIELLE MARQUES FOGIATO</strong>, brasileira, convivente em união estável, advogada, portadora do RG nº 11.569.064, inscrita no CPF nº 070.568.209-99, OAB/PE 66.919, titular do e-mail gabriellefogiato@hotmail.com, com endereço profissional na Rua Coronel Amorim, Centro, Nº 200, Petrolina-PE, e <strong>RUAN DOS SANTOS MATOS SOUZA</strong>, brasileiro, solteiro, advogado, portador do RG nº 2166279902, inscrito no CPF nº 078.298.325-10, OAB/BA 86947, e-mail ruanmatos2000@gmail.com, com endereço profissional na Rua da Alegria, Centro, Distrito de Bem Bom, nº 70, Casa Nova/BA.
+      `;
+    } else {
+      advQualificacao = `
+        <strong>RUAN DOS SANTOS MATOS SOUZA</strong>, brasileiro, solteiro, advogado, portador do RG nº 2166279902, inscrito no CPF nº 078.298.325-10, regularmente inscrito na OAB/BA sob o nº 86947, titular do e-mail ruanmatos2000@gmail.com, com endereço profissional na Rua da Alegria, Centro, Distrito de Bem Bom, nº 70, Casa Nova/BA, e <strong>GABRIELLE MARQUES FOGIATO</strong>, OAB/PE 66.919.
+      `;
+    }
+
+    const parteContraria = proc.parte_contraria || "COELBA / Neoenergia";
+    const honorariosTexto = proc.honorarios || "R$ 300,00 (trezentos reais) de entrada mais 30% (trinta por cento) sobre o proveito econômico obtido.";
+
+    const htmlDocumento = `
+      <div style="padding: 30px; font-family: 'Times New Roman', serif; line-height: 1.6; color: #000;">
+        
+        <!-- PROCURAÇÃO -->
+        <div style="text-align: center; margin-bottom: 25px;">
+          <h3 style="font-weight: bold; margin-bottom: 5px;">PROCURAÇÃO "AD JUDICIA ET EXTRA"</h3>
+          <p style="font-size: 10pt; font-style: italic; margin-top: 0;">RUAN MATOS ADVOCACIA</p>
+        </div>
+
+        <p style="text-align: justify;"><strong>OUTORGANTE:</strong> ${cliente.nome_razao.toUpperCase()}, ${cliente.tipo === 'PJ' ? 'Pessoa Jurídica' : 'brasileiro(a)'}, ${cliente.estado_civil || 'estado civil não informado'}, ${cliente.profissao || 'profissão não informada'}, inscrito(a) no CPF/CNPJ nº ${cliente.cpf_cnpj}, RG nº ${cliente.rg_ie || '-'}, residente e domiciliado(a) em ${cliente.endereco}.</p>
+
+        <p style="text-align: justify;"><strong>OUTORGADOS:</strong> ${advQualificacao}</p>
+
+        <p style="text-align: justify;"><strong>PODERES GERAIS:</strong> Por meio deste instrumento são outorgados poderes gerais para atuar perante qualquer juízo, instância ou Tribunal, bem como perante a ${parteContraria}, ANEEL, Procon, Ouvidoria, consumidor.gov.br e demais órgãos públicos e administrativos, propondo as ações competentes com a cláusula "ad judicia et extra", nos termos do art. 105 do Código de Processo Civil.</p>
+
+        <p style="text-align: justify;"><strong>PODERES ESPECIAIS:</strong> A outorgante confere aos seus procuradores poderes especiais para requerer a suspensão ou cancelamento de cobranças, negativações e protestos; firmar acordos e transações; confessar; desistir; reconhecer pedidos; receber e dar quitação; levantar valores e alvarás judiciais; assinar declarações e compromissos; representar a outorgante perante instituições financeiras e repartições públicas; e substabelecer com ou sem reserva de poderes.</p>
+
+        <p style="text-align: right; margin-top: 30px;">${localData}</p>
+
+        <div style="margin-top: 60px; text-align: center;">
+          <p style="border-top: 1px solid #000; width: 70%; margin: 0 auto; padding-top: 5px;">${cliente.nome_razao.toUpperCase()}<br><small>OUTORGANTE</small></p>
+        </div>
+
+        <!-- QUEBRA DE PÁGINA -->
+        <div class="page-break" style="margin-top: 80px;"></div>
+
+        <!-- CONTRATO DE HONORÁRIOS -->
+        <div style="text-align: center; margin-bottom: 25px;">
+          <h3 style="font-weight: bold;">CONTRATO DE HONORÁRIOS ADVOCATÍCIOS</h3>
+        </div>
+
+        <p style="text-align: justify;"><strong>CONTRATANTE:</strong> ${cliente.nome_razao.toUpperCase()}, CPF/CNPJ nº ${cliente.cpf_cnpj}, residente e domiciliado(a) em ${cliente.endereco}.</p>
+        
+        <p style="text-align: justify;"><strong>CONTRATADOS:</strong> ${advQualificacao}</p>
+
+        <p style="text-align: justify;"><strong>CLÁUSULA 1ª - DO OBJETO:</strong> O presente contrato tem como objeto a prestação de serviços advocatícios para a defesa dos interesses do(a) CONTRATANTE na ação referente a ${proc.acao_tipo || 'demanda judicial/extrajudicial'} em face de ${parteContraria}.</p>
+
+        <p style="text-align: justify;"><strong>CLÁUSULA 2ª - DOS HONORÁRIOS:</strong> Como contraprestação pelos serviços jurídicos prestados, o(a) CONTRATANTE pagará aos CONTRATADOS o valor de ${honorariosTexto}.</p>
+
+        <p style="text-align: justify;"><strong>CLÁUSULA 3ª - DA SUCUMBÊNCIA:</strong> Os honorários de sucumbência pertencem exclusivamente aos CONTRATADOS e não se confundem com os honorários contratuais ajustados.</p>
+
+        <p style="text-align: justify;"><strong>CLÁUSULA 4ª - DA LGPD (PROTEÇÃO DE DADOS):</strong> O CONTRATANTE autoriza expressamente os CONTRATADOS a realizarem o tratamento de seus dados pessoais e sensíveis estritamente para o cumprimento do objeto deste contrato e peticionamento perante órgãos judiciais e administrativos, nos termos da Lei nº 13.709/2018.</p>
+
+        <p style="text-align: justify;"><strong>CLÁUSULA 5ª - DO FORO:</strong> Para dirimir quaisquer controvérsias oriundas deste contrato, as partes elegem o foro da comarca de Casa Nova-BA.</p>
+
+        <p style="text-align: right; margin-top: 30px;">${localData}</p>
+
+        <div style="margin-top: 50px; text-align: center;">
+          <p style="border-top: 1px solid #000; width: 70%; margin: 0 auto; padding-top: 5px;">${cliente.nome_razao.toUpperCase()}<br><small>CONTRATANTE</small></p>
+        </div>
+
+        <div style="margin-top: 50px; text-align: center;">
+          <p style="border-top: 1px solid #000; width: 70%; margin: 0 auto; padding-top: 5px;">RUAN MATOS ADVOCACIA / GABRIELLE FOGIATO ADVOCACIA<br><small>CONTRATADOS</small></p>
+        </div>
+
+      </div>
+    `;
+
+    const printArea = document.getElementById('printArea');
+    printArea.innerHTML = htmlDocumento;
+    printArea.classList.remove('d-none');
+
+    window.print();
+
+    setTimeout(() => {
+      printArea.classList.add('d-none');
+    }, 1000);
+  }
+
+  // --- FUNÇÕES AUXILIARES DE FORMULÁRIO ---
 
   function atualizarMascarasTipo() {
     const tipo = document.getElementById('cli_tipo').value;
