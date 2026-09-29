@@ -3,408 +3,1051 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>DMA SYS - Gestão de Processos e Clientes</title>
-  
-  <!-- Bootstrap 5 CSS & Bootstrap Icons -->
+  <title>DMA SYS - Advocacia</title>
+  <!-- Bootstrap 5 CSS -->
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
-  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.0/font/bootstrap-icons.css">
-  
+  <!-- FontAwesome Ícones -->
+  <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
   <style>
     body { background-color: #f4f6f9; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
-    .card-kpi { border-left: 4px solid #0d6efd; transition: transform 0.2s; }
-    .card-kpi:hover { transform: translateY(-3px); }
-    .badge-unidade { font-size: 0.8em; }
-    .table-hover tbody tr { cursor: pointer; }
-    .spinner-overlay {
-      position: fixed; top: 0; left: 0; width: 100%; height: 100%;
-      background: rgba(255, 255, 255, 0.8); z-index: 9999;
-      display: flex; justify-content: center; align-items: center;
+    .sidebar { min-height: 100vh; background-color: #1e293b; color: #fff; }
+    .sidebar .nav-link { color: #cbd5e1; font-weight: 500; margin-bottom: 0.3rem; border-radius: 0.375rem; cursor: pointer; }
+    .sidebar .nav-link:hover, .sidebar .nav-link.active { background-color: #334155; color: #fff; }
+    .card-custom { border: none; border-radius: 0.75rem; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1); }
+    .brand-header { font-weight: 700; letter-spacing: 1px; color: #38bdf8; }
+    .login-container { max-width: 420px; margin: 80px auto; }
+    .cursor-pointer { cursor: pointer; }
+    
+    /* Estilos de Impressão do Contrato/Procuração */
+    @media print {
+      body * { visibility: hidden; }
+      #printArea, #printArea * { visibility: visible; }
+      #printArea { position: absolute; left: 0; top: 0; width: 100%; font-family: 'Times New Roman', Times, serif; font-size: 12pt; line-height: 1.5; color: #000; }
+      .no-print { display: none !important; }
+      .page-break { page-break-before: always; }
     }
   </style>
 </head>
 <body>
 
-  <!-- Loading Overlay -->
-  <div id="loadingOverlay" class="spinner-overlay d-none">
-    <div class="text-center">
-      <div class="spinner-border text-primary" style="width: 3rem; height: 3rem;" role="status"></div>
-      <p class="mt-2 text-muted fw-bold">Processando requisição...</p>
+<!-- TELA DE LOGIN -->
+<div id="screen-login" class="container login-container">
+  <div class="card card-custom p-4 bg-white shadow-lg">
+    <div class="text-center mb-4">
+      <i class="fa-solid fa-scale-balanced fa-3x text-primary mb-2"></i>
+      <h3 class="fw-bold text-dark mb-0">DMA SYS</h3>
+      <p class="text-muted small">Acesso Restrito ao Sistema Jurídico</p>
     </div>
+    <form id="formLogin" onsubmit="executarLogin(event)">
+      <div class="mb-3">
+        <label class="form-label font-weight-bold">Usuário / E-mail</label>
+        <div class="input-group">
+          <span class="input-group-text bg-light"><i class="fa-solid fa-user text-secondary"></i></span>
+          <input type="text" class="form-control" id="login_usuario" required placeholder="admsys.adv@gmail.com">
+        </div>
+      </div>
+      <div class="mb-4">
+        <label class="form-label font-weight-bold">Senha</label>
+        <div class="input-group">
+          <span class="input-group-text bg-light"><i class="fa-solid fa-lock text-secondary"></i></span>
+          <input type="password" class="form-control" id="login_senha" required placeholder="******">
+        </div>
+      </div>
+      <button type="submit" class="btn btn-primary w-100 py-2 fw-bold" id="btnLogin">
+        <i class="fa-solid fa-right-to-bracket me-1"></i> Entrar no Sistema
+      </button>
+    </form>
   </div>
+</div>
 
-  <!-- Navbar -->
-  <nav class="navbar navbar-expand-lg navbar-dark bg-primary shadow-sm">
-    <div class="container-fluid">
-      <a class="navbar-brand fw-bold" href="#"><i class="bi bi-briefcase-fill me-2"></i>DMA SYS</a>
-      <span class="navbar-text text-white d-none d-md-inline" id="usuarioLogadoInfo"></span>
-    </div>
-  </nav>
+<!-- SISTEMA PRINCIPAL -->
+<div id="screen-app" class="container-fluid d-none">
+  <div class="row">
+    <!-- Menu Lateral -->
+    <nav class="col-md-3 col-lg-2 d-md-block sidebar p-3 collapse show no-print">
+      <div class="d-flex align-items-center mb-3 text-decoration-none">
+        <i class="fa-solid fa-scale-balanced fa-2x me-2 text-info"></i>
+        <span class="fs-4 brand-header">DMA SYS <small class="fs-6 text-muted d-block">ADV</small></span>
+      </div>
+      
+      <!-- Usuário Logado -->
+      <div class="p-2 mb-3 bg-dark rounded text-light small border border-secondary">
+        <i class="fa-solid fa-user-check text-success me-1"></i> <span id="label_user_logged">Carregando...</span>
+        <button class="btn btn-link btn-sm text-danger p-0 ms-2 float-end" onclick="fazerLogout()" title="Sair do Sistema">
+          <i class="fa-solid fa-power-off"></i> Sair
+        </button>
+      </div>
 
-  <div class="container-fluid my-4">
-    <!-- DASHBOARD KPI -->
-    <div class="row g-3 mb-4">
-      <div class="col-md-3">
-        <div class="card card-kpi shadow-sm p-3">
-          <div class="text-muted small">Total de Processos</div>
-          <div class="fs-3 fw-bold text-dark" id="kpiTotalProcessos">0</div>
-        </div>
-      </div>
-      <div class="col-md-3">
-        <div class="card card-kpi shadow-sm p-3" style="border-left-color: #ffc107;">
-          <div class="text-muted small">Contratos Pendentes</div>
-          <div class="fs-3 fw-bold text-warning" id="kpiContratosPendentes">0</div>
-        </div>
-      </div>
-      <div class="col-md-3">
-        <div class="card card-kpi shadow-sm p-3" style="border-left-color: #fd7e14;">
-          <div class="text-muted small">Procurações Pendentes</div>
-          <div class="fs-3 fw-bold text-orange" id="kpiProcuracoesPendentes" style="color: #fd7e14;">0</div>
-        </div>
-      </div>
-      <div class="col-md-3">
-        <div class="card card-kpi shadow-sm p-3" style="border-left-color: #198754;">
-          <div class="text-muted small">Documentação Completa</div>
-          <div class="fs-3 fw-bold text-success" id="kpiDocCompleta">0</div>
-        </div>
-      </div>
-    </div>
+      <hr class="text-secondary">
+      <ul class="nav flex-column nav-pills" id="mainTabs" role="tablist">
+        <li class="nav-item">
+          <button class="nav-link active w-100 text-start" data-bs-toggle="pill" data-bs-target="#content-home">
+            <i class="fa-solid fa-chart-line me-2"></i> Dashboard
+          </button>
+        </li>
+        <li class="nav-item">
+          <button class="nav-link w-100 text-start" data-bs-toggle="pill" data-bs-target="#content-clientes" onclick="carregarBancoDadosGlobal()">
+            <i class="fa-solid fa-user-tie me-2"></i> Clientes
+          </button>
+        </li>
+        <li class="nav-item">
+          <button class="nav-link w-100 text-start" data-bs-toggle="pill" data-bs-target="#content-processos" onclick="carregarBancoDadosGlobal()">
+            <i class="fa-solid fa-folder-open me-2"></i> Processos
+          </button>
+        </li>
+      </ul>
+    </nav>
 
-    <!-- TABELA GERAL DE PROCESSOS COM FILTROS -->
-    <div class="card shadow-sm">
-      <div class="card-header bg-white py-3 d-flex justify-content-between align-items-center">
-        <h5 class="m-0 fw-bold text-secondary"><i class="bi bi-table me-2"></i>Tabela Geral de Processos</h5>
-        <button class="btn btn-primary btn-sm" onclick="carregarDadosGerais()"><i class="bi bi-arrow-clockwise"></i> Atualizar</button>
-      </div>
-      <div class="card-body">
-        <!-- Filtros Inteligentes -->
-        <div class="row g-2 mb-3">
-          <div class="col-md-4">
-            <input type="text" id="filtroBusca" class="form-control form-control-sm" placeholder="Buscar por Cliente ou ID..." onkeyup="aplicarFiltros()">
-          </div>
-          <div class="col-md-3">
-            <select id="filtroUnidade" class="form-select form-select-sm" onchange="aplicarFiltros()">
-              <option value="">Todas as Unidades</option>
-              <option value="Bem Bom">Bem Bom</option>
-              <option value="Casa Nova">Casa Nova</option>
-            </select>
-          </div>
-          <div class="col-md-3">
-            <select id="filtroAnexo" class="form-select form-select-sm" onchange="aplicarFiltros()">
-              <option value="">Status Documentação</option>
-              <option value="PENDENTE">Pendentes de Anexo</option>
-              <option value="COMPLETO">Documentação Completa</option>
-            </select>
-          </div>
-        </div>
-
-        <!-- Tabela -->
-        <div class="table-responsive">
-          <table class="table table-hover align-middle" id="tabelaProcessos">
-            <thead class="table-light">
-              <tr>
-                <th>ID Processo</th>
-                <th>Cliente</th>
-                <th>Unidade</th>
-                <th>Status</th>
-                <th>LGPD</th>
-                <th>Anexos</th>
-                <th>Ações</th>
-              </tr>
-            </thead>
-            <tbody id="tbodyProcessos">
-              <!-- Preenchido via JavaScript -->
-            </tbody>
-          </table>
-        </div>
-      </div>
-    </div>
-  </div>
-
-  <!-- MODAL DE DETALHES, PRÉ-VISUALIZAÇÃO E ANEXO DE ARQUIVOS -->
-  <div class="modal fade" id="modalProcesso" tabindex="-1" aria-hidden="true">
-    <div class="modal-dialog modal-lg">
-      <div class="modal-content">
-        <div class="modal-header bg-primary text-white">
-          <h5 class="modal-title" id="modalTituloProcesso">Detalhes do Processo</h5>
-          <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
-        </div>
-        <div class="modal-body">
-          <input type="hidden" id="modalIdProcesso">
+    <!-- Conteúdo Principal -->
+    <main class="col-md-9 ms-sm-auto col-lg-10 px-md-4 py-4">
+      <div class="tab-content">
+        
+        <!-- Dashboard / Painel Geral -->
+        <div class="tab-pane fade show active" id="content-home">
+          <h2 class="mb-4 text-dark fw-bold"><i class="fa-solid fa-gauge me-2 text-primary"></i> Painel Geral</h2>
           
-          <!-- Dados Básicos -->
-          <div class="row mb-3">
-            <div class="col-md-6">
-              <label class="form-label text-muted small mb-0">Cliente</label>
-              <p class="fw-bold mb-1" id="modalNomeCliente">-</p>
-            </div>
+          <div class="row g-3 mb-4">
             <div class="col-md-3">
-              <label class="form-label text-muted small mb-0">Unidade</label>
-              <p class="mb-1"><span class="badge bg-secondary" id="modalUnidade">-</span></p>
-            </div>
-            <div class="col-md-3">
-              <label class="form-label text-muted small mb-0">LGPD Aceito</label>
-              <p class="mb-1" id="modalAceiteLGPD">-</p>
-            </div>
-          </div>
-
-          <hr>
-
-          <!-- Status dos Anexos Atuais -->
-          <h6 class="fw-bold text-secondary mb-3"><i class="bi bi-file-earmark-check me-1"></i> Documentos Anexados</h6>
-          <div class="row mb-3 g-2">
-            <div class="col-md-6">
-              <div class="p-2 border rounded d-flex justify-content-between align-items-center">
-                <span>Contrato Assinado:</span>
-                <span id="containerBtnContrato"><span class="badge bg-danger">Pendente</span></span>
+              <div class="card card-custom p-3 bg-white border-start border-4 border-primary">
+                <small class="text-muted font-weight-bold">Total de Clientes</small>
+                <h3 class="fw-bold mb-0 text-dark" id="dash_total_clientes">0</h3>
               </div>
             </div>
-            <div class="col-md-6">
-              <div class="p-2 border rounded d-flex justify-content-between align-items-center">
-                <span>Procuração Assinada:</span>
-                <span id="containerBtnProcuracao"><span class="badge bg-danger">Pendente</span></span>
+            <div class="col-md-3">
+              <div class="card card-custom p-3 bg-white border-start border-4 border-success">
+                <small class="text-muted font-weight-bold">Processos Cadastrados</small>
+                <h3 class="fw-bold mb-0 text-dark" id="dash_total_processos">0</h3>
+              </div>
+            </div>
+            <div class="col-md-3">
+              <div class="card card-custom p-3 bg-white border-start border-4 border-info">
+                <small class="text-muted font-weight-bold">Unidade Bem Bom</small>
+                <h3 class="fw-bold mb-0 text-dark" id="dash_total_bembom">0</h3>
+              </div>
+            </div>
+            <div class="col-md-3">
+              <div class="card card-custom p-3 bg-white border-start border-4 border-warning">
+                <small class="text-muted font-weight-bold">Unidade Casa Nova</small>
+                <h3 class="fw-bold mb-0 text-dark" id="dash_total_casanova">0</h3>
               </div>
             </div>
           </div>
 
-          <!-- Formulário de Upload -->
-          <div class="card p-3 bg-light border-0">
-            <h6 class="fw-bold text-primary mb-2"><i class="bi bi-upload me-1"></i> Anexar Documento Assinado (Caneta)</h6>
-            <div class="row g-2 align-items-center">
-              <div class="col-md-4">
-                <select id="uploadTipoDoc" class="form-select form-select-sm">
-                  <option value="CONTRATO">Contrato Assinado</option>
-                  <option value="PROCURACAO">Procuração Assinada</option>
-                </select>
-              </div>
-              <div class="col-md-5">
-                <input class="form-control form-control-sm" type="file" id="uploadFileInput" accept=".pdf, .jpg, .jpeg, .png">
+          <div class="card card-custom p-4 bg-white">
+            <div class="d-flex justify-content-between align-items-center mb-3">
+              <h4 class="fw-bold text-dark mb-0"><i class="fa-solid fa-list-check text-primary me-2"></i> Grade Geral de Processos</h4>
+              <button class="btn btn-outline-primary btn-sm" onclick="carregarBancoDadosGlobal()">
+                <i class="fa-solid fa-arrows-rotate me-1"></i> Atualizar Lista
+              </button>
+            </div>
+
+            <div class="row g-2 mb-3">
+              <div class="col-md-6">
+                <input type="text" class="form-control" id="grid_search_input" onkeyup="filtrarGradeProcessos()" placeholder="🔍 Pesquisar por Cliente, CNJ, CPF, Ação ou Parte Contrária...">
               </div>
               <div class="col-md-3">
-                <button class="btn btn-sm btn-primary w-100" id="btnEnviarAnexo" onclick="executarUpload()">
-                  <span id="btnAnexoSpinner" class="spinner-border spinner-border-sm d-none" role="status"></span>
-                  Enviar
+                <select class="form-select" id="grid_filter_unidade" onchange="filtrarGradeProcessos()">
+                  <option value="">Todas as Unidades</option>
+                  <option value="Bem Bom">Unidade Bem Bom</option>
+                  <option value="Casa Nova">Unidade Casa Nova</option>
+                </select>
+              </div>
+              <div class="col-md-3">
+                <select class="form-select" id="grid_filter_status" onchange="filtrarGradeProcessos()">
+                  <option value="">Todos os Status</option>
+                  <option value="Em Andamento">Em Andamento</option>
+                  <option value="Aguardando Assinatura">Aguardando Assinatura</option>
+                  <option value="Concluído">Concluído</option>
+                </select>
+              </div>
+            </div>
+
+            <div class="table-responsive">
+              <table class="table table-hover align-middle">
+                <thead class="table-light">
+                  <tr>
+                    <th>ID Processo</th>
+                    <th>Cliente</th>
+                    <th>Nº CNJ</th>
+                    <th>Área / Ação</th>
+                    <th>Unidade</th>
+                    <th>Status</th>
+                    <th>Anexos</th>
+                    <th class="text-end">Ação</th>
+                  </tr>
+                </thead>
+                <tbody id="grid_processos_body">
+                  <tr>
+                    <td colspan="8" class="text-center text-muted py-4">Carregando dados do banco...</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+
+        <!-- Clientes -->
+        <div class="tab-pane fade" id="content-clientes">
+          <div class="d-flex justify-content-between align-items-center mb-4">
+            <h2 class="text-dark fw-bold mb-0"><i class="fa-solid fa-user-plus me-2 text-primary"></i> Gestão de Clientes</h2>
+            <button class="btn btn-outline-secondary btn-sm" onclick="limparFormularioCliente()">
+              <i class="fa-solid fa-file-circle-plus me-1"></i> Novo Cadastro
+            </button>
+          </div>
+
+          <div class="card card-custom p-3 bg-white mb-4 border-start border-4 border-info">
+            <label class="form-label font-weight-bold text-dark"><i class="fa-solid fa-magnifying-glass me-1 text-info"></i> Busca Inteligente de Cliente</label>
+            <div class="row g-2">
+              <div class="col-md-10">
+                <input type="text" class="form-control" id="busca_cliente_input" onkeyup="filtrarBuscaClienteTela()" placeholder="Digite o ID, Nome, CPF ou RG...">
+              </div>
+              <div class="col-md-2">
+                <button class="btn btn-info text-white w-100" onclick="carregarBancoDadosGlobal()">
+                  <i class="fa-solid fa-arrows-rotate"></i> Atualizar
                 </button>
               </div>
             </div>
+            <select class="form-select mt-2 d-none" id="busca_cliente_select" onchange="preencherCamposClienteSelecionado()"></select>
           </div>
 
+          <div class="card card-custom p-4 bg-white">
+            <form id="formCliente" onsubmit="validarESalvarCliente(event)">
+              <input type="hidden" id="cli_id_hidden">
+              <div class="row g-3">
+                <div class="col-md-3">
+                  <label class="form-label font-weight-bold">Tipo de Pessoa</label>
+                  <select class="form-select" id="cli_tipo" onchange="atualizarMascarasTipo()" required>
+                    <option value="PF">Pessoa Física (PF)</option>
+                    <option value="PJ">Pessoa Jurídica (PJ)</option>
+                  </select>
+                </div>
+                <div class="col-md-6">
+                  <label class="form-label" id="lbl_nome">Nome Completo</label>
+                  <input type="text" class="form-control" id="cli_nome" required>
+                </div>
+                <div class="col-md-3">
+                  <label class="form-label" id="lbl_cpf">CPF</label>
+                  <input type="text" class="form-control" id="cli_cpf" oninput="aplicarMascaraDocumento(this)" placeholder="000.000.000-00" required>
+                </div>
+                <div class="col-md-3">
+                  <label class="form-label" id="lbl_rg">RG</label>
+                  <input type="text" class="form-control" id="cli_rg">
+                </div>
+                <div class="col-md-3">
+                  <label class="form-label">Estado Civil</label>
+                  <select class="form-select" id="cli_estado_civil">
+                    <option value="">-- Selecione --</option>
+                    <option value="Solteiro(a)">Solteiro(a)</option>
+                    <option value="Casado(a)">Casado(a)</option>
+                    <option value="Divorciado(a)">Divorciado(a)</option>
+                    <option value="Viúvo(a)">Viúvo(a)</option>
+                    <option value="União Estável">União Estável</option>
+                    <option value="Separado(a) Judicialmente">Separado(a) Judicialmente</option>
+                    <option value="Não Aplicável (PJ)">Não Aplicável (PJ)</option>
+                  </select>
+                </div>
+                <div class="col-md-3">
+                  <label class="form-label">Profissão / Atividade</label>
+                  <input type="text" class="form-control" id="cli_profissao">
+                </div>
+                <div class="col-md-3">
+                  <label class="form-label">Telefone / WhatsApp</label>
+                  <input type="text" class="form-control" id="cli_telefone" oninput="aplicarMascaraTelefone(this)" placeholder="(00) 00000-0000">
+                </div>
+                <div class="col-md-6">
+                  <label class="form-label">Endereço Completo</label>
+                  <input type="text" class="form-control" id="cli_endereco">
+                </div>
+                <div class="col-md-6">
+                  <label class="form-label">E-mail</label>
+                  <input type="email" class="form-control" id="cli_email">
+                </div>
+                <div class="col-12">
+                  <label class="form-label">Observações</label>
+                  <textarea class="form-control" id="cli_obs" rows="2"></textarea>
+                </div>
+                <div class="col-12 text-end">
+                  <button type="submit" class="btn btn-primary px-4" id="btnSalvarCli">
+                    <i class="fa-solid fa-save me-1"></i> Salvar Cliente
+                  </button>
+                </div>
+              </div>
+            </form>
+          </div>
         </div>
-        <div class="modal-footer">
-          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Fechar</button>
+
+        <!-- Processos -->
+        <div class="tab-pane fade" id="content-processos">
+          <h2 class="mb-4 text-dark fw-bold"><i class="fa-solid fa-gavel me-2 text-primary"></i> Cadastrar Processo</h2>
+          <div class="card card-custom p-4 bg-white mb-4">
+            <form id="formProcesso" onsubmit="salvarProcesso(event)">
+              <div class="row g-3">
+                <div class="col-md-6">
+                  <label class="form-label">Buscar / Selecionar Cliente</label>
+                  <input type="text" class="form-control mb-2" id="proc_busca_cliente" onkeyup="filtrarListaClientesProcesso()" placeholder="Digite para filtrar a lista abaixo...">
+                  <select class="form-select" id="proc_id_cliente" required>
+                    <option value="">Aguardando seleção de cliente...</option>
+                  </select>
+                </div>
+                <div class="col-md-6">
+                  <label class="form-label">Número do Processo (CNJ)</label>
+                  <input type="text" class="form-control" id="proc_num" placeholder="0000000-00.2026.8.26.0000" required>
+                </div>
+                <div class="col-md-4">
+                  <label class="form-label">Unidade do Escritório</label>
+                  <select class="form-select" id="proc_unidade" required>
+                    <option value="Bem Bom">Distrito de Bem Bom - BA</option>
+                    <option value="Casa Nova">Casa Nova - BA (Sede)</option>
+                  </select>
+                </div>
+                <div class="col-md-4">
+                  <label class="form-label">Tipo de Ação</label>
+                  <select class="form-select" id="proc_tipo" required>
+                    <option value="">-- Selecione a Área/Ação --</option>
+                    <option value="Trabalhista">Trabalhista</option>
+                    <option value="Cível Geral">Cível Geral</option>
+                    <option value="Família e Sucessões">Família e Sucessões</option>
+                    <option value="Tributário">Tributário</option>
+                    <option value="Previdenciário">Previdenciário</option>
+                    <option value="Criminal / Penal">Criminal / Penal</option>
+                    <option value="Direito do Consumidor">Direito do Consumidor</option>
+                    <option value="Empresarial / Societário">Empresarial / Societário</option>
+                    <option value="Outros">Outros</option>
+                  </select>
+                </div>
+                <div class="col-md-4">
+                  <label class="form-label">Polo</label>
+                  <select class="form-select" id="proc_polo">
+                    <option value="Autor">Polo Ativo (Autor)</option>
+                    <option value="Réu">Polo Passivo (Réu)</option>
+                  </select>
+                </div>
+                <div class="col-md-4">
+                  <label class="form-label">Parte Contrária / Empresa</label>
+                  <input type="text" class="form-control" id="proc_parte_contraria" placeholder="Ex: COELBA / Neoenergia">
+                </div>
+                <div class="col-md-4">
+                  <label class="form-label">Vara / Tribunal</label>
+                  <input type="text" class="form-control" id="proc_vara">
+                </div>
+                <div class="col-md-4">
+                  <label class="form-label">Valor Causa (R$)</label>
+                  <input type="text" class="form-control" id="proc_valor">
+                </div>
+                <div class="col-md-4">
+                  <label class="form-label">Honorários Combinados</label>
+                  <input type="text" class="form-control" id="proc_honorarios" placeholder="Ex: R$ 300,00 + 30%">
+                </div>
+                <div class="col-md-4">
+                  <label class="form-label">Status do Processo</label>
+                  <select class="form-select" id="proc_status">
+                    <option value="Em Andamento">Em Andamento</option>
+                    <option value="Aguardando Assinatura">Aguardando Assinatura</option>
+                    <option value="Concluído">Concluído</option>
+                  </select>
+                </div>
+                <div class="col-12 text-end">
+                  <button type="submit" class="btn btn-success px-4" id="btnSalvarProc">
+                    <i class="fa-solid fa-save me-1"></i> Cadastrar Processo
+                  </button>
+                </div>
+              </div>
+            </form>
+          </div>
         </div>
+
+      </div>
+    </main>
+  </div>
+</div>
+
+<!-- MODAL DE DETALHES E UPLOAD DE ARQUIVOS -->
+<div class="modal fade" id="modalProcesso" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-lg">
+    <div class="modal-content">
+      <div class="modal-header bg-dark text-white">
+        <h5 class="modal-title fw-bold" id="modal_titulo"><i class="fa-solid fa-folder-open me-2 text-info"></i> Detalhes do Processo</h5>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body" id="modal_corpo">
+        <p class="text-muted">Carregando informações...</p>
+      </div>
+      <div class="modal-footer bg-light" id="modal_footer">
+        <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Fechar</button>
       </div>
     </div>
   </div>
+</div>
 
-  <!-- Bootstrap 5 JS Bundle -->
-  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+<!-- ÁREA OCULTA PARA GERAÇÃO E IMPRESSÃO DO CONTRATO E PROCURAÇÃO -->
+<div id="printArea" class="d-none"></div>
 
-  <script>
-    // URL da API do Google Apps Script
-    const URL_GAS_WEBAPP = "SUA_URL_DO_WEB_APP_AQUI"; 
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+<script>
+  const API_URL = "https://script.google.com/macros/s/AKfycbzmREya4ujybG5vN_2ivDF7E8JZGbHdLW8gsQkTHCrj4FzT23m_zVWmNz6uJUaghetLrA/exec";
+  let dbClientes = [];
+  let dbProcessos = [];
+  let usuarioLogado = null;
 
-    let listaProcessosGlobal = [];
-    let modalProcessoBs = null;
+  // --- CONTROLE DE LOGIN E SESSÃO ---
 
-    document.addEventListener("DOMContentLoaded", function() {
-      modalProcessoBs = new bootstrap.Modal(document.getElementById('modalProcesso'));
-      carregarDadosGerais();
-    });
-
-    // Alterna visibilidade do Spinner de Carregamento
-    function toggleLoading(exibir) {
-      const overlay = document.getElementById('loadingOverlay');
-      if (exibir) overlay.classList.remove('d-none');
-      else overlay.classList.add('d-none');
+  function verificarSessao() {
+    const userSession = sessionStorage.getItem('dma_user');
+    if (userSession) {
+      usuarioLogado = JSON.parse(userSession);
+      document.getElementById('screen-login').classList.add('d-none');
+      document.getElementById('screen-app').classList.remove('d-none');
+      document.getElementById('label_user_logged').innerText = usuarioLogado.usuario;
+      carregarBancoDadosGlobal();
+    } else {
+      document.getElementById('screen-login').classList.remove('d-none');
+      document.getElementById('screen-app').classList.add('d-none');
     }
+  }
 
-    // Busca dados no Apps Script
-    function carregarDadosGerais() {
-      toggleLoading(true);
-      fetch(URL_GAS_WEBAPP, {
-        method: 'POST',
-        mode: 'cors',
-        headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-        body: JSON.stringify({ acao: 'listarDados', dados: {} })
-      })
-      .then(res => res.json())
-      .then(resposta => {
-        toggleLoading(false);
-        if (resposta.status === "SUCCESS") {
-          listaProcessosGlobal = resposta.processos || [];
-          renderizarTabela(listaProcessosGlobal);
-          atualizarKPIs(listaProcessosGlobal);
-        } else {
-          alert("Erro ao buscar dados: " + resposta.mensagem);
-        }
-      })
-      .catch(err => {
-        toggleLoading(false);
-        console.error("Erro na comunicação:", err);
-      });
-    }
+  function executarLogin(e) {
+    e.preventDefault();
+    const btn = document.getElementById('btnLogin');
+    btn.disabled = true;
+    btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin me-1"></i> Verificando...';
 
-    // Renderiza a Tabela
-    function renderizarTabela(processos) {
-      const tbody = document.getElementById('tbodyProcessos');
-      tbody.innerHTML = '';
-
-      if (processos.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="7" class="text-center text-muted">Nenhum processo encontrado.</td></tr>';
-        return;
+    const payload = {
+      action: 'login',
+      payload: {
+        usuario: document.getElementById('login_usuario').value,
+        senha: document.getElementById('login_senha').value
       }
+    };
 
-      processos.forEach(p => {
-        const tr = document.createElement('tr');
-        
-        const badgeContrato = p.urlContrato 
-          ? '<span class="badge bg-success"><i class="bi bi-file-earmark-check"></i> Contrato</span>' 
-          : '<span class="badge bg-warning text-dark"><i class="bi bi-exclamation-circle"></i> Sem Contrato</span>';
-        
-        const badgeProcuracao = p.urlProcuracao 
-          ? '<span class="badge bg-success"><i class="bi bi-file-earmark-check"></i> Procuração</span>' 
-          : '<span class="badge bg-warning text-dark"><i class="bi bi-exclamation-circle"></i> Sem Procuração</span>';
+    const formData = new FormData();
+    formData.append('data', JSON.stringify(payload));
 
-        tr.innerHTML = `
-          <td><strong>${p.idProcesso}</strong></td>
-          <td>${p.nomeCliente}</td>
-          <td><span class="badge bg-info text-dark">${p.unidade}</span></td>
-          <td>${p.status}</td>
-          <td>${p.aceiteLGPD === 'Sim' ? '<span class="text-success"><i class="bi bi-check-circle-fill"></i> Sim</span>' : '<span class="text-danger"><i class="bi bi-x-circle-fill"></i> Não</span>'}</td>
+    fetch(API_URL, {
+      method: 'POST',
+      body: formData
+    })
+    .then(res => res.json())
+    .then(result => {
+      if (result.success) {
+        sessionStorage.setItem('dma_user', JSON.stringify({ usuario: result.usuario, chave: result.chave }));
+        verificarSessao();
+      } else {
+        alert(result.message || 'Falha ao autenticar.');
+      }
+    })
+    .catch(err => {
+      alert('Erro de conexão ao verificar credenciais.');
+    })
+    .finally(() => {
+      btn.disabled = false;
+      btn.innerHTML = '<i class="fa-solid fa-right-to-bracket me-1"></i> Entrar no Sistema';
+    });
+  }
+
+  function fazerLogout() {
+    sessionStorage.removeItem('dma_user');
+    usuarioLogado = null;
+    verificarSessao();
+  }
+
+  // --- BANCO DE DADOS E RENDERIZAÇÃO DA GRADE ---
+
+  function carregarBancoDadosGlobal() {
+    if (!usuarioLogado) return;
+    
+    const scriptId = 'jsonp_db_script';
+    const oldScript = document.getElementById(scriptId);
+    if (oldScript) oldScript.remove();
+
+    window.processarRetornoBanco = function(res) {
+      if (res && res.success) {
+        dbClientes = res.clientes || [];
+        dbProcessos = res.processos || [];
+        
+        atualizarIndicadoresDashboard();
+        renderizarGradeProcessos(dbProcessos);
+        renderizarOptionsProcessos(dbClientes);
+        filtrarBuscaClienteTela();
+      }
+    };
+
+    const script = document.createElement('script');
+    script.id = scriptId;
+    script.src = API_URL + "?action=getDadosCompletos&callback=processarRetornoBanco&t=" + new Date().getTime();
+    document.body.appendChild(script);
+  }
+
+  function atualizarIndicadoresDashboard() {
+    document.getElementById('dash_total_clientes').innerText = dbClientes.length;
+    document.getElementById('dash_total_processos').innerText = dbProcessos.length;
+
+    const totalBemBom = dbProcessos.filter(p => p.unidade === "Bem Bom").length;
+    const totalCasaNova = dbProcessos.filter(p => p.unidade === "Casa Nova").length;
+
+    document.getElementById('dash_total_bembom').innerText = totalBemBom;
+    document.getElementById('dash_total_casanova').innerText = totalCasaNova;
+  }
+
+  function renderizarGradeProcessos(lista) {
+    const tbody = document.getElementById('grid_processos_body');
+    if (!lista || lista.length === 0) {
+      tbody.innerHTML = '<tr><td colspan="8" class="text-center text-muted py-4">Nenhum processo encontrado.</td></tr>';
+      return;
+    }
+
+    tbody.innerHTML = '';
+    lista.forEach(p => {
+      const cliente = dbClientes.find(c => c.id === p.id_cliente);
+      const nomeCliente = cliente ? cliente.nome_razao : (p.id_cliente || "Não Vinculado");
+
+      let badgeStatus = '<span class="badge bg-secondary">' + p.status + '</span>';
+      if (p.status === 'Em Andamento') badgeStatus = '<span class="badge bg-primary">Em Andamento</span>';
+      if (p.status === 'Aguardando Assinatura') badgeStatus = '<span class="badge bg-warning text-dark">Aguardando Assinatura</span>';
+      if (p.status === 'Concluído') badgeStatus = '<span class="badge bg-success">Concluído</span>';
+
+      const badgeContrato = p.url_contrato 
+        ? '<span class="badge bg-success" title="Contrato Anexado"><i class="fa-solid fa-file-contract"></i> C</span>' 
+        : '<span class="badge bg-light text-muted border" title="Sem Contrato"><i class="fa-solid fa-file-contract"></i> -</span>';
+
+      const badgeProcuracao = p.url_procuracao 
+        ? '<span class="badge bg-success" title="Procuração Anexada"><i class="fa-solid fa-file-signature"></i> P</span>' 
+        : '<span class="badge bg-light text-muted border" title="Sem Procuração"><i class="fa-solid fa-file-signature"></i> -</span>';
+
+      tbody.innerHTML += `
+        <tr class="cursor-pointer" onclick="abrirModalProcesso('${p.id}')">
+          <td class="fw-bold text-primary">${p.id}</td>
+          <td>${nomeCliente}</td>
+          <td class="small">${p.num_processo || '-'}</td>
+          <td>${p.acao_tipo || '-'}</td>
+          <td><span class="badge bg-light text-dark border">${p.unidade}</span></td>
+          <td>${badgeStatus}</td>
           <td>${badgeContrato} ${badgeProcuracao}</td>
-          <td>
-            <button class="btn btn-sm btn-outline-primary" onclick="abrirModalProcesso('${p.idProcesso}')">
-              <i class="bi bi-eye"></i> Detalhes / Anexo
+          <td class="text-end">
+            <button class="btn btn-outline-primary btn-sm" onclick="event.stopPropagation(); abrirModalProcesso('${p.id}')">
+              <i class="fa-solid fa-eye"></i> Detalhes
             </button>
           </td>
-        `;
-        tbody.appendChild(tr);
-      });
+        </tr>
+      `;
+    });
+  }
+
+  function filtrarGradeProcessos() {
+    const termo = document.getElementById('grid_search_input').value.toLowerCase().trim();
+    const un = document.getElementById('grid_filter_unidade').value;
+    const st = document.getElementById('grid_filter_status').value;
+
+    const filtrados = dbProcessos.filter(p => {
+      const cliente = dbClientes.find(c => c.id === p.id_cliente);
+      const nomeCliente = cliente ? cliente.nome_razao.toLowerCase() : "";
+      const docCliente = cliente ? String(cliente.cpf_cnpj).replace(/\D/g, "") : "";
+      const termoLimpo = termo.replace(/\D/g, "");
+
+      const matchTexto = !termo ||
+        p.id.toLowerCase().includes(termo) ||
+        nomeCliente.includes(termo) ||
+        (termoLimpo !== "" && docCliente.includes(termoLimpo)) ||
+        String(p.num_processo).toLowerCase().includes(termo) ||
+        String(p.parte_contraria).toLowerCase().includes(termo) ||
+        String(p.acao_tipo).toLowerCase().includes(termo);
+
+      const matchUnidade = !un || p.unidade === un;
+      const matchStatus = !st || p.status === st;
+
+      return matchTexto && matchUnidade && matchStatus;
+    });
+
+    renderizarGradeProcessos(filtrados);
+  }
+
+  function abrirModalProcesso(idProcesso) {
+    const proc = dbProcessos.find(p => p.id === idProcesso);
+    if (!proc) return;
+
+    const cliente = dbClientes.find(c => c.id === proc.id_cliente);
+
+    const btnContratoDrive = proc.url_contrato 
+      ? `<a href="${proc.url_contrato}" target="_blank" class="btn btn-sm btn-success"><i class="fa-solid fa-arrow-up-right-from-square me-1"></i> Ver Contrato</a>`
+      : `<span class="badge bg-danger">Pendente</span>`;
+
+    const btnProcuracaoDrive = proc.url_procuracao 
+      ? `<a href="${proc.url_procuracao}" target="_blank" class="btn btn-sm btn-success"><i class="fa-solid fa-arrow-up-right-from-square me-1"></i> Ver Procuração</a>`
+      : `<span class="badge bg-danger">Pendente</span>`;
+
+    document.getElementById('modal_titulo').innerHTML = `<i class="fa-solid fa-folder-open me-2 text-info"></i> Processo [${proc.id}]`;
+    document.getElementById('modal_corpo').innerHTML = `
+      <div class="row g-3 mb-3">
+        <div class="col-md-6 border-end">
+          <h6 class="fw-bold text-primary"><i class="fa-solid fa-user me-1"></i> Dados do Cliente</h6>
+          <p class="mb-1"><strong>Nome:</strong> ${cliente ? cliente.nome_razao : 'Não encontrado'}</p>
+          <p class="mb-1"><strong>CPF/CNPJ:</strong> ${cliente ? cliente.cpf_cnpj : '-'}</p>
+          <p class="mb-1"><strong>Endereço:</strong> ${cliente ? cliente.endereco : '-'}</p>
+          <p class="mb-1"><strong>Telefone:</strong> ${cliente ? cliente.telefone : '-'}</p>
+        </div>
+        <div class="col-md-6">
+          <h6 class="fw-bold text-success"><i class="fa-solid fa-gavel me-1"></i> Dados da Ação</h6>
+          <p class="mb-1"><strong>Nº CNJ:</strong> ${proc.num_processo || '-'}</p>
+          <p class="mb-1"><strong>Tipo de Ação:</strong> ${proc.acao_tipo || '-'}</p>
+          <p class="mb-1"><strong>Unidade do Escritório:</strong> ${proc.unidade}</p>
+          <p class="mb-1"><strong>Parte Contrária:</strong> ${proc.parte_contraria || '-'}</p>
+          <p class="mb-1"><strong>Honorários:</strong> ${proc.honorarios || '-'}</p>
+        </div>
+      </div>
+
+      <hr>
+
+      <!-- Status dos Anexos no Google Drive -->
+      <h6 class="fw-bold text-dark mb-2"><i class="fa-solid fa-paperclip me-1 text-primary"></i> Documentos Assinados (Google Drive)</h6>
+      <div class="row g-2 mb-3">
+        <div class="col-md-6">
+          <div class="p-2 border rounded d-flex justify-content-between align-items-center bg-light">
+            <span class="small fw-bold">Contrato Assinado:</span>
+            <div>${btnContratoDrive}</div>
+          </div>
+        </div>
+        <div class="col-md-6">
+          <div class="p-2 border rounded d-flex justify-content-between align-items-center bg-light">
+            <span class="small fw-bold">Procuração Assinada:</span>
+            <div>${btnProcuracaoDrive}</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Formulário de Upload -->
+      <div class="card p-3 bg-white border border-primary">
+        <h6 class="fw-bold text-primary mb-2"><i class="fa-solid fa-cloud-arrow-up me-1"></i> Anexar Documento Digitalizado (PDF / Imagem)</h6>
+        <div class="row g-2 align-items-center">
+          <div class="col-md-4">
+            <select id="upload_tipo_doc" class="form-select form-select-sm">
+              <option value="CONTRATO">Contrato Assinado</option>
+              <option value="PROCURACAO">Procuração Assinada</option>
+            </select>
+          </div>
+          <div class="col-md-5">
+            <input class="form-control form-control-sm" type="file" id="upload_file_input" accept=".pdf, .png, .jpg, .jpeg">
+          </div>
+          <div class="col-md-3">
+            <button class="btn btn-sm btn-primary w-100" id="btnUploadAnexo" onclick="executarUploadAnexo('${proc.id}')">
+              <i class="fa-solid fa-upload me-1"></i> Enviar
+            </button>
+          </div>
+        </div>
+      </div>
+    `;
+
+    document.getElementById('modal_footer').innerHTML = `
+      <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Fechar</button>
+      <button type="button" class="btn btn-primary" onclick="gerarDocumentoPDF('${proc.id}')">
+        <i class="fa-solid fa-file-pdf me-1"></i> Gerar Minuta PDF
+      </button>
+    `;
+
+    const myModal = new bootstrap.Modal(document.getElementById('modalProcesso'));
+    myModal.show();
+  }
+
+  // --- FUNÇÃO DE UPLOAD DE ARQUIVO EM BASE64 ---
+
+  function executarUploadAnexo(idProcesso) {
+    const fileInput = document.getElementById('upload_file_input');
+    const tipoDoc = document.getElementById('upload_tipo_doc').value;
+    const btn = document.getElementById('btnUploadAnexo');
+
+    if (!fileInput.files[0]) {
+      alert("Por favor, selecione um arquivo.");
+      return;
     }
 
-    // Atualiza os Cards de Indicadores (Dashboard)
-    function atualizarKPIs(processos) {
-      let total = processos.length;
-      let pendContratos = 0;
-      let pendProcuracoes = 0;
-      let completas = 0;
+    const file = fileInput.files[0];
+    const reader = new FileReader();
 
-      processos.forEach(p => {
-        const semContrato = !p.urlContrato;
-        const semProcuracao = !p.urlProcuracao;
+    btn.disabled = true;
+    btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin me-1"></i> Enviando...';
 
-        if (semContrato) pendContratos++;
-        if (semProcuracao) pendProcuracoes++;
-        if (!semContrato && !semProcuracao) completas++;
-      });
-
-      document.getElementById('kpiTotalProcessos').innerText = total;
-      document.getElementById('kpiContratosPendentes').innerText = pendContratos;
-      document.getElementById('kpiProcuracoesPendentes').innerText = pendProcuracoes;
-      document.getElementById('kpiDocCompleta').innerText = completas;
-    }
-
-    // Filtros
-    function aplicarFiltros() {
-      const busca = document.getElementById('filtroBusca').value.toLowerCase();
-      const unidade = document.getElementById('filtroUnidade').value;
-      const anexo = document.getElementById('filtroAnexo').value;
-
-      const filtrados = listaProcessosGlobal.filter(p => {
-        const matchBusca = p.nomeCliente.toLowerCase().includes(busca) || p.idProcesso.toLowerCase().includes(busca);
-        const matchUnidade = unidade === "" || p.unidade === unidade;
-        
-        let matchAnexo = true;
-        if (anexo === "PENDENTE") {
-          matchAnexo = !p.urlContrato || !p.urlProcuracao;
-        } else if (anexo === "COMPLETO") {
-          matchAnexo = p.urlContrato && p.urlProcuracao;
-        }
-
-        return matchBusca && matchUnidade && matchAnexo;
-      });
-
-      renderizarTabela(filtrados);
-    }
-
-    // Modal
-    function abrirModalProcesso(idProcesso) {
-      const p = listaProcessosGlobal.find(item => item.idProcesso === idProcesso);
-      if (!p) return;
-
-      document.getElementById('modalIdProcesso').value = p.idProcesso;
-      document.getElementById('modalTituloProcesso').innerText = `Processo: ${p.idProcesso}`;
-      document.getElementById('modalNomeCliente').innerText = p.nomeCliente;
-      document.getElementById('modalUnidade').innerText = p.unidade;
-      document.getElementById('modalAceiteLGPD').innerHTML = p.aceiteLGPD === 'Sim' ? '<span class="badge bg-success">Sim</span>' : '<span class="badge bg-danger">Não</span>';
-
-      // Botões para links do Drive
-      document.getElementById('containerBtnContrato').innerHTML = p.urlContrato 
-        ? `<a href="${p.urlContrato}" target="_blank" class="btn btn-sm btn-outline-success"><i class="bi bi-box-arrow-up-right"></i> Ver Contrato</a>`
-        : `<span class="badge bg-danger">Pendente</span>`;
-
-      document.getElementById('containerBtnProcuracao').innerHTML = p.urlProcuracao 
-        ? `<a href="${p.urlProcuracao}" target="_blank" class="btn btn-sm btn-outline-success"><i class="bi bi-box-arrow-up-right"></i> Ver Procuração</a>`
-        : `<span class="badge bg-danger">Pendente</span>`;
-
-      modalProcessoBs.show();
-    }
-
-    // Envio do Anexo (Base64)
-    function executarUpload() {
-      const fileInput = document.getElementById('uploadFileInput');
-      const tipoDoc = document.getElementById('uploadTipoDoc').value;
-      const idProcesso = document.getElementById('modalIdProcesso').value;
-
-      if (!fileInput.files[0]) {
-        alert("Por favor, selecione um arquivo.");
-        return;
-      }
-
-      const file = fileInput.files[0];
-      const reader = new FileReader();
-
-      document.getElementById('btnAnexoSpinner').classList.remove('d-none');
-      document.getElementById('btnEnviarAnexo').disabled = true;
-
-      reader.onload = function(e) {
-        const payload = {
+    reader.onload = function(e) {
+      const payload = {
+        action: 'uploadArquivoProcesso',
+        payload: {
           idProcesso: idProcesso,
           tipoDoc: tipoDoc,
           nomeArquivo: `${idProcesso}_${tipoDoc}_${file.name}`,
           base64: e.target.result
-        };
-
-        fetch(URL_GAS_WEBAPP, {
-          method: 'POST',
-          mode: 'cors',
-          headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-          body: JSON.stringify({ acao: 'uploadArquivoProcesso', dados: payload })
-        })
-        .then(res => res.json())
-        .then(resposta => {
-          document.getElementById('btnAnexoSpinner').classList.add('d-none');
-          document.getElementById('btnEnviarAnexo').disabled = false;
-
-          if (resposta.status === "SUCCESS") {
-            alert("Documento salvo com sucesso!");
-            fileInput.value = "";
-            modalProcessoBs.hide();
-            carregarDadosGerais(); // Recarrega para refletir na tabela e KPIs
-          } else {
-            alert("Erro ao enviar anexo: " + resposta.mensagem);
-          }
-        })
-        .catch(err => {
-          document.getElementById('btnAnexoSpinner').classList.add('d-none');
-          document.getElementById('btnEnviarAnexo').disabled = false;
-          console.error("Erro no upload:", err);
-          alert("Ocorreu uma falha no upload.");
-        });
+        }
       };
 
-      reader.readAsDataURL(file);
+      const formData = new FormData();
+      formData.append('data', JSON.stringify(payload));
+
+      fetch(API_URL, {
+        method: 'POST',
+        body: formData
+      })
+      .then(res => res.json())
+      .then(resultado => {
+        if (resultado.success) {
+          alert("Documento anexado com sucesso e salvo no Google Drive!");
+          carregarBancoDadosGlobal();
+          const modalInst = bootstrap.Modal.getInstance(document.getElementById('modalProcesso'));
+          if (modalInst) modalInst.hide();
+        } else {
+          alert("Erro ao enviar anexo: " + resultado.message);
+        }
+      })
+      .catch(err => {
+        alert("Erro de comunicação durante o envio: " + err);
+      })
+      .finally(() => {
+        btn.disabled = false;
+        btn.innerHTML = '<i class="fa-solid fa-upload me-1"></i> Enviar';
+      });
+    };
+
+    reader.readAsDataURL(file);
+  }
+
+  // --- GERADOR DINÂMICO DE CONTRATO E PROCURAÇÃO EM PDF ---
+
+  function gerarDocumentoPDF(idProcesso) {
+    const proc = dbProcessos.find(p => p.id === idProcesso);
+    if (!proc) return;
+
+    const cliente = dbClientes.find(c => c.id === proc.id_cliente);
+    if (!cliente) {
+      alert("Erro: Cliente não localizado para este processo.");
+      return;
     }
-  </script>
+
+    const dataHoje = new Date().toLocaleDateString('pt-BR', { day: '2-digit', month: 'long', year: 'numeric' });
+    const localData = (proc.unidade === "Casa Nova" ? "Casa Nova/BA, " : "Distrito de Bem Bom, Casa Nova/BA, ") + dataHoje;
+
+    let advQualificacao = "";
+    if (proc.unidade === "Casa Nova") {
+      advQualificacao = `
+        <strong>GABRIELLE MARQUES FOGIATO</strong>, brasileira, convivente em união estável, advogada, portadora do RG nº 11.569.064, inscrita no CPF nº 070.568.209-99, OAB/PE 66.919, titular do e-mail gabriellefogiato@hotmail.com, com endereço profissional na Rua Coronel Amorim, Centro, Nº 200, Petrolina-PE, e <strong>RUAN DOS SANTOS MATOS SOUZA</strong>, brasileiro, solteiro, advogado, portador do RG nº 2166279902, inscrito no CPF nº 078.298.325-10, OAB/BA 86947, e-mail ruanmatos2000@gmail.com, com endereço profissional na Rua da Alegria, Centro, Distrito de Bem Bom, nº 70, Casa Nova/BA.
+      `;
+    } else {
+      advQualificacao = `
+        <strong>RUAN DOS SANTOS MATOS SOUZA</strong>, brasileiro, solteiro, advogado, portador do RG nº 2166279902, inscrito no CPF nº 078.298.325-10, regularmente inscrito na OAB/BA sob o nº 86947, titular do e-mail ruanmatos2000@gmail.com, com endereço profissional na Rua da Alegria, Centro, Distrito de Bem Bom, nº 70, Casa Nova/BA, e <strong>GABRIELLE MARQUES FOGIATO</strong>, OAB/PE 66.919.
+      `;
+    }
+
+    const parteContraria = proc.parte_contraria || "COELBA / Neoenergia";
+    const honorariosTexto = proc.honorarios || "R$ 300,00 (trezentos reais) de entrada mais 30% (trinta por cento) sobre o proveito econômico obtido.";
+
+    const htmlDocumento = `
+      <div style="padding: 30px; font-family: 'Times New Roman', serif; line-height: 1.6; color: #000;">
+        
+        <!-- PROCURAÇÃO -->
+        <div style="text-align: center; margin-bottom: 25px;">
+          <h3 style="font-weight: bold; margin-bottom: 5px;">PROCURAÇÃO "AD JUDICIA ET EXTRA"</h3>
+          <p style="font-size: 10pt; font-style: italic; margin-top: 0;">RUAN MATOS ADVOCACIA</p>
+        </div>
+
+        <p style="text-align: justify;"><strong>OUTORGANTE:</strong> ${cliente.nome_razao.toUpperCase()}, ${cliente.tipo === 'PJ' ? 'Pessoa Jurídica' : 'brasileiro(a)'}, ${cliente.estado_civil || 'estado civil não informado'}, ${cliente.profissao || 'profissão não informada'}, inscrito(a) no CPF/CNPJ nº ${cliente.cpf_cnpj}, RG nº ${cliente.rg_ie || '-'}, residente e domiciliado(a) em ${cliente.endereco}.</p>
+
+        <p style="text-align: justify;"><strong>OUTORGADOS:</strong> ${advQualificacao}</p>
+
+        <p style="text-align: justify;"><strong>PODERES GERAIS:</strong> Por meio deste instrumento são outorgados poderes gerais para atuar perante qualquer juízo, instância ou Tribunal, bem como perante a ${parteContraria}, ANEEL, Procon, Ouvidoria, consumidor.gov.br e demais órgãos públicos e administrativos, propondo as ações competentes com a cláusula "ad judicia et extra", nos termos do art. 105 do Código de Processo Civil.</p>
+
+        <p style="text-align: justify;"><strong>PODERES ESPECIAIS:</strong> A outorgante confere aos seus procuradores poderes especiais para requerer a suspensão ou cancelamento de cobranças, negativações e protestos; firmar acordos e transações; confessar; soundesistir; reconhecer pedidos; receber e dar quitação; levantar valores e alvarás judiciais; assinar declarações e compromissos; representar a outorgante perante instituições financeiras e repartições públicas; e substabelecer com ou sem reserva de poderes.</p>
+
+        <p style="text-align: right; margin-top: 30px;">${localData}</p>
+
+        <div style="margin-top: 60px; text-align: center;">
+          <p style="border-top: 1px solid #000; width: 70%; margin: 0 auto; padding-top: 5px;">${cliente.nome_razao.toUpperCase()}<br><small>OUTORGANTE</small></p>
+        </div>
+
+        <!-- QUEBRA DE PÁGINA -->
+        <div class="page-break" style="margin-top: 80px;"></div>
+
+        <!-- CONTRATO DE HONORÁRIOS -->
+        <div style="text-align: center; margin-bottom: 25px;">
+          <h3 style="font-weight: bold;">CONTRATO DE HONORÁRIOS ADVOCATÍCIOS</h3>
+        </div>
+
+        <p style="text-align: justify;"><strong>CONTRATANTE:</strong> ${cliente.nome_razao.toUpperCase()}, CPF/CNPJ nº ${cliente.cpf_cnpj}, residente e domiciliado(a) em ${cliente.endereco}.</p>
+        
+        <p style="text-align: justify;"><strong>CONTRATADOS:</strong> ${advQualificacao}</p>
+
+        <p style="text-align: justify;"><strong>CLÁUSULA 1ª - DO OBJETO:</strong> O presente contrato tem como objeto a prestação de serviços advocatícios para a defesa dos interesses do(a) CONTRATANTE na ação referente a ${proc.acao_tipo || 'demanda judicial/extrajudicial'} em face de ${parteContraria}.</p>
+
+        <p style="text-align: justify;"><strong>CLÁUSULA 2ª - DOS HONORÁRIOS:</strong> Como contraprestação pelos serviços jurídicos prestados, o(a) CONTRATANTE pagará aos CONTRATADOS o valor de ${honorariosTexto}.</p>
+
+        <p style="text-align: justify;"><strong>CLÁUSULA 3ª - DA SUCUMBÊNCIA:</strong> Os honorários de sucumbência pertencem exclusivamente aos CONTRATADOS e não se confundem com os honorários contratuais ajustados.</p>
+
+        <p style="text-align: justify;"><strong>CLÁUSULA 4ª - DA LGPD (PROTEÇÃO DE DADOS):</strong> O CONTRATANTE autoriza expressamente os CONTRATADOS a realizarem o tratamento de seus dados pessoais e sensíveis estritamente para o cumprimento do objeto deste contrato e peticionamento perante órgãos judiciais e administrativos, nos termos da Lei nº 13.709/2018.</p>
+
+        <p style="text-align: justify;"><strong>CLÁUSULA 5ª - DO FORO:</strong> Para dirimir quaisquer controvérsias oriundas deste contrato, as partes elegem o foro da comarca de Casa Nova-BA.</p>
+
+        <p style="text-align: right; margin-top: 30px;">${localData}</p>
+
+        <div style="margin-top: 50px; text-align: center;">
+          <p style="border-top: 1px solid #000; width: 70%; margin: 0 auto; padding-top: 5px;">${cliente.nome_razao.toUpperCase()}<br><small>CONTRATANTE</small></p>
+        </div>
+
+        <div style="margin-top: 50px; text-align: center;">
+          <p style="border-top: 1px solid #000; width: 70%; margin: 0 auto; padding-top: 5px;">RUAN MATOS ADVOCACIA / GABRIELLE FOGIATO ADVOCACIA<br><small>CONTRATADOS</small></p>
+        </div>
+
+      </div>
+    `;
+
+    const printArea = document.getElementById('printArea');
+    printArea.innerHTML = htmlDocumento;
+    printArea.classList.remove('d-none');
+
+    window.print();
+
+    setTimeout(() => {
+      printArea.classList.add('d-none');
+    }, 1000);
+  }
+
+  // --- FUNÇÕES AUXILIARES DE FORMULÁRIO ---
+
+  function atualizarMascarasTipo() {
+    const tipo = document.getElementById('cli_tipo').value;
+    const inputCpf = document.getElementById('cli_cpf');
+    const lblCpf = document.getElementById('lbl_cpf');
+    const lblNome = document.getElementById('lbl_nome');
+    const lblRg = document.getElementById('lbl_rg');
+    const selectEstadoCivil = document.getElementById('cli_estado_civil');
+
+    if (tipo === 'PJ') {
+      lblNome.innerText = "Razão Social";
+      lblCpf.innerText = "CNPJ";
+      lblRg.innerText = "Inscrição Estadual (IE)";
+      inputCpf.placeholder = "00.000.000/0000-00";
+      if(!selectEstadoCivil.value) selectEstadoCivil.value = "Não Aplicável (PJ)";
+    } else {
+      lblNome.innerText = "Nome Completo";
+      lblCpf.innerText = "CPF";
+      lblRg.innerText = "RG";
+      inputCpf.placeholder = "000.000.000-00";
+    }
+  }
+
+  function aplicarMascaraDocumento(input) {
+    let v = input.value.replace(/\D/g, "");
+    const tipo = document.getElementById('cli_tipo').value;
+
+    if (tipo === 'PF') {
+      v = v.substring(0, 11);
+      v = v.replace(/(\d{3})(\d)/, "$1.$2");
+      v = v.replace(/(\d{3})(\d)/, "$1.$2");
+      v = v.replace(/(\d{3})(\d{1,2})$/, "$1-$2");
+    } else {
+      v = v.substring(0, 14);
+      v = v.replace(/^(\d{2})(\d)/, "$1.$2");
+      v = v.replace(/^(\d{2})\.(\d{3})(\d)/, "$1.$2.$3");
+      v = v.replace(/\.(\d{3})(\d)/, ".$1/$2");
+      v = v.replace(/(\d{4})(\d)/, "$1-$2");
+    }
+    input.value = v;
+  }
+
+  function aplicarMascaraTelefone(input) {
+    let v = input.value.replace(/\D/g, "").substring(0, 11);
+    if (v.length > 10) {
+      v = v.replace(/^(\d\d)(\d{5})(\d\d\d\d)$/, "($1) $2-$3");
+    } else if (v.length > 5) {
+      v = v.replace(/^(\d\d)(\d{4})(\d{0,4})$/, "($1) $2-$3");
+    } else if (v.length > 2) {
+      v = v.replace(/^(\d\d)(\d{0,5})$/, "($1) $2");
+    }
+    input.value = v;
+  }
+
+  function filtrarBuscaClienteTela() {
+    const termo = document.getElementById('busca_cliente_input').value.toLowerCase().trim();
+    const select = document.getElementById('busca_cliente_select');
+
+    if (!termo) {
+      select.classList.add('d-none');
+      return;
+    }
+
+    const encontrados = dbClientes.filter(c => {
+      const docLimpo = String(c.cpf_cnpj || "").replace(/\D/g, "");
+      const termoLimpo = termo.replace(/\D/g, "");
+      return String(c.id || "").toLowerCase().includes(termo) ||
+             String(c.nome_razao || "").toLowerCase().includes(termo) ||
+             (termoLimpo !== "" && docLimpo.includes(termoLimpo)) ||
+             String(c.rg_ie || "").toLowerCase().includes(termo);
+    });
+
+    if (encontrados.length > 0) {
+      select.innerHTML = '<option value="">-- Clique abaixo para preencher os campos --</option>';
+      encontrados.forEach(c => {
+        select.innerHTML += `<option value="${c.id}">[${c.id}] ${c.nome_razao} - Doc: ${c.cpf_cnpj}</option>`;
+      });
+      select.classList.remove('d-none');
+    } else {
+      select.innerHTML = '<option value="">Nenhum cliente encontrado</option>';
+      select.classList.remove('d-none');
+    }
+  }
+
+  function preencherCamposClienteSelecionado() {
+    const id = document.getElementById('busca_cliente_select').value;
+    if (!id) return;
+
+    const cliente = dbClientes.find(c => c.id === id);
+    if (cliente) {
+      document.getElementById('cli_id_hidden').value = cliente.id;
+      document.getElementById('cli_tipo').value = cliente.tipo || 'PF';
+      atualizarMascarasTipo();
+      
+      document.getElementById('cli_nome').value = cliente.nome_razao || '';
+      document.getElementById('cli_cpf').value = cliente.cpf_cnpj || '';
+      document.getElementById('cli_rg').value = cliente.rg_ie || '';
+      document.getElementById('cli_estado_civil').value = cliente.estado_civil || '';
+      document.getElementById('cli_profissao').value = cliente.profissao || '';
+      document.getElementById('cli_telefone').value = cliente.telefone || '';
+      document.getElementById('cli_endereco').value = cliente.endereco || '';
+      document.getElementById('cli_email').value = cliente.email || '';
+      document.getElementById('cli_obs').value = cliente.obs || '';
+
+      document.getElementById('busca_cliente_select').classList.add('d-none');
+      alert(`Cliente [${cliente.id}] carregado com sucesso!`);
+    }
+  }
+
+  function limparFormularioCliente() {
+    document.getElementById('cli_id_hidden').value = '';
+    document.getElementById('formCliente').reset();
+    document.getElementById('busca_cliente_input').value = '';
+    document.getElementById('busca_cliente_select').classList.add('d-none');
+    atualizarMascarasTipo();
+  }
+
+  async function enviarDados(payload, btnElement, formElement) {
+    btnElement.disabled = true;
+    btnElement.innerHTML = '<i class="fa-solid fa-spinner fa-spin me-1"></i> Processando...';
+
+    payload.payload.usuario_operador = usuarioLogado ? usuarioLogado.usuario : "Desconhecido";
+
+    const formData = new FormData();
+    formData.append('data', JSON.stringify(payload));
+
+    try {
+      await fetch(API_URL, {
+        method: 'POST',
+        mode: 'no-cors',
+        body: formData
+      });
+
+      alert('Operação gravada no banco de dados!');
+      if (formElement) formElement.reset();
+      limparFormularioCliente();
+      carregarBancoDadosGlobal();
+    } catch (err) {
+      alert('Erro de envio: ' + err);
+    } finally {
+      btnElement.disabled = false;
+      btnElement.innerHTML = '<i class="fa-solid fa-save me-1"></i> Salvar';
+    }
+  }
+
+  function validarESalvarCliente(e) {
+    e.preventDefault();
+    const docInput = document.getElementById('cli_cpf').value.replace(/\D/g, "");
+    const idAtual = document.getElementById('cli_id_hidden').value;
+
+    const existente = dbClientes.find(c => String(c.cpf_cnpj).replace(/\D/g, "") === docInput && docInput !== "" && c.id !== idAtual);
+
+    if (existente) {
+      const confirma = confirm(`ATENÇÃO DE DUPLICIDADE:\n\nJá existe um cliente cadastrado com este documento!\n\nID: ${existente.id}\nNome: ${existente.nome_razao}\n\nDeseja ATUALIZAR o cadastro deste cliente com as novas informações?`);
+      if (!confirma) return;
+      document.getElementById('cli_id_hidden').value = existente.id;
+    }
+
+    salvarCliente();
+  }
+
+  function salvarCliente() {
+    const btn = document.getElementById('btnSalvarCli');
+    const form = document.getElementById('formCliente');
+
+    const payload = {
+      action: 'salvarCliente',
+      payload: {
+        id_cliente: document.getElementById('cli_id_hidden').value,
+        tipo: document.getElementById('cli_tipo').value,
+        nome_razao: document.getElementById('cli_nome').value,
+        cpf_cnpj: document.getElementById('cli_cpf').value,
+        rg_ie: document.getElementById('cli_rg').value,
+        estado_civil: document.getElementById('cli_estado_civil').value,
+        profissao: document.getElementById('cli_profissao').value,
+        telefone: document.getElementById('cli_telefone').value,
+        endereco: document.getElementById('cli_endereco').value,
+        email: document.getElementById('cli_email').value,
+        obs: document.getElementById('cli_obs').value
+      }
+    };
+
+    enviarDados(payload, btn, form);
+  }
+
+  function salvarProcesso(e) {
+    e.preventDefault();
+    const btn = document.getElementById('btnSalvarProc');
+    const form = document.getElementById('formProcesso');
+
+    const payload = {
+      action: 'cadastrarProcesso',
+      payload: {
+        id_cliente: document.getElementById('proc_id_cliente').value,
+        num_processo: document.getElementById('proc_num').value,
+        unidade: document.getElementById('proc_unidade').value,
+        acao_tipo: document.getElementById('proc_tipo').value,
+        polo: document.getElementById('proc_polo').value,
+        parte_contraria: document.getElementById('proc_parte_contraria').value,
+        vara_tribunal: document.getElementById('proc_vara').value,
+        valor_causa: document.getElementById('proc_valor').value,
+        honorarios: document.getElementById('proc_honorarios').value,
+        status: document.getElementById('proc_status').value
+      }
+    };
+
+    enviarDados(payload, btn, form);
+  }
+
+  function renderizarOptionsProcessos(lista) {
+    const select = document.getElementById('proc_id_cliente');
+    if (!lista || lista.length === 0) {
+      select.innerHTML = '<option value="">Nenhum cliente cadastrado no banco</option>';
+      return;
+    }
+    select.innerHTML = '<option value="">-- Selecione o Cliente --</option>';
+    lista.forEach(c => {
+      const doc = c.cpf_cnpj ? ' - Doc: ' + c.cpf_cnpj : '';
+      select.innerHTML += `<option value="${c.id}">[${c.id}] ${c.nome_razao}${doc}</option>`;
+    });
+  }
+
+  function filtrarListaClientesProcesso() {
+    const termo = document.getElementById('proc_busca_cliente').value.toLowerCase().trim();
+    if (!termo) {
+      renderizarOptionsProcessos(dbClientes);
+      return;
+    }
+
+    const filtrados = dbClientes.filter(c => {
+      const docLimpo = String(c.cpf_cnpj || "").replace(/\D/g, "");
+      const termoLimpo = termo.replace(/\D/g, "");
+      return String(c.id || "").toLowerCase().includes(termo) ||
+             String(c.nome_razao || "").toLowerCase().includes(termo) ||
+             (termoLimpo !== "" && docLimpo.includes(termoLimpo)) ||
+             String(c.rg_ie || "").toLowerCase().includes(termo);
+    });
+
+    renderizarOptionsProcessos(filtrados);
+  }
+
+  window.onload = function() {
+    verificarSessao();
+  };
+</script>
 </body>
 </html>
