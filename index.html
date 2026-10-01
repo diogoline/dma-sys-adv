@@ -9,18 +9,30 @@
   <!-- FontAwesome Ícones -->
   <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
   <style>
-    body { background-color: #f4f6f9; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
-    .sidebar { min-height: 100vh; background-color: #1e293b; color: #fff; }
-    .sidebar .nav-link { color: #cbd5e1; font-weight: 500; margin-bottom: 0.3rem; border-radius: 0.375rem; cursor: pointer; }
-    .sidebar .nav-link:hover, .sidebar .nav-link.active { background-color: #334155; color: #fff; }
-    .card-custom { border: none; border-radius: 0.75rem; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1); }
-    .brand-header { font-weight: 700; letter-spacing: 1px; color: #38bdf8; }
+    body { background-color: #f8fafc; font-family: 'Segoe UI', system-ui, -apple-system, sans-serif; }
+    .sidebar { min-height: 100vh; background-color: #0f172a; color: #fff; }
+    .sidebar .nav-link { color: #94a3b8; font-weight: 500; margin-bottom: 0.3rem; border-radius: 0.5rem; transition: all 0.2s; }
+    .sidebar .nav-link:hover, .sidebar .nav-link.active { background-color: #1e293b; color: #38bdf8; }
+    .card-custom { border: none; border-radius: 0.75rem; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05), 0 2px 4px -1px rgba(0,0,0,0.03); }
+    .brand-header { font-weight: 700; letter-spacing: 0.5px; color: #38bdf8; }
     .login-container { max-width: 420px; margin: 80px auto; }
     .cursor-pointer { cursor: pointer; }
 
+    /* Estilização dos Tabs da Modal de Detalhes */
+    .modal-nav-pills .nav-link {
+      color: #64748b;
+      font-weight: 600;
+      border-radius: 0.5rem;
+      padding: 0.5rem 1rem;
+    }
+    .modal-nav-pills .nav-link.active {
+      background-color: #0284c7;
+      color: #ffffff;
+    }
+
     /* Canvas da Assinatura */
     #sigCanvas {
-      border: 2px dashed #94a3b8;
+      border: 2px dashed #cbd5e1;
       border-radius: 8px;
       background-color: #f8fafc;
       cursor: crosshair;
@@ -31,7 +43,7 @@
     @media print {
       body * { visibility: hidden !important; }
       #printableDoc, #printableDoc * { visibility: visible !important; }
-      #printableDoc { position: absolute; left: 0; top: 0; width: 100%; margin: 0; padding: 20px; font-family: 'Times New Roman', Times, serif; font-size: 12pt; line-height: 1.5; color: #000; }
+      #printableDoc { position: absolute; left: 0; top: 0; width: 100%; margin: 0; padding: 20px; font-family: 'Times New Roman', Times, serif; font-size: 11pt; line-height: 1.5; color: #000; }
       .no-print { display: none !important; }
       .page-break { page-break-before: always; }
     }
@@ -357,17 +369,14 @@
                   </select>
                 </div>
 
-                <!-- NOVOS CAMPOS: PODERES GERAIS E PODERES ESPECIAIS -->
                 <div class="col-12 mt-3">
                   <label class="form-label fw-bold text-primary"><i class="fa-solid fa-scroll me-1"></i> Poderes Gerais (Procuração)</label>
-                  <textarea class="form-control" id="proc_poderes_gerais" rows="3" placeholder="Gerais para atuar perante qualquer juízo, instância ou Tribunal, bem como órgãos públicos e administrativos..."></textarea>
-                  <small class="text-muted">Se deixado em branco, o sistema usará a redação padrão para a procuração.</small>
+                  <textarea class="form-control" id="proc_poderes_gerais" rows="3" placeholder="Gerais para atuar perante qualquer juízo, instância ou Tribunal..."></textarea>
                 </div>
 
                 <div class="col-12">
                   <label class="form-label fw-bold text-success"><i class="fa-solid fa-key me-1"></i> Poderes Especiais (Procuração / Causa)</label>
-                  <textarea class="form-control" id="proc_poderes_especiais" rows="3" placeholder="Poderes para requerer suspensão de cobranças, acordos, transigir, receber e dar quitação, alvarás..."></textarea>
-                  <small class="text-muted">Descreva os detalhes específicos da causa (ex: Conta Contrato COELBA, Banco, INSS).</small>
+                  <textarea class="form-control" id="proc_poderes_especiais" rows="3" placeholder="Poderes para requerer suspensão de cobranças, transigir, acordos, alvarás..."></textarea>
                 </div>
 
                 <div class="col-12 text-end mt-3">
@@ -385,17 +394,40 @@
   </div>
 </div>
 
-<!-- MODAL DE DETALHES DO PROCESSO, STATUS, ANOTAÇÕES E PODERES -->
+<!-- MODAL ORGANIZADA DE DETALHES DO PROCESSO (ABA A ABA) -->
 <div class="modal fade" id="modalProcesso" tabindex="-1" aria-hidden="true">
   <div class="modal-dialog modal-lg">
-    <div class="modal-content">
-      <div class="modal-header bg-dark text-white">
+    <div class="modal-content border-0 shadow-lg">
+      <div class="modal-header bg-slate-900 text-white" style="background-color: #0f172a;">
         <h5 class="modal-title fw-bold" id="modal_titulo"><i class="fa-solid fa-folder-open me-2 text-info"></i> Detalhes do Processo</h5>
         <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
       </div>
-      <div class="modal-body" id="modal_corpo">
-        <p class="text-muted">Carregando informações...</p>
+      
+      <!-- Navegação por Abas Organizadas dentro da Modal -->
+      <div class="bg-light border-bottom px-3 pt-3">
+        <ul class="nav nav-pills modal-nav-pills me-auto" id="modalProcessoTabs" role="tablist">
+          <li class="nav-item me-1">
+            <button class="nav-link active" id="tab-resumo-btn" data-bs-toggle="pill" data-bs-target="#tab-resumo">
+              <i class="fa-solid fa-circle-info me-1"></i> Visão Geral & Poderes
+            </button>
+          </li>
+          <li class="nav-item me-1">
+            <button class="nav-link" id="tab-historico-btn" data-bs-toggle="pill" data-bs-target="#tab-historico">
+              <i class="fa-solid fa-comments me-1"></i> Histórico & Notas
+            </button>
+          </li>
+          <li class="nav-item">
+            <button class="nav-link" id="tab-anexos-btn" data-bs-toggle="pill" data-bs-target="#tab-anexos">
+              <i class="fa-solid fa-paperclip me-1"></i> Anexos Drive
+            </button>
+          </li>
+        </ul>
       </div>
+
+      <div class="modal-body p-4" id="modal_corpo">
+        <!-- Conteúdo preenchido dinamicamente via JS -->
+      </div>
+      
       <div class="modal-footer bg-light" id="modal_footer">
         <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Fechar</button>
       </div>
@@ -408,10 +440,10 @@
   <div class="modal-dialog modal-xl">
     <div class="modal-content">
       <div class="modal-header bg-primary text-white no-print">
-        <h5 class="modal-title fw-bold"><i class="fa-solid fa-file-contract me-2"></i> Pré-visualização do Documento (Contrato & Procuração)</h5>
+        <h5 class="modal-title fw-bold"><i class="fa-solid fa-file-contract me-2"></i> Documento Gerado (Contrato & Procuração)</h5>
         <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
       </div>
-      <div class="modal-body bg-light" style="max-height: 80vh; overflow-y: auto;">
+      <div class="modal-body bg-light p-3" style="max-height: 80vh; overflow-y: auto;">
         
         <!-- PAINEL DE ASSINATURA DIGITAL NA TELA (TOUCH / MOUSE) -->
         <div class="card p-3 mb-4 border-primary shadow-sm no-print">
@@ -427,12 +459,12 @@
           </div>
           <div class="mt-2 text-end">
             <button type="button" class="btn btn-sm btn-success fw-bold" onclick="aplicarAssinaturaNoDocumento()">
-              <i class="fa-solid fa-check-double me-1"></i> Carimbar Assinatura no Documento
+              <i class="fa-solid fa-check-double me-1"></i> Estampar Assinatura no Documento
             </button>
           </div>
         </div>
 
-        <!-- DOCUMENTO FORMATADO PARA IMPRESSÃO / PDF -->
+        <!-- DOCUMENTO FORMATADO COM LOGO E IMPRESSÃO / PDF -->
         <div id="printableDoc" class="bg-white p-5 shadow-sm mx-auto" style="max-width: 850px; min-height: 1000px; border: 1px solid #ddd;">
           <!-- Conteúdo Gerado Dinamicamente -->
         </div>
@@ -451,12 +483,10 @@
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
 <script>
   const API_URL = "https://script.google.com/macros/s/AKfycbzmREya4ujybG5vN_2ivDF7E8JZGbHdLW8gsQkTHCrj4FzT23m_zVWmNz6uJUaghetLrA/exec";
+  const LOGO_URL = "https://lh3.googleusercontent.com/d/1frhtvkEV52HX18oThplD17mjyNF6HOOd";
   let dbClientes = [];
   let dbProcessos = [];
   let usuarioLogado = null;
-  let signatureDataUrl = null;
-
-  // --- CONTROLE DE LOGIN E SESSÃO ---
 
   function verificarSessao() {
     const userSession = sessionStorage.getItem('dma_user');
@@ -516,8 +546,6 @@
     usuarioLogado = null;
     verificarSessao();
   }
-
-  // --- BANCO DE DADOS E RENDERIZAÇÃO DA GRADE ---
 
   function carregarBancoDadosGlobal() {
     if (!usuarioLogado) return;
@@ -650,98 +678,112 @@
     const cliente = dbClientes.find(c => c.id === proc.id_cliente);
 
     document.getElementById('modal_titulo').innerHTML = `<i class="fa-solid fa-folder-open me-2 text-info"></i> Processo [${proc.id}]`;
+    
+    // Conteúdo Organizado em 3 Abas
     document.getElementById('modal_corpo').innerHTML = `
-      <div class="row g-3">
+      <div class="tab-content" id="modalProcessoTabContent">
         
-        <!-- DADOS DO CLIENTE & PROCESSO -->
-        <div class="col-md-6 border-end">
-          <h6 class="fw-bold text-primary"><i class="fa-solid fa-user me-1"></i> Dados do Cliente</h6>
-          <p class="mb-1"><strong>Nome:</strong> ${cliente ? cliente.nome_razao : 'Não encontrado'}</p>
-          <p class="mb-1"><strong>CPF/CNPJ:</strong> ${cliente ? cliente.cpf_cnpj : '-'}</p>
-          <p class="mb-1"><strong>Endereço:</strong> ${cliente ? cliente.endereco : '-'}</p>
-          <p class="mb-1"><strong>Telefone:</strong> ${cliente ? cliente.telefone : '-'}</p>
-        </div>
-
-        <div class="col-md-6">
-          <h6 class="fw-bold text-success"><i class="fa-solid fa-gavel me-1"></i> Estado & Ação</h6>
+        <!-- ABA 1: VISÃO GERAL & PODERES -->
+        <div class="tab-pane fade show active" id="tab-resumo" role="tabpanel">
           
-          <!-- SELETOR DE STATUS PARA FINALIZAR OU ALTERAR -->
-          <div class="mb-2">
-            <label class="form-label fw-bold mb-1">Status do Processo:</label>
-            <div class="input-group input-group-sm">
-              <select class="form-select" id="modal_edit_status">
-                <option value="Em Andamento" ${proc.status === 'Em Andamento' ? 'selected' : ''}>Em Andamento</option>
-                <option value="Aguardando Assinatura" ${proc.status === 'Aguardando Assinatura' ? 'selected' : ''}>Aguardando Assinatura</option>
-                <option value="Concluído" ${proc.status === 'Concluído' ? 'selected' : ''}>Concluído (Finalizar)</option>
-                <option value="Arquivado" ${proc.status === 'Arquivado' ? 'selected' : ''}>Arquivado</option>
-              </select>
-              <button class="btn btn-sm btn-outline-success" onclick="salvarStatusProcesso('${proc.id}')"><i class="fa-solid fa-check"></i> Salvar Status</button>
+          <div class="row g-3 mb-3">
+            <div class="col-md-6">
+              <div class="card p-3 border-0 bg-light h-100">
+                <h6 class="fw-bold text-primary mb-2"><i class="fa-solid fa-user me-1"></i> Dados do Cliente</h6>
+                <p class="mb-1 small"><strong>Nome:</strong> ${cliente ? cliente.nome_razao : 'Não encontrado'}</p>
+                <p class="mb-1 small"><strong>CPF/CNPJ:</strong> ${cliente ? cliente.cpf_cnpj : '-'}</p>
+                <p class="mb-1 small"><strong>Endereço:</strong> ${cliente ? cliente.endereco : '-'}</p>
+                <p class="mb-0 small"><strong>Telefone:</strong> ${cliente ? cliente.telefone : '-'}</p>
+              </div>
+            </div>
+
+            <div class="col-md-6">
+              <div class="card p-3 border-0 bg-light h-100">
+                <h6 class="fw-bold text-success mb-2"><i class="fa-solid fa-gavel me-1"></i> Estado & Ação</h6>
+                
+                <div class="mb-2">
+                  <label class="form-label fw-bold small mb-1">Status do Processo:</label>
+                  <div class="input-group input-group-sm">
+                    <select class="form-select" id="modal_edit_status">
+                      <option value="Em Andamento" ${proc.status === 'Em Andamento' ? 'selected' : ''}>Em Andamento</option>
+                      <option value="Aguardando Assinatura" ${proc.status === 'Aguardando Assinatura' ? 'selected' : ''}>Aguardando Assinatura</option>
+                      <option value="Concluído" ${proc.status === 'Concluído' ? 'selected' : ''}>Concluído (Finalizar)</option>
+                      <option value="Arquivado" ${proc.status === 'Arquivado' ? 'selected' : ''}>Arquivado</option>
+                    </select>
+                    <button class="btn btn-sm btn-outline-success" onclick="salvarStatusProcesso('${proc.id}')"><i class="fa-solid fa-check"></i> Salvar Status</button>
+                  </div>
+                </div>
+
+                <p class="mb-1 small"><strong>Nº CNJ:</strong> ${proc.num_processo || '-'}</p>
+                <p class="mb-1 small"><strong>Tipo de Ação:</strong> ${proc.acao_tipo || '-'}</p>
+                <p class="mb-1 small"><strong>Unidade:</strong> ${proc.unidade}</p>
+                <p class="mb-1 small"><strong>Parte Contrária:</strong> ${proc.parte_contraria || '-'}</p>
+                <p class="mb-0 small"><strong>Honorários:</strong> ${proc.honorarios || '-'}</p>
+              </div>
             </div>
           </div>
 
-          <p class="mb-1"><strong>Nº CNJ:</strong> ${proc.num_processo || '-'}</p>
-          <p class="mb-1"><strong>Tipo de Ação:</strong> ${proc.acao_tipo || '-'}</p>
-          <p class="mb-1"><strong>Unidade:</strong> ${proc.unidade}</p>
-          <p class="mb-1"><strong>Parte Contrária:</strong> ${proc.parte_contraria || '-'}</p>
-          <p class="mb-1"><strong>Honorários:</strong> ${proc.honorarios || '-'}</p>
+          <div class="card p-3 border-0 bg-light">
+            <h6 class="fw-bold text-dark mb-2"><i class="fa-solid fa-pen-to-square me-1 text-primary"></i> Personalizar Poderes da Procuração</h6>
+            <div class="row g-2">
+              <div class="col-md-6">
+                <label class="form-label small fw-bold">Poderes Gerais:</label>
+                <textarea class="form-control form-control-sm" id="modal_edit_poderes_gerais" rows="3" placeholder="Poderes gerais da procuração...">${proc.poderes_gerais || ''}</textarea>
+              </div>
+              <div class="col-md-6">
+                <label class="form-label small fw-bold">Poderes Especiais:</label>
+                <textarea class="form-control form-control-sm" id="modal_edit_poderes_especiais" rows="3" placeholder="Poderes especiais e detalhes da causa...">${proc.poderes_especiais || ''}</textarea>
+              </div>
+              <div class="col-12 text-end mt-2">
+                <button type="button" class="btn btn-sm btn-primary px-3" onclick="salvarPoderesProcesso('${proc.id}')">
+                  <i class="fa-solid fa-save me-1"></i> Salvar Poderes
+                </button>
+              </div>
+            </div>
+          </div>
+
         </div>
 
-        <!-- EDIÇÃO DE PODERES GERAIS E ESPECIAIS DA PROCURAÇÃO -->
-        <div class="col-12 mt-3 pt-3 border-top">
-          <h6 class="fw-bold text-dark mb-2"><i class="fa-solid fa-pen-to-square me-1 text-primary"></i> Editar Poderes da Procuração</h6>
-          <div class="row g-2">
-            <div class="col-md-6">
-              <label class="form-label small fw-bold">Poderes Gerais:</label>
-              <textarea class="form-control form-control-sm" id="modal_edit_poderes_gerais" rows="3">${proc.poderes_gerais || ''}</textarea>
+        <!-- ABA 2: HISTÓRICO & ANOTAÇÕES -->
+        <div class="tab-pane fade" id="tab-historico" role="tabpanel">
+          <div class="card p-3 border-0 bg-light">
+            <h6 class="fw-bold text-dark mb-2"><i class="fa-solid fa-comments me-1 text-info"></i> Histórico & Andamentos</h6>
+            <div class="bg-white p-3 rounded border mb-3" style="max-height: 220px; overflow-y: auto; font-size: 0.9rem;">
+              ${proc.anotacoes ? proc.anotacoes.replace(/\n/g, '<br>') : '<span class="text-muted">Nenhuma anotação registrada até o momento.</span>'}
             </div>
-            <div class="col-md-6">
-              <label class="form-label small fw-bold">Poderes Especiais:</label>
-              <textarea class="form-control form-control-sm" id="modal_edit_poderes_especiais" rows="3">${proc.poderes_especiais || ''}</textarea>
-            </div>
-            <div class="col-12 text-end">
-              <button type="button" class="btn btn-sm btn-primary" onclick="salvarPoderesProcesso('${proc.id}')">
-                <i class="fa-solid fa-save me-1"></i> Salvar Poderes
+            <div class="input-group">
+              <input type="text" class="form-control" id="modal_nova_anotacao" placeholder="Adicionar nova nota / andamento (ex: Audiência marcada para 20/10)...">
+              <button class="btn btn-info text-white fw-bold" onclick="adicionarAnotacaoProcesso('${proc.id}')">
+                <i class="fa-solid fa-plus me-1"></i> Adicionar Nota
               </button>
             </div>
           </div>
         </div>
 
-        <!-- ANOTAÇÕES & MOVIMENTAÇÕES DO PROCESSO -->
-        <div class="col-12 mt-3 pt-3 border-top">
-          <h6 class="fw-bold text-dark mb-2"><i class="fa-solid fa-comments me-1 text-info"></i> Histórico & Anotações do Processo</h6>
-          <div class="bg-light p-2 rounded border mb-2" style="max-height: 150px; overflow-y: auto; font-size: 0.9rem;">
-            ${proc.anotacoes ? proc.anotacoes.replace(/\n/g, '<br>') : '<span class="text-muted">Nenhuma anotação registrada até o momento.</span>'}
+        <!-- ABA 3: ANEXOS DRIVE -->
+        <div class="tab-pane fade" id="tab-anexos" role="tabpanel">
+          <div class="card p-3 border-0 bg-light">
+            <h6 class="fw-bold text-dark mb-2"><i class="fa-solid fa-cloud-arrow-up me-1 text-primary"></i> Anexar Documento no Google Drive</h6>
+            <form id="formAnexoFile" onsubmit="enviarAnexoDrive(event, '${proc.id}')" class="row g-2 align-items-center">
+              <div class="col-md-4">
+                <select class="form-select form-select-sm" id="anexo_tipo_doc" required>
+                  <option value="Contrato Assinado">Contrato Assinado</option>
+                  <option value="Procuração Assinada">Procuração Assinada</option>
+                  <option value="Documento Pessoal / RG">Documento Pessoal / RG</option>
+                  <option value="Comprovante de Residência">Comprovante de Residência</option>
+                  <option value="Outros Anexos">Outros Anexos</option>
+                </select>
+              </div>
+              <div class="col-md-5">
+                <input type="file" class="form-control form-control-sm" id="anexo_file_input" accept=".pdf,image/*" required>
+              </div>
+              <div class="col-md-3">
+                <button type="submit" class="btn btn-sm btn-primary w-100" id="btnEnviarAnexo">
+                  <i class="fa-solid fa-upload me-1"></i> Salvar no Drive
+                </button>
+              </div>
+            </form>
           </div>
-          <div class="input-group input-group-sm">
-            <input type="text" class="form-control" id="modal_nova_anotacao" placeholder="Adicionar nova nota / andamento (ex: Audiência marcada para 20/10)...">
-            <button class="btn btn-info text-white" onclick="adicionarAnotacaoProcesso('${proc.id}')">
-              <i class="fa-solid fa-plus me-1"></i> Adicionar Nota
-            </button>
-          </div>
-        </div>
-        
-        <!-- ANEXO NO GOOGLE DRIVE -->
-        <div class="col-12 mt-3 pt-3 border-top">
-          <h6 class="fw-bold text-dark"><i class="fa-solid fa-cloud-arrow-up me-1 text-primary"></i> Anexar Documento no Google Drive</h6>
-          <form id="formAnexoFile" onsubmit="enviarAnexoDrive(event, '${proc.id}')" class="row g-2 align-items-center">
-            <div class="col-md-4">
-              <select class="form-select form-select-sm" id="anexo_tipo_doc" required>
-                <option value="Contrato Assinado">Contrato Assinado</option>
-                <option value="Procuração Assinada">Procuração Assinada</option>
-                <option value="Documento Pessoal / RG">Documento Pessoal / RG</option>
-                <option value="Comprovante de Residência">Comprovante de Residência</option>
-                <option value="Outros Anexos">Outros Anexos</option>
-              </select>
-            </div>
-            <div class="col-md-5">
-              <input type="file" class="form-control form-control-sm" id="anexo_file_input" accept=".pdf,image/*" required>
-            </div>
-            <div class="col-md-3">
-              <button type="submit" class="btn btn-sm btn-primary w-100" id="btnEnviarAnexo">
-                <i class="fa-solid fa-upload me-1"></i> Salvar no Drive
-              </button>
-            </div>
-          </form>
         </div>
 
       </div>
@@ -749,16 +791,21 @@
 
     document.getElementById('modal_footer').innerHTML = `
       <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Fechar</button>
-      <button type="button" class="btn btn-primary" onclick="gerarDocumentoPDF('${proc.id}')">
+      <button type="button" class="btn btn-primary fw-bold" onclick="gerarDocumentoPDF('${proc.id}')">
         <i class="fa-solid fa-file-pdf me-1"></i> Gerar Minuta PDF
       </button>
     `;
 
+    // Garante retorno à primeira aba ao reabrir a modal
+    const tabFirst = document.getElementById('tab-resumo-btn');
+    if (tabFirst) {
+      const tabObj = new bootstrap.Tab(tabFirst);
+      tabObj.show();
+    }
+
     const myModal = new bootstrap.Modal(document.getElementById('modalProcesso'));
     myModal.show();
   }
-
-  // --- ATUALIZAÇÕES DO PROCESSO (STATUS, PODERES E ANOTAÇÕES) ---
 
   function salvarStatusProcesso(idProcesso) {
     const novoStatus = document.getElementById('modal_edit_status').value;
@@ -779,7 +826,7 @@
       payload: { id_processo: idProcesso, poderes_gerais: gerais, poderes_especiais: especiais }
     };
 
-    enviarAtualizacaoProcesso(payload, "Poderes da procuração salvos!");
+    enviarAtualizacaoProcesso(payload, "Poderes da procuração salvos com sucesso!");
   }
 
   function adicionarAnotacaoProcesso(idProcesso) {
@@ -873,8 +920,6 @@
     reader.readAsDataURL(file);
   }
 
-  // --- GERADOR DINÂMICO DE CONTRATO E PROCURAÇÃO ---
-
   function gerarDocumentoPDF(idProcesso) {
     const proc = dbProcessos.find(p => p.id === idProcesso);
     if (!proc) return;
@@ -910,13 +955,23 @@
 
     const poderesEspeciais = proc.poderes_especiais || `A outorgante confere aos seus procuradores poderes especiais para requerer a suspensão ou cancelamento de cobranças, negativações e protestos; firmar acordos e transações; confessar; desistir; reconhecer pedidos; receber e dar quitação; levantar valores e alvarás judiciais; assinar declarações e compromissos; representar a outorgante perante instituições financeiras e repartições públicas; e substabelecer com ou sem reserva de poderes.`;
 
+    // LOGO CABEÇALHO DO DOCUMENTO
+    const logoHeaderHtml = `
+      <div style="text-align: center; margin-bottom: 20px;">
+        <img src="${LOGO_URL}" alt="Logo Escritório" style="max-height: 100px; max-width: 280px; object-fit: contain;" onerror="this.style.display='none'">
+      </div>
+    `;
+
     const htmlDocumento = `
       <div style="font-family: 'Times New Roman', serif; line-height: 1.6; color: #000; font-size: 11pt;">
         
+        <!-- CABEÇALHO COM LOGO DA EMPRESA -->
+        ${logoHeaderHtml}
+
         <!-- PROCURAÇÃO -->
         <div style="text-align: center; margin-bottom: 25px;">
-          <h4 style="font-weight: bold; margin-bottom: 2px;">PROCURAÇÃO "AD JUDICIA ET EXTRA"</h4>
-          <p style="font-size: 9pt; font-style: italic; margin-top: 0;">RUAN MATOS ADVOCACIA</p>
+          <h4 style="font-weight: bold; margin-bottom: 2px; text-transform: uppercase;">PROCURAÇÃO "AD JUDICIA ET EXTRA"</h4>
+          <p style="font-size: 9pt; font-style: italic; margin-top: 0; color: #444;">RUAN MATOS ADVOCACIA</p>
         </div>
 
         <p style="text-align: justify; margin-bottom: 12px;"><strong>OUTORGANTE:</strong> ${cliente.nome_razao.toUpperCase()}, ${cliente.tipo === 'PJ' ? 'Pessoa Jurídica' : 'brasileiro(a)'}, ${cliente.estado_civil || 'estado civil não informado'}, ${cliente.profissao || 'profissão não informada'}, inscrito(a) no CPF/CNPJ nº ${cliente.cpf_cnpj}, RG nº ${cliente.rg_ie || '-'}, residente e domiciliado(a) em ${cliente.endereco}.</p>
@@ -936,9 +991,12 @@
 
         <div class="page-break" style="margin-top: 60px; padding-top: 40px; border-top: 2px dashed #ccc;" class="no-print"></div>
 
+        <!-- CABEÇALHO COM LOGO CONTRATO -->
+        ${logoHeaderHtml}
+
         <!-- CONTRATO DE HONORÁRIOS -->
-        <div style="text-align: center; margin-bottom: 25px; margin-top: 20px;">
-          <h4 style="font-weight: bold;">CONTRATO DE HONORÁRIOS ADVOCATÍCIOS</h4>
+        <div style="text-align: center; margin-bottom: 25px; margin-top: 10px;">
+          <h4 style="font-weight: bold; text-transform: uppercase;">CONTRATO DE HONORÁRIOS ADVOCATÍCIOS</h4>
         </div>
 
         <p style="text-align: justify; margin-bottom: 12px;"><strong>CONTRATANTE:</strong> ${cliente.nome_razao.toUpperCase()}, CPF/CNPJ nº ${cliente.cpf_cnpj}, residente e domiciliado(a) em ${cliente.endereco}.</p>
@@ -976,8 +1034,6 @@
     // Inicializa o canvas de assinatura digital na tela
     setTimeout(inicializarCanvasAssinatura, 500);
   }
-
-  // --- LÓGICA DO CANVAS DE ASSINATURA DIGITAL NA TELA ---
 
   let canvas, ctx, isDrawing = false;
 
@@ -1034,8 +1090,6 @@
 
     alert("Assinatura do cliente estampada no documento com sucesso!");
   }
-
-  // --- FUNÇÕES AUXILIARES DE FORMULÁRIO ---
 
   function atualizarMascarasTipo() {
     const tipo = document.getElementById('cli_tipo').value;
