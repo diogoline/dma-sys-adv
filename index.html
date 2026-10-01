@@ -18,6 +18,15 @@
     .login-container { max-width: 420px; margin: 80px auto; }
     .cursor-pointer { cursor: pointer; }
 
+    /* Canvas da Assinatura */
+    #sigCanvas {
+      border: 2px dashed #94a3b8;
+      border-radius: 8px;
+      background-color: #f8fafc;
+      cursor: crosshair;
+      touch-action: none;
+    }
+
     /* Estilos de Impressão do Contrato/Procuração */
     @media print {
       body * { visibility: hidden !important; }
@@ -158,6 +167,7 @@
                   <option value="Em Andamento">Em Andamento</option>
                   <option value="Aguardando Assinatura">Aguardando Assinatura</option>
                   <option value="Concluído">Concluído</option>
+                  <option value="Arquivado">Arquivado</option>
                 </select>
               </div>
             </div>
@@ -333,19 +343,34 @@
                   <label class="form-label">Valor Causa (R$)</label>
                   <input type="text" class="form-control" id="proc_valor">
                 </div>
-                <div class="col-md-4">
+                <div class="col-md-6">
                   <label class="form-label">Honorários Combinados</label>
                   <input type="text" class="form-control" id="proc_honorarios" placeholder="Ex: R$ 300,00 + 30%">
                 </div>
-                <div class="col-md-4">
+                <div class="col-md-6">
                   <label class="form-label">Status do Processo</label>
                   <select class="form-select" id="proc_status">
                     <option value="Em Andamento">Em Andamento</option>
                     <option value="Aguardando Assinatura">Aguardando Assinatura</option>
                     <option value="Concluído">Concluído</option>
+                    <option value="Arquivado">Arquivado</option>
                   </select>
                 </div>
-                <div class="col-12 text-end">
+
+                <!-- NOVOS CAMPOS: PODERES GERAIS E PODERES ESPECIAIS -->
+                <div class="col-12 mt-3">
+                  <label class="form-label fw-bold text-primary"><i class="fa-solid fa-scroll me-1"></i> Poderes Gerais (Procuração)</label>
+                  <textarea class="form-control" id="proc_poderes_gerais" rows="3" placeholder="Gerais para atuar perante qualquer juízo, instância ou Tribunal, bem como órgãos públicos e administrativos..."></textarea>
+                  <small class="text-muted">Se deixado em branco, o sistema usará a redação padrão para a procuração.</small>
+                </div>
+
+                <div class="col-12">
+                  <label class="form-label fw-bold text-success"><i class="fa-solid fa-key me-1"></i> Poderes Especiais (Procuração / Causa)</label>
+                  <textarea class="form-control" id="proc_poderes_especiais" rows="3" placeholder="Poderes para requerer suspensão de cobranças, acordos, transigir, receber e dar quitação, alvarás..."></textarea>
+                  <small class="text-muted">Descreva os detalhes específicos da causa (ex: Conta Contrato COELBA, Banco, INSS).</small>
+                </div>
+
+                <div class="col-12 text-end mt-3">
                   <button type="submit" class="btn btn-success px-4" id="btnSalvarProc">
                     <i class="fa-solid fa-save me-1"></i> Cadastrar Processo
                   </button>
@@ -360,7 +385,7 @@
   </div>
 </div>
 
-<!-- MODAL DE DETALHES DO PROCESSO E ANEXO DE ARQUIVOS -->
+<!-- MODAL DE DETALHES DO PROCESSO, STATUS, ANOTAÇÕES E PODERES -->
 <div class="modal fade" id="modalProcesso" tabindex="-1" aria-hidden="true">
   <div class="modal-dialog modal-lg">
     <div class="modal-content">
@@ -378,7 +403,7 @@
   </div>
 </div>
 
-<!-- MODAL DE PRÉ-VISUALIZAÇÃO DO CONTRATO E PROCURAÇÃO -->
+<!-- MODAL DE PRÉ-VISUALIZAÇÃO DO CONTRATO E PROCURAÇÃO COM ASSINATURA DIGITAL NA TELA -->
 <div class="modal fade" id="modalDocumentoDoc" tabindex="-1" aria-hidden="true">
   <div class="modal-dialog modal-xl">
     <div class="modal-content">
@@ -386,10 +411,32 @@
         <h5 class="modal-title fw-bold"><i class="fa-solid fa-file-contract me-2"></i> Pré-visualização do Documento (Contrato & Procuração)</h5>
         <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
       </div>
-      <div class="modal-body bg-light" style="max-height: 75vh; overflow-y: auto;">
+      <div class="modal-body bg-light" style="max-height: 80vh; overflow-y: auto;">
+        
+        <!-- PAINEL DE ASSINATURA DIGITAL NA TELA (TOUCH / MOUSE) -->
+        <div class="card p-3 mb-4 border-primary shadow-sm no-print">
+          <div class="d-flex justify-content-between align-items-center mb-2">
+            <h6 class="fw-bold text-primary mb-0"><i class="fa-solid fa-signature me-1"></i> Coletar Assinatura Digital do Cliente (Tela / Touch)</h6>
+            <button type="button" class="btn btn-sm btn-outline-danger" onclick="limparAssinaturaCanvas()">
+              <i class="fa-solid fa-eraser me-1"></i> Limpar Assinatura
+            </button>
+          </div>
+          <p class="small text-muted mb-2">O cliente pode assinar com o dedo no celular/tablet ou usando o mouse na caixa abaixo:</p>
+          <div class="text-center">
+            <canvas id="sigCanvas" width="600" height="150" class="w-100"></canvas>
+          </div>
+          <div class="mt-2 text-end">
+            <button type="button" class="btn btn-sm btn-success fw-bold" onclick="aplicarAssinaturaNoDocumento()">
+              <i class="fa-solid fa-check-double me-1"></i> Carimbar Assinatura no Documento
+            </button>
+          </div>
+        </div>
+
+        <!-- DOCUMENTO FORMATADO PARA IMPRESSÃO / PDF -->
         <div id="printableDoc" class="bg-white p-5 shadow-sm mx-auto" style="max-width: 850px; min-height: 1000px; border: 1px solid #ddd;">
           <!-- Conteúdo Gerado Dinamicamente -->
         </div>
+
       </div>
       <div class="modal-footer bg-white no-print">
         <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Fechar</button>
@@ -407,6 +454,7 @@
   let dbClientes = [];
   let dbProcessos = [];
   let usuarioLogado = null;
+  let signatureDataUrl = null;
 
   // --- CONTROLE DE LOGIN E SESSÃO ---
 
@@ -483,7 +531,6 @@
     const oldScript = document.getElementById(scriptId);
     if (oldScript) oldScript.remove();
 
-    // Tempo limite de 10 segundos para aviso de carregamento lento
     let timeoutId = setTimeout(function() {
       if (tbody && tbody.innerHTML.includes('Carregando dados do banco...')) {
         tbody.innerHTML = '<tr><td colspan="7" class="text-center text-warning py-4"><i class="fa-solid fa-clock me-2"></i> A conexão demorou a responder. <button class="btn btn-sm btn-outline-primary ms-2" onclick="carregarBancoDadosGlobal()"><i class="fa-solid fa-rotate-right me-1"></i> Tentar Novamente</button></td></tr>';
@@ -514,7 +561,7 @@
     script.onerror = function() {
       clearTimeout(timeoutId);
       if (tbody) {
-        tbody.innerHTML = '<tr><td colspan="7" class="text-center text-danger py-4"><i class="fa-solid fa-triangle-exclamation me-2"></i> Falha de comunicação com o servidor. Verifique a implantação do Apps Script. <button class="btn btn-sm btn-outline-danger ms-2" onclick="carregarBancoDadosGlobal()"><i class="fa-solid fa-rotate-right me-1"></i> Tentar Novamente</button></td></tr>';
+        tbody.innerHTML = '<tr><td colspan="7" class="text-center text-danger py-4"><i class="fa-solid fa-triangle-exclamation me-2"></i> Falha de comunicação com o servidor. <button class="btn btn-sm btn-outline-danger ms-2" onclick="carregarBancoDadosGlobal()"><i class="fa-solid fa-rotate-right me-1"></i> Tentar Novamente</button></td></tr>';
       }
     };
 
@@ -548,6 +595,7 @@
       if (p.status === 'Em Andamento') badgeStatus = '<span class="badge bg-primary">Em Andamento</span>';
       if (p.status === 'Aguardando Assinatura') badgeStatus = '<span class="badge bg-warning text-dark">Aguardando Assinatura</span>';
       if (p.status === 'Concluído') badgeStatus = '<span class="badge bg-success">Concluído</span>';
+      if (p.status === 'Arquivado') badgeStatus = '<span class="badge bg-dark">Arquivado</span>';
 
       tbody.innerHTML += `
         <tr class="cursor-pointer" onclick="abrirModalProcesso('${p.id}')">
@@ -604,6 +652,8 @@
     document.getElementById('modal_titulo').innerHTML = `<i class="fa-solid fa-folder-open me-2 text-info"></i> Processo [${proc.id}]`;
     document.getElementById('modal_corpo').innerHTML = `
       <div class="row g-3">
+        
+        <!-- DADOS DO CLIENTE & PROCESSO -->
         <div class="col-md-6 border-end">
           <h6 class="fw-bold text-primary"><i class="fa-solid fa-user me-1"></i> Dados do Cliente</h6>
           <p class="mb-1"><strong>Nome:</strong> ${cliente ? cliente.nome_razao : 'Não encontrado'}</p>
@@ -611,17 +661,68 @@
           <p class="mb-1"><strong>Endereço:</strong> ${cliente ? cliente.endereco : '-'}</p>
           <p class="mb-1"><strong>Telefone:</strong> ${cliente ? cliente.telefone : '-'}</p>
         </div>
+
         <div class="col-md-6">
-          <h6 class="fw-bold text-success"><i class="fa-solid fa-gavel me-1"></i> Dados da Ação</h6>
+          <h6 class="fw-bold text-success"><i class="fa-solid fa-gavel me-1"></i> Estado & Ação</h6>
+          
+          <!-- SELETOR DE STATUS PARA FINALIZAR OU ALTERAR -->
+          <div class="mb-2">
+            <label class="form-label fw-bold mb-1">Status do Processo:</label>
+            <div class="input-group input-group-sm">
+              <select class="form-select" id="modal_edit_status">
+                <option value="Em Andamento" ${proc.status === 'Em Andamento' ? 'selected' : ''}>Em Andamento</option>
+                <option value="Aguardando Assinatura" ${proc.status === 'Aguardando Assinatura' ? 'selected' : ''}>Aguardando Assinatura</option>
+                <option value="Concluído" ${proc.status === 'Concluído' ? 'selected' : ''}>Concluído (Finalizar)</option>
+                <option value="Arquivado" ${proc.status === 'Arquivado' ? 'selected' : ''}>Arquivado</option>
+              </select>
+              <button class="btn btn-sm btn-outline-success" onclick="salvarStatusProcesso('${proc.id}')"><i class="fa-solid fa-check"></i> Salvar Status</button>
+            </div>
+          </div>
+
           <p class="mb-1"><strong>Nº CNJ:</strong> ${proc.num_processo || '-'}</p>
           <p class="mb-1"><strong>Tipo de Ação:</strong> ${proc.acao_tipo || '-'}</p>
-          <p class="mb-1"><strong>Unidade do Escritório:</strong> ${proc.unidade}</p>
+          <p class="mb-1"><strong>Unidade:</strong> ${proc.unidade}</p>
           <p class="mb-1"><strong>Parte Contrária:</strong> ${proc.parte_contraria || '-'}</p>
           <p class="mb-1"><strong>Honorários:</strong> ${proc.honorarios || '-'}</p>
         </div>
+
+        <!-- EDIÇÃO DE PODERES GERAIS E ESPECIAIS DA PROCURAÇÃO -->
+        <div class="col-12 mt-3 pt-3 border-top">
+          <h6 class="fw-bold text-dark mb-2"><i class="fa-solid fa-pen-to-square me-1 text-primary"></i> Editar Poderes da Procuração</h6>
+          <div class="row g-2">
+            <div class="col-md-6">
+              <label class="form-label small fw-bold">Poderes Gerais:</label>
+              <textarea class="form-control form-control-sm" id="modal_edit_poderes_gerais" rows="3">${proc.poderes_gerais || ''}</textarea>
+            </div>
+            <div class="col-md-6">
+              <label class="form-label small fw-bold">Poderes Especiais:</label>
+              <textarea class="form-control form-control-sm" id="modal_edit_poderes_especiais" rows="3">${proc.poderes_especiais || ''}</textarea>
+            </div>
+            <div class="col-12 text-end">
+              <button type="button" class="btn btn-sm btn-primary" onclick="salvarPoderesProcesso('${proc.id}')">
+                <i class="fa-solid fa-save me-1"></i> Salvar Poderes
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <!-- ANOTAÇÕES & MOVIMENTAÇÕES DO PROCESSO -->
+        <div class="col-12 mt-3 pt-3 border-top">
+          <h6 class="fw-bold text-dark mb-2"><i class="fa-solid fa-comments me-1 text-info"></i> Histórico & Anotações do Processo</h6>
+          <div class="bg-light p-2 rounded border mb-2" style="max-height: 150px; overflow-y: auto; font-size: 0.9rem;">
+            ${proc.anotacoes ? proc.anotacoes.replace(/\n/g, '<br>') : '<span class="text-muted">Nenhuma anotação registrada até o momento.</span>'}
+          </div>
+          <div class="input-group input-group-sm">
+            <input type="text" class="form-control" id="modal_nova_anotacao" placeholder="Adicionar nova nota / andamento (ex: Audiência marcada para 20/10)...">
+            <button class="btn btn-info text-white" onclick="adicionarAnotacaoProcesso('${proc.id}')">
+              <i class="fa-solid fa-plus me-1"></i> Adicionar Nota
+            </button>
+          </div>
+        </div>
         
-        <div class="col-12 mt-4 pt-3 border-top">
-          <h6 class="fw-bold text-dark"><i class="fa-solid fa-cloud-arrow-up me-1 text-primary"></i> Anexar Documento Assinado no Google Drive</h6>
+        <!-- ANEXO NO GOOGLE DRIVE -->
+        <div class="col-12 mt-3 pt-3 border-top">
+          <h6 class="fw-bold text-dark"><i class="fa-solid fa-cloud-arrow-up me-1 text-primary"></i> Anexar Documento no Google Drive</h6>
           <form id="formAnexoFile" onsubmit="enviarAnexoDrive(event, '${proc.id}')" class="row g-2 align-items-center">
             <div class="col-md-4">
               <select class="form-select form-select-sm" id="anexo_tipo_doc" required>
@@ -642,6 +743,7 @@
             </div>
           </form>
         </div>
+
       </div>
     `;
 
@@ -654,6 +756,61 @@
 
     const myModal = new bootstrap.Modal(document.getElementById('modalProcesso'));
     myModal.show();
+  }
+
+  // --- ATUALIZAÇÕES DO PROCESSO (STATUS, PODERES E ANOTAÇÕES) ---
+
+  function salvarStatusProcesso(idProcesso) {
+    const novoStatus = document.getElementById('modal_edit_status').value;
+    const payload = {
+      action: 'atualizarStatusProcesso',
+      payload: { id_processo: idProcesso, status: novoStatus }
+    };
+
+    enviarAtualizacaoProcesso(payload, "Status do processo atualizado com sucesso!");
+  }
+
+  function salvarPoderesProcesso(idProcesso) {
+    const gerais = document.getElementById('modal_edit_poderes_gerais').value;
+    const especiais = document.getElementById('modal_edit_poderes_especiais').value;
+
+    const payload = {
+      action: 'atualizarPoderesProcesso',
+      payload: { id_processo: idProcesso, poderes_gerais: gerais, poderes_especiais: especiais }
+    };
+
+    enviarAtualizacaoProcesso(payload, "Poderes da procuração salvos!");
+  }
+
+  function adicionarAnotacaoProcesso(idProcesso) {
+    const nota = document.getElementById('modal_nova_anotacao').value.trim();
+    if (!nota) return;
+
+    const payload = {
+      action: 'adicionarAnotacaoProcesso',
+      payload: { id_processo: idProcesso, anotacao: nota }
+    };
+
+    enviarAtualizacaoProcesso(payload, "Anotação registrada com sucesso!");
+  }
+
+  async function enviarAtualizacaoProcesso(payload, mensagemSucesso) {
+    payload.payload.usuario_operador = usuarioLogado ? usuarioLogado.usuario : "Sistema";
+    const formData = new FormData();
+    formData.append('data', JSON.stringify(payload));
+
+    try {
+      await fetch(API_URL, {
+        method: 'POST',
+        mode: 'no-cors',
+        body: formData
+      });
+
+      alert(mensagemSucesso);
+      carregarBancoDadosGlobal();
+    } catch (err) {
+      alert('Erro ao atualizar processo: ' + err);
+    }
   }
 
   function enviarAnexoDrive(e, idProcesso) {
@@ -748,6 +905,11 @@
     const parteContraria = proc.parte_contraria || "COELBA / Neoenergia";
     const honorariosTexto = proc.honorarios || "R$ 300,00 (trezentos reais) de entrada mais 30% (trinta por cento) sobre o proveito econômico obtido.";
 
+    // PODERES GERAIS E ESPECIAIS DINÂMICOS
+    const poderesGerais = proc.poderes_gerais || `Por meio deste instrumento são outorgados poderes gerais para atuar perante qualquer juízo, instância ou Tribunal, bem como perante a ${parteContraria}, ANEEL, Procon, Ouvidoria, consumidor.gov.br e demais órgãos públicos e administrativos, propondo as ações competentes com a cláusula "ad judicia et extra", nos termos do art. 105 do Código de Processo Civil.`;
+
+    const poderesEspeciais = proc.poderes_especiais || `A outorgante confere aos seus procuradores poderes especiais para requerer a suspensão ou cancelamento de cobranças, negativações e protestos; firmar acordos e transações; confessar; desistir; reconhecer pedidos; receber e dar quitação; levantar valores e alvarás judiciais; assinar declarações e compromissos; representar a outorgante perante instituições financeiras e repartições públicas; e substabelecer com ou sem reserva de poderes.`;
+
     const htmlDocumento = `
       <div style="font-family: 'Times New Roman', serif; line-height: 1.6; color: #000; font-size: 11pt;">
         
@@ -761,13 +923,14 @@
 
         <p style="text-align: justify; margin-bottom: 12px;"><strong>OUTORGADOS:</strong> ${advQualificacao}</p>
 
-        <p style="text-align: justify; margin-bottom: 12px;"><strong>PODERES GERAIS:</strong> Por meio deste instrumento são outorgados poderes gerais para atuar perante qualquer juízo, instância ou Tribunal, bem como perante a ${parteContraria}, ANEEL, Procon, Ouvidoria, consumidor.gov.br e demais órgãos públicos e administrativos, propondo as ações competentes com a cláusula "ad judicia et extra", nos termos do art. 105 do Código de Processo Civil.</p>
+        <p style="text-align: justify; margin-bottom: 12px;"><strong>PODERES GERAIS:</strong> ${poderesGerais}</p>
 
-        <p style="text-align: justify; margin-bottom: 12px;"><strong>PODERES ESPECIAIS:</strong> A outorgante confere aos seus procuradores poderes especiais para requerer a suspensão ou cancelamento de cobranças, negativações e protestos; firmar acordos e transações; confessar; desistir; reconhecer pedidos; receber e dar quitação; levantar valores e alvarás judiciais; assinar declarações e compromissos; representar a outorgante perante instituições financeiras e repartições públicas; e substabelecer com ou sem reserva de poderes.</p>
+        <p style="text-align: justify; margin-bottom: 12px;"><strong>PODERES ESPECIAIS:</strong> ${poderesEspeciais}</p>
 
         <p style="text-align: right; margin-top: 25px;">${localData}</p>
 
-        <div style="margin-top: 50px; text-align: center;">
+        <div style="margin-top: 40px; text-align: center;">
+          <div id="sig_outorgante_place" class="mb-1" style="min-height: 40px;"></div>
           <p style="border-top: 1px solid #000; width: 70%; margin: 0 auto; padding-top: 5px;">${cliente.nome_razao.toUpperCase()}<br><small>OUTORGANTE</small></p>
         </div>
 
@@ -794,7 +957,8 @@
 
         <p style="text-align: right; margin-top: 25px;">${localData}</p>
 
-        <div style="margin-top: 45px; text-align: center;">
+        <div style="margin-top: 40px; text-align: center;">
+          <div id="sig_contratante_place" class="mb-1" style="min-height: 40px;"></div>
           <p style="border-top: 1px solid #000; width: 70%; margin: 0 auto; padding-top: 5px;">${cliente.nome_razao.toUpperCase()}<br><small>CONTRATANTE</small></p>
         </div>
 
@@ -808,6 +972,67 @@
     document.getElementById('printableDoc').innerHTML = htmlDocumento;
     const modalDoc = new bootstrap.Modal(document.getElementById('modalDocumentoDoc'));
     modalDoc.show();
+
+    // Inicializa o canvas de assinatura digital na tela
+    setTimeout(inicializarCanvasAssinatura, 500);
+  }
+
+  // --- LÓGICA DO CANVAS DE ASSINATURA DIGITAL NA TELA ---
+
+  let canvas, ctx, isDrawing = false;
+
+  function inicializarCanvasAssinatura() {
+    canvas = document.getElementById('sigCanvas');
+    if (!canvas) return;
+    ctx = canvas.getContext('2d');
+
+    // Limpa o canvas
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    ctx.lineWidth = 2;
+    ctx.strokeStyle = '#000000';
+
+    // Eventos Mouse
+    canvas.onmousedown = (e) => { isDrawing = true; ctx.beginPath(); ctx.moveTo(getPos(e).x, getPos(e).y); };
+    canvas.onmousemove = (e) => { if (isDrawing) { ctx.lineTo(getPos(e).x, getPos(e).y); ctx.stroke(); } };
+    canvas.onmouseup = () => { isDrawing = false; };
+
+    // Eventos Touch (Celulares e Tablets)
+    canvas.ontouchstart = (e) => { isDrawing = true; ctx.beginPath(); const pos = getPos(e.touches[0]); ctx.moveTo(pos.x, pos.y); e.preventDefault(); };
+    canvas.ontouchmove = (e) => { if (isDrawing) { const pos = getPos(e.touches[0]); ctx.lineTo(pos.x, pos.y); ctx.stroke(); } e.preventDefault(); };
+    canvas.ontouchend = () => { isDrawing = false; };
+  }
+
+  function getPos(e) {
+    const rect = canvas.getBoundingClientRect();
+    const scaleX = canvas.width / rect.width;
+    const scaleY = canvas.height / rect.height;
+    return {
+      x: (e.clientX - rect.left) * scaleX,
+      y: (e.clientY - rect.top) * scaleY
+    };
+  }
+
+  function limparAssinaturaCanvas() {
+    if (ctx && canvas) {
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+    }
+    document.getElementById('sig_outorgante_place').innerHTML = '';
+    document.getElementById('sig_contratante_place').innerHTML = '';
+  }
+
+  function aplicarAssinaturaNoDocumento() {
+    if (!canvas) return;
+    const imgData = canvas.toDataURL('image/png');
+
+    const htmlImg = `<img src="${imgData}" style="max-height: 50px; display: block; margin: 0 auto;">`;
+
+    const placeOutorgante = document.getElementById('sig_outorgante_place');
+    const placeContratante = document.getElementById('sig_contratante_place');
+
+    if (placeOutorgante) placeOutorgante.innerHTML = htmlImg;
+    if (placeContratante) placeContratante.innerHTML = htmlImg;
+
+    alert("Assinatura do cliente estampada no documento com sucesso!");
   }
 
   // --- FUNÇÕES AUXILIARES DE FORMULÁRIO ---
@@ -1013,7 +1238,9 @@
         vara_tribunal: document.getElementById('proc_vara').value,
         valor_causa: document.getElementById('proc_valor').value,
         honorarios: document.getElementById('proc_honorarios').value,
-        status: document.getElementById('proc_status').value
+        status: document.getElementById('proc_status').value,
+        poderes_gerais: document.getElementById('proc_poderes_gerais').value,
+        poderes_especiais: document.getElementById('proc_poderes_especiais').value
       }
     };
 
