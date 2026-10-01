@@ -17,12 +17,12 @@
     .brand-header { font-weight: 700; letter-spacing: 1px; color: #38bdf8; }
     .login-container { max-width: 420px; margin: 80px auto; }
     .cursor-pointer { cursor: pointer; }
-    
+
     /* Estilos de Impressão do Contrato/Procuração */
     @media print {
-      body * { visibility: hidden; }
-      #printArea, #printArea * { visibility: visible; }
-      #printArea { position: absolute; left: 0; top: 0; width: 100%; font-family: 'Times New Roman', Times, serif; font-size: 12pt; line-height: 1.5; color: #000; }
+      body * { visibility: hidden !important; }
+      #printableDoc, #printableDoc * { visibility: visible !important; }
+      #printableDoc { position: absolute; left: 0; top: 0; width: 100%; margin: 0; padding: 20px; font-family: 'Times New Roman', Times, serif; font-size: 12pt; line-height: 1.5; color: #000; }
       .no-print { display: none !important; }
       .page-break { page-break-before: always; }
     }
@@ -99,7 +99,7 @@
     </nav>
 
     <!-- Conteúdo Principal -->
-    <main class="col-md-9 ms-sm-auto col-lg-10 px-md-4 py-4">
+    <main class="col-md-9 ms-sm-auto col-lg-10 px-md-4 py-4 no-print">
       <div class="tab-content">
         
         <!-- Dashboard / Painel Geral -->
@@ -172,13 +172,12 @@
                     <th>Área / Ação</th>
                     <th>Unidade</th>
                     <th>Status</th>
-                    <th>Anexos</th>
                     <th class="text-end">Ação</th>
                   </tr>
                 </thead>
                 <tbody id="grid_processos_body">
                   <tr>
-                    <td colspan="8" class="text-center text-muted py-4">Carregando dados do banco...</td>
+                    <td colspan="7" class="text-center text-muted py-4"><i class="fa-solid fa-spinner fa-spin me-2 text-primary"></i> Carregando dados do banco...</td>
                   </tr>
                 </tbody>
               </table>
@@ -361,7 +360,7 @@
   </div>
 </div>
 
-<!-- MODAL DE DETALHES E UPLOAD DE ARQUIVOS -->
+<!-- MODAL DE DETALHES DO PROCESSO E ANEXO DE ARQUIVOS -->
 <div class="modal fade" id="modalProcesso" tabindex="-1" aria-hidden="true">
   <div class="modal-dialog modal-lg">
     <div class="modal-content">
@@ -379,8 +378,28 @@
   </div>
 </div>
 
-<!-- ÁREA OCULTA PARA GERAÇÃO E IMPRESSÃO DO CONTRATO E PROCURAÇÃO -->
-<div id="printArea" class="d-none"></div>
+<!-- MODAL DE PRÉ-VISUALIZAÇÃO DO CONTRATO E PROCURAÇÃO -->
+<div class="modal fade" id="modalDocumentoDoc" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-xl">
+    <div class="modal-content">
+      <div class="modal-header bg-primary text-white no-print">
+        <h5 class="modal-title fw-bold"><i class="fa-solid fa-file-contract me-2"></i> Pré-visualização do Documento (Contrato & Procuração)</h5>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body bg-light" style="max-height: 75vh; overflow-y: auto;">
+        <div id="printableDoc" class="bg-white p-5 shadow-sm mx-auto" style="max-width: 850px; min-height: 1000px; border: 1px solid #ddd;">
+          <!-- Conteúdo Gerado Dinamicamente -->
+        </div>
+      </div>
+      <div class="modal-footer bg-white no-print">
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Fechar</button>
+        <button type="button" class="btn btn-success fw-bold px-4" onclick="window.print()">
+          <i class="fa-solid fa-print me-1"></i> Imprimir / Guardar em PDF
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
 
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
 <script>
@@ -455,11 +474,24 @@
   function carregarBancoDadosGlobal() {
     if (!usuarioLogado) return;
     
+    const tbody = document.getElementById('grid_processos_body');
+    if (tbody) {
+      tbody.innerHTML = '<tr><td colspan="7" class="text-center text-muted py-4"><i class="fa-solid fa-spinner fa-spin me-2 text-primary"></i> Carregando dados do banco...</td></tr>';
+    }
+
     const scriptId = 'jsonp_db_script';
     const oldScript = document.getElementById(scriptId);
     if (oldScript) oldScript.remove();
 
+    // Tempo limite de 10 segundos para aviso de carregamento lento
+    let timeoutId = setTimeout(function() {
+      if (tbody && tbody.innerHTML.includes('Carregando dados do banco...')) {
+        tbody.innerHTML = '<tr><td colspan="7" class="text-center text-warning py-4"><i class="fa-solid fa-clock me-2"></i> A conexão demorou a responder. <button class="btn btn-sm btn-outline-primary ms-2" onclick="carregarBancoDadosGlobal()"><i class="fa-solid fa-rotate-right me-1"></i> Tentar Novamente</button></td></tr>';
+      }
+    }, 10000);
+
     window.processarRetornoBanco = function(res) {
+      clearTimeout(timeoutId);
       if (res && res.success) {
         dbClientes = res.clientes || [];
         dbProcessos = res.processos || [];
@@ -468,12 +500,24 @@
         renderizarGradeProcessos(dbProcessos);
         renderizarOptionsProcessos(dbClientes);
         filtrarBuscaClienteTela();
+      } else {
+        if (tbody) {
+          tbody.innerHTML = '<tr><td colspan="7" class="text-center text-danger py-4"><i class="fa-solid fa-triangle-exclamation me-2"></i> Erro ao carregar dados: ' + (res ? res.message : 'Resposta inválida') + '</td></tr>';
+        }
       }
     };
 
     const script = document.createElement('script');
     script.id = scriptId;
     script.src = API_URL + "?action=getDadosCompletos&callback=processarRetornoBanco&t=" + new Date().getTime();
+    
+    script.onerror = function() {
+      clearTimeout(timeoutId);
+      if (tbody) {
+        tbody.innerHTML = '<tr><td colspan="7" class="text-center text-danger py-4"><i class="fa-solid fa-triangle-exclamation me-2"></i> Falha de comunicação com o servidor. Verifique a implantação do Apps Script. <button class="btn btn-sm btn-outline-danger ms-2" onclick="carregarBancoDadosGlobal()"><i class="fa-solid fa-rotate-right me-1"></i> Tentar Novamente</button></td></tr>';
+      }
+    };
+
     document.body.appendChild(script);
   }
 
@@ -491,7 +535,7 @@
   function renderizarGradeProcessos(lista) {
     const tbody = document.getElementById('grid_processos_body');
     if (!lista || lista.length === 0) {
-      tbody.innerHTML = '<tr><td colspan="8" class="text-center text-muted py-4">Nenhum processo encontrado.</td></tr>';
+      tbody.innerHTML = '<tr><td colspan="7" class="text-center text-muted py-4">Nenhum processo encontrado.</td></tr>';
       return;
     }
 
@@ -505,14 +549,6 @@
       if (p.status === 'Aguardando Assinatura') badgeStatus = '<span class="badge bg-warning text-dark">Aguardando Assinatura</span>';
       if (p.status === 'Concluído') badgeStatus = '<span class="badge bg-success">Concluído</span>';
 
-      const badgeContrato = p.url_contrato 
-        ? '<span class="badge bg-success" title="Contrato Anexado"><i class="fa-solid fa-file-contract"></i> C</span>' 
-        : '<span class="badge bg-light text-muted border" title="Sem Contrato"><i class="fa-solid fa-file-contract"></i> -</span>';
-
-      const badgeProcuracao = p.url_procuracao 
-        ? '<span class="badge bg-success" title="Procuração Anexada"><i class="fa-solid fa-file-signature"></i> P</span>' 
-        : '<span class="badge bg-light text-muted border" title="Sem Procuração"><i class="fa-solid fa-file-signature"></i> -</span>';
-
       tbody.innerHTML += `
         <tr class="cursor-pointer" onclick="abrirModalProcesso('${p.id}')">
           <td class="fw-bold text-primary">${p.id}</td>
@@ -521,7 +557,6 @@
           <td>${p.acao_tipo || '-'}</td>
           <td><span class="badge bg-light text-dark border">${p.unidade}</span></td>
           <td>${badgeStatus}</td>
-          <td>${badgeContrato} ${badgeProcuracao}</td>
           <td class="text-end">
             <button class="btn btn-outline-primary btn-sm" onclick="event.stopPropagation(); abrirModalProcesso('${p.id}')">
               <i class="fa-solid fa-eye"></i> Detalhes
@@ -566,17 +601,9 @@
 
     const cliente = dbClientes.find(c => c.id === proc.id_cliente);
 
-    const btnContratoDrive = proc.url_contrato 
-      ? `<a href="${proc.url_contrato}" target="_blank" class="btn btn-sm btn-success"><i class="fa-solid fa-arrow-up-right-from-square me-1"></i> Ver Contrato</a>`
-      : `<span class="badge bg-danger">Pendente</span>`;
-
-    const btnProcuracaoDrive = proc.url_procuracao 
-      ? `<a href="${proc.url_procuracao}" target="_blank" class="btn btn-sm btn-success"><i class="fa-solid fa-arrow-up-right-from-square me-1"></i> Ver Procuração</a>`
-      : `<span class="badge bg-danger">Pendente</span>`;
-
     document.getElementById('modal_titulo').innerHTML = `<i class="fa-solid fa-folder-open me-2 text-info"></i> Processo [${proc.id}]`;
     document.getElementById('modal_corpo').innerHTML = `
-      <div class="row g-3 mb-3">
+      <div class="row g-3">
         <div class="col-md-6 border-end">
           <h6 class="fw-bold text-primary"><i class="fa-solid fa-user me-1"></i> Dados do Cliente</h6>
           <p class="mb-1"><strong>Nome:</strong> ${cliente ? cliente.nome_razao : 'Não encontrado'}</p>
@@ -592,45 +619,28 @@
           <p class="mb-1"><strong>Parte Contrária:</strong> ${proc.parte_contraria || '-'}</p>
           <p class="mb-1"><strong>Honorários:</strong> ${proc.honorarios || '-'}</p>
         </div>
-      </div>
-
-      <hr>
-
-      <!-- Status dos Anexos no Google Drive -->
-      <h6 class="fw-bold text-dark mb-2"><i class="fa-solid fa-paperclip me-1 text-primary"></i> Documentos Assinados (Google Drive)</h6>
-      <div class="row g-2 mb-3">
-        <div class="col-md-6">
-          <div class="p-2 border rounded d-flex justify-content-between align-items-center bg-light">
-            <span class="small fw-bold">Contrato Assinado:</span>
-            <div>${btnContratoDrive}</div>
-          </div>
-        </div>
-        <div class="col-md-6">
-          <div class="p-2 border rounded d-flex justify-content-between align-items-center bg-light">
-            <span class="small fw-bold">Procuração Assinada:</span>
-            <div>${btnProcuracaoDrive}</div>
-          </div>
-        </div>
-      </div>
-
-      <!-- Formulário de Upload -->
-      <div class="card p-3 bg-white border border-primary">
-        <h6 class="fw-bold text-primary mb-2"><i class="fa-solid fa-cloud-arrow-up me-1"></i> Anexar Documento Digitalizado (PDF / Imagem)</h6>
-        <div class="row g-2 align-items-center">
-          <div class="col-md-4">
-            <select id="upload_tipo_doc" class="form-select form-select-sm">
-              <option value="CONTRATO">Contrato Assinado</option>
-              <option value="PROCURACAO">Procuração Assinada</option>
-            </select>
-          </div>
-          <div class="col-md-5">
-            <input class="form-control form-control-sm" type="file" id="upload_file_input" accept=".pdf, .png, .jpg, .jpeg">
-          </div>
-          <div class="col-md-3">
-            <button class="btn btn-sm btn-primary w-100" id="btnUploadAnexo" onclick="executarUploadAnexo('${proc.id}')">
-              <i class="fa-solid fa-upload me-1"></i> Enviar
-            </button>
-          </div>
+        
+        <div class="col-12 mt-4 pt-3 border-top">
+          <h6 class="fw-bold text-dark"><i class="fa-solid fa-cloud-arrow-up me-1 text-primary"></i> Anexar Documento Assinado no Google Drive</h6>
+          <form id="formAnexoFile" onsubmit="enviarAnexoDrive(event, '${proc.id}')" class="row g-2 align-items-center">
+            <div class="col-md-4">
+              <select class="form-select form-select-sm" id="anexo_tipo_doc" required>
+                <option value="Contrato Assinado">Contrato Assinado</option>
+                <option value="Procuração Assinada">Procuração Assinada</option>
+                <option value="Documento Pessoal / RG">Documento Pessoal / RG</option>
+                <option value="Comprovante de Residência">Comprovante de Residência</option>
+                <option value="Outros Anexos">Outros Anexos</option>
+              </select>
+            </div>
+            <div class="col-md-5">
+              <input type="file" class="form-control form-control-sm" id="anexo_file_input" accept=".pdf,image/*" required>
+            </div>
+            <div class="col-md-3">
+              <button type="submit" class="btn btn-sm btn-primary w-100" id="btnEnviarAnexo">
+                <i class="fa-solid fa-upload me-1"></i> Salvar no Drive
+              </button>
+            </div>
+          </form>
         </div>
       </div>
     `;
@@ -646,32 +656,34 @@
     myModal.show();
   }
 
-  // --- FUNÇÃO DE UPLOAD DE ARQUIVO EM BASE64 ---
+  function enviarAnexoDrive(e, idProcesso) {
+    e.preventDefault();
+    const btn = document.getElementById('btnEnviarAnexo');
+    const fileInput = document.getElementById('anexo_file_input');
+    const tipoDoc = document.getElementById('anexo_tipo_doc').value;
 
-  function executarUploadAnexo(idProcesso) {
-    const fileInput = document.getElementById('upload_file_input');
-    const tipoDoc = document.getElementById('upload_tipo_doc').value;
-    const btn = document.getElementById('btnUploadAnexo');
-
-    if (!fileInput.files[0]) {
-      alert("Por favor, selecione um arquivo.");
+    if (!fileInput.files || fileInput.files.length === 0) {
+      alert("Selecione um arquivo PDF ou imagem primeiro.");
       return;
     }
 
     const file = fileInput.files[0];
-    const reader = new FileReader();
-
     btn.disabled = true;
     btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin me-1"></i> Enviando...';
 
-    reader.onload = function(e) {
+    const reader = new FileReader();
+    reader.onload = function(evt) {
+      const base64Data = evt.target.result;
+
       const payload = {
-        action: 'uploadArquivoProcesso',
+        action: 'salvarAnexo',
         payload: {
-          idProcesso: idProcesso,
-          tipoDoc: tipoDoc,
-          nomeArquivo: `${idProcesso}_${tipoDoc}_${file.name}`,
-          base64: e.target.result
+          id_processo: idProcesso,
+          tipo_doc: tipoDoc,
+          nome_arquivo: file.name,
+          mime_type: file.type,
+          base64_data: base64Data,
+          usuario_operador: usuarioLogado ? usuarioLogado.usuario : "Sistema"
         }
       };
 
@@ -683,29 +695,28 @@
         body: formData
       })
       .then(res => res.json())
-      .then(resultado => {
-        if (resultado.success) {
-          alert("Documento anexado com sucesso e salvo no Google Drive!");
+      .then(result => {
+        if (result.success) {
+          alert('Anexo salvo com sucesso no Google Drive!');
+          fileInput.value = '';
           carregarBancoDadosGlobal();
-          const modalInst = bootstrap.Modal.getInstance(document.getElementById('modalProcesso'));
-          if (modalInst) modalInst.hide();
         } else {
-          alert("Erro ao enviar anexo: " + resultado.message);
+          alert('Erro ao enviar anexo: ' + (result.message || 'Falha ao salvar no Drive'));
         }
       })
       .catch(err => {
-        alert("Erro de comunicação durante o envio: " + err);
+        alert('Erro ao enviar arquivo: ' + err);
       })
       .finally(() => {
         btn.disabled = false;
-        btn.innerHTML = '<i class="fa-solid fa-upload me-1"></i> Enviar';
+        btn.innerHTML = '<i class="fa-solid fa-upload me-1"></i> Salvar no Drive';
       });
     };
 
     reader.readAsDataURL(file);
   }
 
-  // --- GERADOR DINÂMICO DE CONTRATO E PROCURAÇÃO EM PDF ---
+  // --- GERADOR DINÂMICO DE CONTRATO E PROCURAÇÃO ---
 
   function gerarDocumentoPDF(idProcesso) {
     const proc = dbProcessos.find(p => p.id === idProcesso);
@@ -716,6 +727,9 @@
       alert("Erro: Cliente não localizado para este processo.");
       return;
     }
+
+    const modalDet = bootstrap.Modal.getInstance(document.getElementById('modalProcesso'));
+    if (modalDet) modalDet.hide();
 
     const dataHoje = new Date().toLocaleDateString('pt-BR', { day: '2-digit', month: 'long', year: 'numeric' });
     const localData = (proc.unidade === "Casa Nova" ? "Casa Nova/BA, " : "Distrito de Bem Bom, Casa Nova/BA, ") + dataHoje;
@@ -735,72 +749,65 @@
     const honorariosTexto = proc.honorarios || "R$ 300,00 (trezentos reais) de entrada mais 30% (trinta por cento) sobre o proveito econômico obtido.";
 
     const htmlDocumento = `
-      <div style="padding: 30px; font-family: 'Times New Roman', serif; line-height: 1.6; color: #000;">
+      <div style="font-family: 'Times New Roman', serif; line-height: 1.6; color: #000; font-size: 11pt;">
         
         <!-- PROCURAÇÃO -->
         <div style="text-align: center; margin-bottom: 25px;">
-          <h3 style="font-weight: bold; margin-bottom: 5px;">PROCURAÇÃO "AD JUDICIA ET EXTRA"</h3>
-          <p style="font-size: 10pt; font-style: italic; margin-top: 0;">RUAN MATOS ADVOCACIA</p>
+          <h4 style="font-weight: bold; margin-bottom: 2px;">PROCURAÇÃO "AD JUDICIA ET EXTRA"</h4>
+          <p style="font-size: 9pt; font-style: italic; margin-top: 0;">RUAN MATOS ADVOCACIA</p>
         </div>
 
-        <p style="text-align: justify;"><strong>OUTORGANTE:</strong> ${cliente.nome_razao.toUpperCase()}, ${cliente.tipo === 'PJ' ? 'Pessoa Jurídica' : 'brasileiro(a)'}, ${cliente.estado_civil || 'estado civil não informado'}, ${cliente.profissao || 'profissão não informada'}, inscrito(a) no CPF/CNPJ nº ${cliente.cpf_cnpj}, RG nº ${cliente.rg_ie || '-'}, residente e domiciliado(a) em ${cliente.endereco}.</p>
+        <p style="text-align: justify; margin-bottom: 12px;"><strong>OUTORGANTE:</strong> ${cliente.nome_razao.toUpperCase()}, ${cliente.tipo === 'PJ' ? 'Pessoa Jurídica' : 'brasileiro(a)'}, ${cliente.estado_civil || 'estado civil não informado'}, ${cliente.profissao || 'profissão não informada'}, inscrito(a) no CPF/CNPJ nº ${cliente.cpf_cnpj}, RG nº ${cliente.rg_ie || '-'}, residente e domiciliado(a) em ${cliente.endereco}.</p>
 
-        <p style="text-align: justify;"><strong>OUTORGADOS:</strong> ${advQualificacao}</p>
+        <p style="text-align: justify; margin-bottom: 12px;"><strong>OUTORGADOS:</strong> ${advQualificacao}</p>
 
-        <p style="text-align: justify;"><strong>PODERES GERAIS:</strong> Por meio deste instrumento são outorgados poderes gerais para atuar perante qualquer juízo, instância ou Tribunal, bem como perante a ${parteContraria}, ANEEL, Procon, Ouvidoria, consumidor.gov.br e demais órgãos públicos e administrativos, propondo as ações competentes com a cláusula "ad judicia et extra", nos termos do art. 105 do Código de Processo Civil.</p>
+        <p style="text-align: justify; margin-bottom: 12px;"><strong>PODERES GERAIS:</strong> Por meio deste instrumento são outorgados poderes gerais para atuar perante qualquer juízo, instância ou Tribunal, bem como perante a ${parteContraria}, ANEEL, Procon, Ouvidoria, consumidor.gov.br e demais órgãos públicos e administrativos, propondo as ações competentes com a cláusula "ad judicia et extra", nos termos do art. 105 do Código de Processo Civil.</p>
 
-        <p style="text-align: justify;"><strong>PODERES ESPECIAIS:</strong> A outorgante confere aos seus procuradores poderes especiais para requerer a suspensão ou cancelamento de cobranças, negativações e protestos; firmar acordos e transações; confessar; soundesistir; reconhecer pedidos; receber e dar quitação; levantar valores e alvarás judiciais; assinar declarações e compromissos; representar a outorgante perante instituições financeiras e repartições públicas; e substabelecer com ou sem reserva de poderes.</p>
+        <p style="text-align: justify; margin-bottom: 12px;"><strong>PODERES ESPECIAIS:</strong> A outorgante confere aos seus procuradores poderes especiais para requerer a suspensão ou cancelamento de cobranças, negativações e protestos; firmar acordos e transações; confessar; desistir; reconhecer pedidos; receber e dar quitação; levantar valores e alvarás judiciais; assinar declarações e compromissos; representar a outorgante perante instituições financeiras e repartições públicas; e substabelecer com ou sem reserva de poderes.</p>
 
-        <p style="text-align: right; margin-top: 30px;">${localData}</p>
+        <p style="text-align: right; margin-top: 25px;">${localData}</p>
 
-        <div style="margin-top: 60px; text-align: center;">
+        <div style="margin-top: 50px; text-align: center;">
           <p style="border-top: 1px solid #000; width: 70%; margin: 0 auto; padding-top: 5px;">${cliente.nome_razao.toUpperCase()}<br><small>OUTORGANTE</small></p>
         </div>
 
-        <!-- QUEBRA DE PÁGINA -->
-        <div class="page-break" style="margin-top: 80px;"></div>
+        <div class="page-break" style="margin-top: 60px; padding-top: 40px; border-top: 2px dashed #ccc;" class="no-print"></div>
 
         <!-- CONTRATO DE HONORÁRIOS -->
-        <div style="text-align: center; margin-bottom: 25px;">
-          <h3 style="font-weight: bold;">CONTRATO DE HONORÁRIOS ADVOCATÍCIOS</h3>
+        <div style="text-align: center; margin-bottom: 25px; margin-top: 20px;">
+          <h4 style="font-weight: bold;">CONTRATO DE HONORÁRIOS ADVOCATÍCIOS</h4>
         </div>
 
-        <p style="text-align: justify;"><strong>CONTRATANTE:</strong> ${cliente.nome_razao.toUpperCase()}, CPF/CNPJ nº ${cliente.cpf_cnpj}, residente e domiciliado(a) em ${cliente.endereco}.</p>
+        <p style="text-align: justify; margin-bottom: 12px;"><strong>CONTRATANTE:</strong> ${cliente.nome_razao.toUpperCase()}, CPF/CNPJ nº ${cliente.cpf_cnpj}, residente e domiciliado(a) em ${cliente.endereco}.</p>
         
-        <p style="text-align: justify;"><strong>CONTRATADOS:</strong> ${advQualificacao}</p>
+        <p style="text-align: justify; margin-bottom: 12px;"><strong>CONTRATADOS:</strong> ${advQualificacao}</p>
 
-        <p style="text-align: justify;"><strong>CLÁUSULA 1ª - DO OBJETO:</strong> O presente contrato tem como objeto a prestação de serviços advocatícios para a defesa dos interesses do(a) CONTRATANTE na ação referente a ${proc.acao_tipo || 'demanda judicial/extrajudicial'} em face de ${parteContraria}.</p>
+        <p style="text-align: justify; margin-bottom: 12px;"><strong>CLÁUSULA 1ª - DO OBJETO:</strong> O presente contrato tem como objeto a prestação de serviços advocatícios para a defesa dos interesses do(a) CONTRATANTE na ação referente a ${proc.acao_tipo || 'demanda judicial/extrajudicial'} em face de ${parteContraria}.</p>
 
-        <p style="text-align: justify;"><strong>CLÁUSULA 2ª - DOS HONORÁRIOS:</strong> Como contraprestação pelos serviços jurídicos prestados, o(a) CONTRATANTE pagará aos CONTRATADOS o valor de ${honorariosTexto}.</p>
+        <p style="text-align: justify; margin-bottom: 12px;"><strong>CLÁUSULA 2ª - DOS HONORÁRIOS:</strong> Como contraprestação pelos serviços jurídicos prestados, o(a) CONTRATANTE pagará aos CONTRATADOS o valor de ${honorariosTexto}.</p>
 
-        <p style="text-align: justify;"><strong>CLÁUSULA 3ª - DA SUCUMBÊNCIA:</strong> Os honorários de sucumbência pertencem exclusivamente aos CONTRATADOS e não se confundem com os honorários contratuais ajustados.</p>
+        <p style="text-align: justify; margin-bottom: 12px;"><strong>CLÁUSULA 3ª - DA SUCUMBÊNCIA:</strong> Os honorários de sucumbência pertencem exclusivamente aos CONTRATADOS e não se confundem com os honorários contratuais ajustados.</p>
 
-        <p style="text-align: justify;"><strong>CLÁUSULA 4ª - DA LGPD (PROTEÇÃO DE DADOS):</strong> O CONTRATANTE autoriza expressamente os CONTRATADOS a realizarem o tratamento de seus dados pessoais e sensíveis estritamente para o cumprimento do objeto deste contrato e peticionamento perante órgãos judiciais e administrativos, nos termos da Lei nº 13.709/2018.</p>
+        <p style="text-align: justify; margin-bottom: 12px;"><strong>CLÁUSULA 4ª - DA LGPD (PROTEÇÃO DE DADOS):</strong> O CONTRATANTE autoriza expressamente os CONTRATADOS a realizarem o tratamento de seus dados pessoais e sensíveis estritamente para o cumprimento do objeto deste contrato e peticionamento perante órgãos judiciais e administrativos, nos termos da Lei nº 13.709/2018.</p>
 
-        <p style="text-align: justify;"><strong>CLÁUSULA 5ª - DO FORO:</strong> Para dirimir quaisquer controvérsias oriundas deste contrato, as partes elegem o foro da comarca de Casa Nova-BA.</p>
+        <p style="text-align: justify; margin-bottom: 12px;"><strong>CLÁUSULA 5ª - DO FORO:</strong> Para dirimir quaisquer controvérsias oriundas deste contrato, as partes elegem o foro da comarca de Casa Nova-BA.</p>
 
-        <p style="text-align: right; margin-top: 30px;">${localData}</p>
+        <p style="text-align: right; margin-top: 25px;">${localData}</p>
 
-        <div style="margin-top: 50px; text-align: center;">
+        <div style="margin-top: 45px; text-align: center;">
           <p style="border-top: 1px solid #000; width: 70%; margin: 0 auto; padding-top: 5px;">${cliente.nome_razao.toUpperCase()}<br><small>CONTRATANTE</small></p>
         </div>
 
-        <div style="margin-top: 50px; text-align: center;">
+        <div style="margin-top: 45px; text-align: center;">
           <p style="border-top: 1px solid #000; width: 70%; margin: 0 auto; padding-top: 5px;">RUAN MATOS ADVOCACIA / GABRIELLE FOGIATO ADVOCACIA<br><small>CONTRATADOS</small></p>
         </div>
 
       </div>
     `;
 
-    const printArea = document.getElementById('printArea');
-    printArea.innerHTML = htmlDocumento;
-    printArea.classList.remove('d-none');
-
-    window.print();
-
-    setTimeout(() => {
-      printArea.classList.add('d-none');
-    }, 1000);
+    document.getElementById('printableDoc').innerHTML = htmlDocumento;
+    const modalDoc = new bootstrap.Modal(document.getElementById('modalDocumentoDoc'));
+    modalDoc.show();
   }
 
   // --- FUNÇÕES AUXILIARES DE FORMULÁRIO ---
