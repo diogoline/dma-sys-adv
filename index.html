@@ -34,7 +34,7 @@
     #sigCanvas {
       border: 2px dashed #cbd5e1;
       border-radius: 8px;
-      background-color: #f8fafc;
+      background-color: #ffffff;
       cursor: crosshair;
       touch-action: none;
     }
@@ -357,7 +357,7 @@
                 </div>
                 <div class="col-md-6">
                   <label class="form-label">Honorários Combinados</label>
-                  <input type="text" class="form-control" id="proc_honorarios" placeholder="Ex: R$ 300,00 + 30%">
+                  <input type="text" class="form-control" id="proc_honorarios" placeholder="Ex: R$ 300,00 de entrada + 30% do êxito">
                 </div>
                 <div class="col-md-6">
                   <label class="form-label">Status do Processo</label>
@@ -370,11 +370,16 @@
                 </div>
 
                 <div class="col-12 mt-3">
+                  <label class="form-label fw-bold text-dark"><i class="fa-solid fa-file-signature me-1 text-primary"></i> Objeto do Contrato (Detalhes do Caso)</label>
+                  <textarea class="form-control" id="proc_objeto_contrato" rows="2" placeholder="Prestação de serviços advocatícios para defesa dos interesses do contratante na ação referente a..."></textarea>
+                </div>
+
+                <div class="col-md-6 mt-3">
                   <label class="form-label fw-bold text-primary"><i class="fa-solid fa-scroll me-1"></i> Poderes Gerais (Procuração)</label>
                   <textarea class="form-control" id="proc_poderes_gerais" rows="3" placeholder="Gerais para atuar perante qualquer juízo, instância ou Tribunal..."></textarea>
                 </div>
 
-                <div class="col-12">
+                <div class="col-md-6 mt-3">
                   <label class="form-label fw-bold text-success"><i class="fa-solid fa-key me-1"></i> Poderes Especiais (Procuração / Causa)</label>
                   <textarea class="form-control" id="proc_poderes_especiais" rows="3" placeholder="Poderes para requerer suspensão de cobranças, transigir, acordos, alvarás..."></textarea>
                 </div>
@@ -408,7 +413,7 @@
         <ul class="nav nav-pills modal-nav-pills me-auto" id="modalProcessoTabs" role="tablist">
           <li class="nav-item me-1">
             <button class="nav-link active" id="tab-resumo-btn" data-bs-toggle="pill" data-bs-target="#tab-resumo">
-              <i class="fa-solid fa-circle-info me-1"></i> Visão Geral & Poderes
+              <i class="fa-solid fa-circle-info me-1"></i> Visão Geral & Contrato
             </button>
           </li>
           <li class="nav-item me-1">
@@ -448,7 +453,7 @@
         <!-- PAINEL DE ASSINATURA DIGITAL NA TELA (TOUCH / MOUSE) COM SELEÇÃO DO SIGNATÁRIO -->
         <div class="card p-3 mb-4 border-primary shadow-sm no-print">
           <div class="d-flex justify-content-between align-items-center mb-2">
-            <h6 class="fw-bold text-primary mb-0"><i class="fa-solid fa-signature me-1"></i> Coletar Assinatura Digital na Tela</h6>
+            <h6 class="fw-bold text-primary mb-0"><i class="fa-solid fa-signature me-1"></i> Coletar / Atualizar Assinatura Digital</h6>
             <button type="button" class="btn btn-sm btn-outline-danger" onclick="limparAssinaturaCanvas()">
               <i class="fa-solid fa-eraser me-1"></i> Limpar Campo
             </button>
@@ -470,9 +475,10 @@
           <div class="text-center">
             <canvas id="sigCanvas" width="600" height="150" class="w-100"></canvas>
           </div>
-          <div class="mt-2 text-end">
-            <button type="button" class="btn btn-sm btn-success fw-bold" onclick="aplicarAssinaturaNoDocumento()">
-              <i class="fa-solid fa-check-double me-1"></i> Estampar Assinatura Escolhida
+          <div class="mt-2 d-flex justify-content-between align-items-center">
+            <small class="text-success fw-bold" id="sig_status_msg"><i class="fa-solid fa-floppy-disk me-1"></i> As assinaturas são salvas permanentemente no banco do processo.</small>
+            <button type="button" class="btn btn-sm btn-success fw-bold px-3" onclick="aplicarAssinaturaNoDocumento()">
+              <i class="fa-solid fa-check-double me-1"></i> Estampar & Salvar Assinatura
             </button>
           </div>
         </div>
@@ -500,6 +506,7 @@
   let dbClientes = [];
   let dbProcessos = [];
   let usuarioLogado = null;
+  let processoAtualDoc = null;
 
   function verificarSessao() {
     const userSession = sessionStorage.getItem('dma_user');
@@ -692,11 +699,10 @@
 
     document.getElementById('modal_titulo').innerHTML = `<i class="fa-solid fa-folder-open me-2 text-info"></i> Processo [${proc.id}]`;
     
-    // Conteúdo Organizado em 3 Abas
     document.getElementById('modal_corpo').innerHTML = `
       <div class="tab-content" id="modalProcessoTabContent">
         
-        <!-- ABA 1: VISÃO GERAL & PODERES -->
+        <!-- ABA 1: VISÃO GERAL, PODERES & CLÁUSULAS CONTRATUAIS -->
         <div class="tab-pane fade show active" id="tab-resumo" role="tabpanel">
           
           <div class="row g-3 mb-3">
@@ -723,7 +729,7 @@
                       <option value="Concluído" ${proc.status === 'Concluído' ? 'selected' : ''}>Concluído (Finalizar)</option>
                       <option value="Arquivado" ${proc.status === 'Arquivado' ? 'selected' : ''}>Arquivado</option>
                     </select>
-                    <button class="btn btn-sm btn-outline-success" onclick="salvarStatusProcesso('${proc.id}')"><i class="fa-solid fa-check"></i> Salvar Status</button>
+                    <button class="btn btn-sm btn-outline-success" onclick="salvarStatusProcesso('${proc.id}')"><i class="fa-solid fa-check"></i> Salvar</button>
                   </div>
                 </div>
 
@@ -731,25 +737,32 @@
                 <p class="mb-1 small"><strong>Tipo de Ação:</strong> ${proc.acao_tipo || '-'}</p>
                 <p class="mb-1 small"><strong>Unidade:</strong> ${proc.unidade}</p>
                 <p class="mb-1 small"><strong>Parte Contrária:</strong> ${proc.parte_contraria || '-'}</p>
-                <p class="mb-0 small"><strong>Honorários:</strong> ${proc.honorarios || '-'}</p>
               </div>
             </div>
           </div>
 
           <div class="card p-3 border-0 bg-light">
-            <h6 class="fw-bold text-dark mb-2"><i class="fa-solid fa-pen-to-square me-1 text-primary"></i> Personalizar Poderes da Procuração</h6>
+            <h6 class="fw-bold text-dark mb-2"><i class="fa-solid fa-pen-to-square me-1 text-primary"></i> Personalização da Causa (Contrato & Procuração)</h6>
             <div class="row g-2">
               <div class="col-md-6">
-                <label class="form-label small fw-bold">Poderes Gerais:</label>
+                <label class="form-label small fw-bold">Objeto do Contrato (Defesa do Cliente):</label>
+                <textarea class="form-control form-control-sm" id="modal_edit_objeto_contrato" rows="2" placeholder="Prestação de serviços para defesa dos interesses referente a...">${proc.objeto_contrato || ''}</textarea>
+              </div>
+              <div class="col-md-6">
+                <label class="form-label small fw-bold">Honorários Combinados:</label>
+                <textarea class="form-control form-control-sm" id="modal_edit_honorarios" rows="2" placeholder="Ex: R$ 300,00 de entrada + 30% sobre o proveito econômico">${proc.honorarios || ''}</textarea>
+              </div>
+              <div class="col-md-6">
+                <label class="form-label small fw-bold">Poderes Gerais (Procuração):</label>
                 <textarea class="form-control form-control-sm" id="modal_edit_poderes_gerais" rows="3" placeholder="Poderes gerais da procuração...">${proc.poderes_gerais || ''}</textarea>
               </div>
               <div class="col-md-6">
-                <label class="form-label small fw-bold">Poderes Especiais:</label>
+                <label class="form-label small fw-bold">Poderes Especiais (Procuração / Causa):</label>
                 <textarea class="form-control form-control-sm" id="modal_edit_poderes_especiais" rows="3" placeholder="Poderes especiais e detalhes da causa...">${proc.poderes_especiais || ''}</textarea>
               </div>
               <div class="col-12 text-end mt-2">
                 <button type="button" class="btn btn-sm btn-primary px-3" onclick="salvarPoderesProcesso('${proc.id}')">
-                  <i class="fa-solid fa-save me-1"></i> Salvar Poderes
+                  <i class="fa-solid fa-save me-1"></i> Salvar Detalhes da Causa
                 </button>
               </div>
             </div>
@@ -832,13 +845,21 @@
   function salvarPoderesProcesso(idProcesso) {
     const gerais = document.getElementById('modal_edit_poderes_gerais').value;
     const especiais = document.getElementById('modal_edit_poderes_especiais').value;
+    const objeto = document.getElementById('modal_edit_objeto_contrato').value;
+    const honorarios = document.getElementById('modal_edit_honorarios').value;
 
     const payload = {
       action: 'atualizarPoderesProcesso',
-      payload: { id_processo: idProcesso, poderes_gerais: gerais, poderes_especiais: especiais }
+      payload: { 
+        id_processo: idProcesso, 
+        poderes_gerais: gerais, 
+        poderes_especiais: especiais,
+        objeto_contrato: objeto,
+        honorarios: honorarios
+      }
     };
 
-    enviarAtualizacaoProcesso(payload, "Poderes da procuração salvos com sucesso!");
+    enviarAtualizacaoProcesso(payload, "Detalhes da causa e contrato salvos com sucesso!");
   }
 
   function adicionarAnotacaoProcesso(idProcesso) {
@@ -936,6 +957,8 @@
     const proc = dbProcessos.find(p => p.id === idProcesso);
     if (!proc) return;
 
+    processoAtualDoc = proc;
+
     const cliente = dbClientes.find(c => c.id === proc.id_cliente);
     if (!cliente) {
       alert("Erro: Cliente não localizado para este processo.");
@@ -960,6 +983,7 @@
     }
 
     const parteContraria = proc.parte_contraria || "COELBA / Neoenergia";
+    const objetoTexto = proc.objeto_contrato || `prestação de serviços advocatícios para a defesa dos interesses do(a) CONTRATANTE na ação referente a ${proc.acao_tipo || 'demanda judicial/extrajudicial'} em face de ${parteContraria}`;
     const honorariosTexto = proc.honorarios || "R$ 300,00 (trezentos reais) de entrada mais 30% (trinta por cento) sobre o proveito econômico obtido.";
 
     const poderesGerais = proc.poderes_gerais || `Por meio deste instrumento são outorgados poderes gerais para atuar perante qualquer juízo, instância ou Tribunal, bem como perante a ${parteContraria}, ANEEL, Procon, Ouvidoria, consumidor.gov.br e demais órgãos públicos e administrativos, propondo as ações competentes com a cláusula "ad judicia et extra", nos termos do art. 105 do Código de Processo Civil.`;
@@ -971,6 +995,10 @@
         <img src="${LOGO_URL}" alt="Logo Escritório" style="max-height: 100px; max-width: 280px; object-fit: contain;" onerror="this.style.display='none'">
       </div>
     `;
+
+    // Carrega imagens de assinatura do banco caso já existam
+    const imgClienteExistente = proc.assinatura_cliente ? `<img src="${proc.assinatura_cliente}" style="max-height: 50px; display: block; margin: 0 auto;">` : '';
+    const imgAdvogadoExistente = proc.assinatura_advogado ? `<img src="${proc.assinatura_advogado}" style="max-height: 50px; display: block; margin: 0 auto;">` : '';
 
     const htmlDocumento = `
       <div style="font-family: 'Times New Roman', serif; line-height: 1.6; color: #000; font-size: 11pt;">
@@ -995,7 +1023,7 @@
         <p style="text-align: right; margin-top: 25px;">${localData}</p>
 
         <div style="margin-top: 40px; text-align: center;">
-          <div id="sig_outorgante_place" class="mb-1" style="min-height: 40px;"></div>
+          <div id="sig_outorgante_place" class="mb-1" style="min-height: 40px;">${imgClienteExistente}</div>
           <p style="border-top: 1px solid #000; width: 70%; margin: 0 auto; padding-top: 5px;">${cliente.nome_razao.toUpperCase()}<br><small>OUTORGANTE</small></p>
         </div>
 
@@ -1013,7 +1041,7 @@
         
         <p style="text-align: justify; margin-bottom: 12px;"><strong>CONTRATADOS:</strong> ${advQualificacao}</p>
 
-        <p style="text-align: justify; margin-bottom: 12px;"><strong>CLÁUSULA 1ª - DO OBJETO:</strong> O presente contrato tem como objeto a prestação de serviços advocatícios para a defesa dos interesses do(a) CONTRATANTE na ação referente a ${proc.acao_tipo || 'demanda judicial/extrajudicial'} em face de ${parteContraria}.</p>
+        <p style="text-align: justify; margin-bottom: 12px;"><strong>CLÁUSULA 1ª - DO OBJETO:</strong> O presente contrato tem como objeto ${objetoTexto}.</p>
 
         <p style="text-align: justify; margin-bottom: 12px;"><strong>CLÁUSULA 2ª - DOS HONORÁRIOS:</strong> Como contraprestação pelos serviços jurídicos prestados, o(a) CONTRATANTE pagará aos CONTRATADOS o valor de ${honorariosTexto}.</p>
 
@@ -1026,12 +1054,12 @@
         <p style="text-align: right; margin-top: 25px;">${localData}</p>
 
         <div style="margin-top: 40px; text-align: center;">
-          <div id="sig_contratante_place" class="mb-1" style="min-height: 40px;"></div>
+          <div id="sig_contratante_place" class="mb-1" style="min-height: 40px;">${imgClienteExistente}</div>
           <p style="border-top: 1px solid #000; width: 70%; margin: 0 auto; padding-top: 5px;">${cliente.nome_razao.toUpperCase()}<br><small>CONTRATANTE</small></p>
         </div>
 
         <div style="margin-top: 45px; text-align: center;">
-          <div id="sig_advogado_place" class="mb-1" style="min-height: 40px;"></div>
+          <div id="sig_advogado_place" class="mb-1" style="min-height: 40px;">${imgAdvogadoExistente}</div>
           <p style="border-top: 1px solid #000; width: 70%; margin: 0 auto; padding-top: 5px;">RUAN MATOS ADVOCACIA / GABRIELLE FOGIATO ADVOCACIA<br><small>CONTRATADOS</small></p>
         </div>
 
@@ -1082,7 +1110,7 @@
   }
 
   function aplicarAssinaturaNoDocumento() {
-    if (!canvas) return;
+    if (!canvas || !processoAtualDoc) return;
     const imgData = canvas.toDataURL('image/png');
     const target = document.getElementById('sigTargetSelect').value;
 
@@ -1095,12 +1123,45 @@
       if (placeOutorgante) placeOutorgante.innerHTML = htmlImg;
       if (placeContratante) placeContratante.innerHTML = htmlImg;
 
-      alert("Assinatura do Cliente estampada com sucesso!");
+      processoAtualDoc.assinatura_cliente = imgData;
+      salvarAssinaturasNoServidor(processoAtualDoc.id, imgData, processoAtualDoc.assinatura_advogado || "");
+
     } else if (target === 'advogado') {
       const placeAdvogado = document.getElementById('sig_advogado_place');
       if (placeAdvogado) placeAdvogado.innerHTML = htmlImg;
 
-      alert("Assinatura do Advogado estampada com sucesso no Contrato!");
+      processoAtualDoc.assinatura_advogado = imgData;
+      salvarAssinaturasNoServidor(processoAtualDoc.id, processoAtualDoc.assinatura_cliente || "", imgData);
+    }
+  }
+
+  async function salvarAssinaturasNoServidor(idProcesso, sigCliente, sigAdvogado) {
+    const statusMsg = document.getElementById('sig_status_msg');
+    if (statusMsg) statusMsg.innerHTML = '<i class="fa-solid fa-spinner fa-spin me-1"></i> Gravando assinatura no banco de dados...';
+
+    const payload = {
+      action: 'salvarAssinaturasProcesso',
+      payload: {
+        id_processo: idProcesso,
+        assinatura_cliente: sigCliente,
+        assinatura_advogado: sigAdvogado,
+        usuario_operador: usuarioLogado ? usuarioLogado.usuario : "Sistema"
+      }
+    };
+
+    const formData = new FormData();
+    formData.append('data', JSON.stringify(payload));
+
+    try {
+      await fetch(API_URL, {
+        method: 'POST',
+        mode: 'no-cors',
+        body: formData
+      });
+
+      if (statusMsg) statusMsg.innerHTML = '<i class="fa-solid fa-circle-check text-success me-1"></i> Assinatura gravada permanentemente no processo!';
+    } catch (err) {
+      if (statusMsg) statusMsg.innerHTML = '<i class="fa-solid fa-circle-exclamation text-danger me-1"></i> Erro ao salvar assinatura: ' + err;
     }
   }
 
@@ -1306,6 +1367,7 @@
         valor_causa: document.getElementById('proc_valor').value,
         honorarios: document.getElementById('proc_honorarios').value,
         status: document.getElementById('proc_status').value,
+        objeto_contrato: document.getElementById('proc_objeto_contrato').value,
         poderes_gerais: document.getElementById('proc_poderes_gerais').value,
         poderes_especiais: document.getElementById('proc_poderes_especiais').value
       }
