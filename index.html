@@ -445,21 +445,34 @@
       </div>
       <div class="modal-body bg-light p-3" style="max-height: 80vh; overflow-y: auto;">
         
-        <!-- PAINEL DE ASSINATURA DIGITAL NA TELA (TOUCH / MOUSE) -->
+        <!-- PAINEL DE ASSINATURA DIGITAL NA TELA (TOUCH / MOUSE) COM SELEÇÃO DO SIGNATÁRIO -->
         <div class="card p-3 mb-4 border-primary shadow-sm no-print">
           <div class="d-flex justify-content-between align-items-center mb-2">
-            <h6 class="fw-bold text-primary mb-0"><i class="fa-solid fa-signature me-1"></i> Coletar Assinatura Digital do Cliente (Tela / Touch)</h6>
+            <h6 class="fw-bold text-primary mb-0"><i class="fa-solid fa-signature me-1"></i> Coletar Assinatura Digital na Tela</h6>
             <button type="button" class="btn btn-sm btn-outline-danger" onclick="limparAssinaturaCanvas()">
-              <i class="fa-solid fa-eraser me-1"></i> Limpar Assinatura
+              <i class="fa-solid fa-eraser me-1"></i> Limpar Campo
             </button>
           </div>
-          <p class="small text-muted mb-2">O cliente pode assinar com o dedo no celular/tablet ou usando o mouse na caixa abaixo:</p>
+          
+          <div class="row g-2 mb-2 align-items-center">
+            <div class="col-md-6">
+              <label class="form-label small fw-bold text-dark mb-1"><i class="fa-solid fa-user-pen me-1"></i> Quem está assinando agora?</label>
+              <select class="form-select form-select-sm border-primary" id="sigTargetSelect">
+                <option value="cliente">Cliente (Outorgante / Contratante)</option>
+                <option value="advogado">Advogado (Contratado / Procurador)</option>
+              </select>
+            </div>
+            <div class="col-md-6">
+              <small class="text-muted d-block mt-3">Assine com o dedo no celular/tablet ou com o mouse na caixa abaixo:</small>
+            </div>
+          </div>
+
           <div class="text-center">
             <canvas id="sigCanvas" width="600" height="150" class="w-100"></canvas>
           </div>
           <div class="mt-2 text-end">
             <button type="button" class="btn btn-sm btn-success fw-bold" onclick="aplicarAssinaturaNoDocumento()">
-              <i class="fa-solid fa-check-double me-1"></i> Estampar Assinatura no Documento
+              <i class="fa-solid fa-check-double me-1"></i> Estampar Assinatura Escolhida
             </button>
           </div>
         </div>
@@ -796,7 +809,6 @@
       </button>
     `;
 
-    // Garante retorno à primeira aba ao reabrir a modal
     const tabFirst = document.getElementById('tab-resumo-btn');
     if (tabFirst) {
       const tabObj = new bootstrap.Tab(tabFirst);
@@ -950,12 +962,10 @@
     const parteContraria = proc.parte_contraria || "COELBA / Neoenergia";
     const honorariosTexto = proc.honorarios || "R$ 300,00 (trezentos reais) de entrada mais 30% (trinta por cento) sobre o proveito econômico obtido.";
 
-    // PODERES GERAIS E ESPECIAIS DINÂMICOS
     const poderesGerais = proc.poderes_gerais || `Por meio deste instrumento são outorgados poderes gerais para atuar perante qualquer juízo, instância ou Tribunal, bem como perante a ${parteContraria}, ANEEL, Procon, Ouvidoria, consumidor.gov.br e demais órgãos públicos e administrativos, propondo as ações competentes com a cláusula "ad judicia et extra", nos termos do art. 105 do Código de Processo Civil.`;
 
     const poderesEspeciais = proc.poderes_especiais || `A outorgante confere aos seus procuradores poderes especiais para requerer a suspensão ou cancelamento de cobranças, negativações e protestos; firmar acordos e transações; confessar; desistir; reconhecer pedidos; receber e dar quitação; levantar valores e alvarás judiciais; assinar declarações e compromissos; representar a outorgante perante instituições financeiras e repartições públicas; e substabelecer com ou sem reserva de poderes.`;
 
-    // LOGO CABEÇALHO DO DOCUMENTO
     const logoHeaderHtml = `
       <div style="text-align: center; margin-bottom: 20px;">
         <img src="${LOGO_URL}" alt="Logo Escritório" style="max-height: 100px; max-width: 280px; object-fit: contain;" onerror="this.style.display='none'">
@@ -1021,6 +1031,7 @@
         </div>
 
         <div style="margin-top: 45px; text-align: center;">
+          <div id="sig_advogado_place" class="mb-1" style="min-height: 40px;"></div>
           <p style="border-top: 1px solid #000; width: 70%; margin: 0 auto; padding-top: 5px;">RUAN MATOS ADVOCACIA / GABRIELLE FOGIATO ADVOCACIA<br><small>CONTRATADOS</small></p>
         </div>
 
@@ -1031,7 +1042,6 @@
     const modalDoc = new bootstrap.Modal(document.getElementById('modalDocumentoDoc'));
     modalDoc.show();
 
-    // Inicializa o canvas de assinatura digital na tela
     setTimeout(inicializarCanvasAssinatura, 500);
   }
 
@@ -1042,17 +1052,14 @@
     if (!canvas) return;
     ctx = canvas.getContext('2d');
 
-    // Limpa o canvas
     ctx.clearRect(0, 0, canvas.width, canvas.height);
     ctx.lineWidth = 2;
     ctx.strokeStyle = '#000000';
 
-    // Eventos Mouse
     canvas.onmousedown = (e) => { isDrawing = true; ctx.beginPath(); ctx.moveTo(getPos(e).x, getPos(e).y); };
     canvas.onmousemove = (e) => { if (isDrawing) { ctx.lineTo(getPos(e).x, getPos(e).y); ctx.stroke(); } };
     canvas.onmouseup = () => { isDrawing = false; };
 
-    // Eventos Touch (Celulares e Tablets)
     canvas.ontouchstart = (e) => { isDrawing = true; ctx.beginPath(); const pos = getPos(e.touches[0]); ctx.moveTo(pos.x, pos.y); e.preventDefault(); };
     canvas.ontouchmove = (e) => { if (isDrawing) { const pos = getPos(e.touches[0]); ctx.lineTo(pos.x, pos.y); ctx.stroke(); } e.preventDefault(); };
     canvas.ontouchend = () => { isDrawing = false; };
@@ -1072,23 +1079,29 @@
     if (ctx && canvas) {
       ctx.clearRect(0, 0, canvas.width, canvas.height);
     }
-    document.getElementById('sig_outorgante_place').innerHTML = '';
-    document.getElementById('sig_contratante_place').innerHTML = '';
   }
 
   function aplicarAssinaturaNoDocumento() {
     if (!canvas) return;
     const imgData = canvas.toDataURL('image/png');
+    const target = document.getElementById('sigTargetSelect').value;
 
     const htmlImg = `<img src="${imgData}" style="max-height: 50px; display: block; margin: 0 auto;">`;
 
-    const placeOutorgante = document.getElementById('sig_outorgante_place');
-    const placeContratante = document.getElementById('sig_contratante_place');
+    if (target === 'cliente') {
+      const placeOutorgante = document.getElementById('sig_outorgante_place');
+      const placeContratante = document.getElementById('sig_contratante_place');
 
-    if (placeOutorgante) placeOutorgante.innerHTML = htmlImg;
-    if (placeContratante) placeContratante.innerHTML = htmlImg;
+      if (placeOutorgante) placeOutorgante.innerHTML = htmlImg;
+      if (placeContratante) placeContratante.innerHTML = htmlImg;
 
-    alert("Assinatura do cliente estampada no documento com sucesso!");
+      alert("Assinatura do Cliente estampada com sucesso!");
+    } else if (target === 'advogado') {
+      const placeAdvogado = document.getElementById('sig_advogado_place');
+      if (placeAdvogado) placeAdvogado.innerHTML = htmlImg;
+
+      alert("Assinatura do Advogado estampada com sucesso no Contrato!");
+    }
   }
 
   function atualizarMascarasTipo() {
