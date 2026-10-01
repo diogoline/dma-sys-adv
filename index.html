@@ -325,7 +325,6 @@
                   <label class="form-label">Tipo de Ação</label>
                   <select class="form-select" id="proc_tipo" required>
                     <option value="">-- Selecione a Área/Ação --</option>
-                     <option value="Trabalhista">Bancário</option>
                     <option value="Trabalhista">Trabalhista</option>
                     <option value="Cível Geral">Cível Geral</option>
                     <option value="Família e Sucessões">Família e Sucessões</option>
@@ -698,6 +697,62 @@
 
     const cliente = dbClientes.find(c => c.id === proc.id_cliente);
 
+    // Extrai e organiza os anexos do Google Drive registrados nos logs do processo
+    const logLinhas = (proc.log_alteracao || '').split('\n');
+    const logAnexos = logLinhas.filter(line => line.includes('http://') || line.includes('https://'));
+    
+    let anexosHtml = '';
+    if (logAnexos.length > 0) {
+      anexosHtml = `
+        <div class="table-responsive">
+          <table class="table table-sm table-hover align-middle bg-white rounded border mb-0">
+            <thead class="table-light">
+              <tr>
+                <th>Data / Registro</th>
+                <th>Tipo de Documento</th>
+                <th class="text-end">Ação</th>
+              </tr>
+            </thead>
+            <tbody>
+      `;
+
+      logAnexos.forEach(linha => {
+        const matchUrl = linha.match(/(https?:\/\/[^\s]+)/g);
+        const url = matchUrl ? matchUrl[0] : '#';
+        const textoRegistro = linha.replace(url, '').replace(/:\s*$/, '').trim();
+
+        // Identifica o tipo do documento para a tag
+        let tipoBadge = '<span class="badge bg-primary-subtle text-primary border"><i class="fa-solid fa-file-pdf me-1"></i> Documento Drive</span>';
+        if (linha.includes('Contrato Assinado')) tipoBadge = '<span class="badge bg-success-subtle text-success border"><i class="fa-solid fa-file-contract me-1"></i> Contrato Assinado</span>';
+        if (linha.includes('Procuração Assinada')) tipoBadge = '<span class="badge bg-info-subtle text-info border"><i class="fa-solid fa-scroll me-1"></i> Procuração Assinada</span>';
+        if (linha.includes('Documento Pessoal')) tipoBadge = '<span class="badge bg-warning-subtle text-warning border"><i class="fa-solid fa-id-card me-1"></i> Doc. Pessoal / RG</span>';
+
+        anexosHtml += `
+          <tr>
+            <td class="small text-muted">${textoRegistro}</td>
+            <td>${tipoBadge}</td>
+            <td class="text-end">
+              <a href="${url}" target="_blank" rel="noopener noreferrer" class="btn btn-sm btn-outline-primary fw-bold">
+                <i class="fa-solid fa-arrow-up-right-from-square me-1"></i> Abrir no Drive
+              </a>
+            </td>
+          </tr>
+        `;
+      });
+
+      anexosHtml += `
+            </tbody>
+          </table>
+        </div>
+      `;
+    } else {
+      anexosHtml = `
+        <div class="alert alert-light border text-center text-muted mb-0 small">
+          <i class="fa-solid fa-folder-open me-1"></i> Nenhum documento anexado a este processo até o momento.
+        </div>
+      `;
+    }
+
     document.getElementById('modal_titulo').innerHTML = `<i class="fa-solid fa-folder-open me-2 text-info"></i> Processo [${proc.id}]`;
     
     document.getElementById('modal_corpo').innerHTML = `
@@ -789,8 +844,8 @@
 
         <!-- ABA 3: ANEXOS DRIVE -->
         <div class="tab-pane fade" id="tab-anexos" role="tabpanel">
-          <div class="card p-3 border-0 bg-light">
-            <h6 class="fw-bold text-dark mb-2"><i class="fa-solid fa-cloud-arrow-up me-1 text-primary"></i> Anexar Documento no Google Drive</h6>
+          <div class="card p-3 border-0 bg-light mb-3">
+            <h6 class="fw-bold text-dark mb-2"><i class="fa-solid fa-cloud-arrow-up me-1 text-primary"></i> Anexar Novo Documento no Google Drive</h6>
             <form id="formAnexoFile" onsubmit="enviarAnexoDrive(event, '${proc.id}')" class="row g-2 align-items-center">
               <div class="col-md-4">
                 <select class="form-select form-select-sm" id="anexo_tipo_doc" required>
@@ -810,6 +865,12 @@
                 </button>
               </div>
             </form>
+          </div>
+
+          <!-- LISTA DE ARQUIVOS JÁ ANEXADOS -->
+          <div class="card p-3 border-0 bg-light">
+            <h6 class="fw-bold text-dark mb-2"><i class="fa-solid fa-folder-tree me-1 text-success"></i> Documentos Anexados ao Processo</h6>
+            ${anexosHtml}
           </div>
         </div>
 
