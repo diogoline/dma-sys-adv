@@ -122,7 +122,7 @@ body {
 .principal { margin-left: 240px; min-height: 100vh; display: flex; flex-direction: column; }
 .topo { position: sticky; top: 0; z-index: 1030; display: flex; align-items: center; gap: 12px; padding: 10px 20px; background: var(--adv-card); border-bottom: 1px solid var(--adv-borda); }
 .busca-global { flex: 1; max-width: 520px; position: relative; }
-.busca-global i { position: absolute; left: 12px; top: 50%; transform: translateY(-50%); color: var(--adv-texto-2); }
+.busca-global > i { position: absolute; left: 12px; top: 50%; transform: translateY(-50%); color: var(--adv-texto-2); }
 .busca-global input { width: 100%; border: 1px solid var(--adv-borda); background: var(--adv-chip); color: var(--adv-texto); border-radius: 8px; padding: 7px 12px 7px 34px; outline: none; }
 .busca-global input:focus { border-color: var(--adv-pri); }
 .btn-icone { width: 36px; height: 36px; padding: 0; border-radius: 8px; color: var(--adv-texto-2); font-size: 18px; border: none; background: transparent; }
@@ -163,6 +163,25 @@ body {
 .vazio i { font-size: 32px; display: block; margin-bottom: 8px; }
 .senha-gerada { font-family: ui-monospace, Consolas, monospace; font-size: 20px; letter-spacing: .08em; background: var(--adv-chip); border-radius: 8px; padding: 12px; text-align: center; user-select: all; }
 pre.json { background: var(--adv-chip); color: var(--adv-texto); padding: 12px; border-radius: 8px; font-size: 12px; max-height: 400px; overflow: auto; white-space: pre-wrap; }
+
+/* ---------- Fase 2 ---------- */
+.busca-resultados { position: absolute; top: calc(100% + 6px); left: 0; right: 0; background: var(--adv-card); border: 1px solid var(--adv-borda); border-radius: 10px; box-shadow: 0 8px 24px rgba(0,0,0,.12); max-height: 420px; overflow-y: auto; z-index: 1050; }
+.busca-resultados .resultado { display: flex; gap: 10px; align-items: flex-start; padding: 9px 14px; color: var(--adv-texto); text-decoration: none; border-bottom: 1px solid var(--adv-borda); }
+.busca-resultados .resultado:hover { background: var(--adv-chip); }
+.busca-resultados .resultado i { margin-top: 2px; color: var(--adv-texto-2); }
+.busca-resultados .resultado small { display: block; color: var(--adv-texto-2); }
+.secao-form { font-size: 12px; font-weight: 600; text-transform: uppercase; letter-spacing: .05em; color: var(--adv-texto-2); border-bottom: 1px solid var(--adv-borda); padding-bottom: 4px; margin-top: 6px; }
+.campo-info .rotulo { font-size: 11.5px; color: var(--adv-texto-2); }
+.campo-info .valor { font-size: 14px; word-break: break-word; }
+.linha-tempo { border-left: 2px solid var(--adv-borda); padding-left: 16px; margin-left: 6px; }
+.linha-tempo .item { position: relative; padding-bottom: 14px; }
+.linha-tempo .item::before { content: ''; position: absolute; left: -22px; top: 5px; width: 10px; height: 10px; border-radius: 50%; background: var(--adv-pri); border: 2px solid var(--adv-card); }
+.linha-tempo .item .meta { font-size: 12px; color: var(--adv-texto-2); }
+.linha-tempo .item .texto { white-space: pre-wrap; }
+.barra-h { height: 8px; background: var(--adv-chip); border-radius: 4px; overflow: hidden; }
+.barra-h > div { height: 100%; border-radius: 4px; background: var(--adv-pri); }
+a.link-limpo { color: inherit; text-decoration: none; }
+a.link-limpo:hover { text-decoration: underline; }
 
 /* ---------- Responsivo ---------- */
 .sidebar-fundo { display: none; }
@@ -251,7 +270,8 @@ pre.json { background: var(--adv-chip); color: var(--adv-texto); padding: 12px; 
       <button class="btn btn-icone d-lg-none" id="btn-menu" aria-label="Abrir menu"><i class="bi bi-list"></i></button>
       <div class="busca-global">
         <i class="bi bi-search"></i>
-        <input type="search" id="busca-global" placeholder="Buscar cliente, CPF, nº do processo, NB…" aria-label="Busca global">
+        <input type="search" id="busca-global" placeholder="Buscar cliente, CPF, nº do processo, NB…" aria-label="Busca global" autocomplete="off">
+        <div class="busca-resultados d-none" id="busca-resultados"></div>
       </div>
       <div class="d-flex align-items-center gap-2 ms-auto">
         <div class="seletor-tema d-none d-md-flex" role="group" aria-label="Tema">
@@ -286,7 +306,7 @@ pre.json { background: var(--adv-chip); color: var(--adv-texto); padding: 12px; 
 <script>
 /* ======== js/config.js ======== */
 /* ===================================================================
-   >>> ÚNICO PONTO A EDITAR: cole a URL do Web App (/exec) abaixo <<<
+   >>> ÚNICO PONTO A EDITAR: URL do Web App (/exec) <<<
    =================================================================== */
 /**
  * DMA SYS ADV — config.js
@@ -375,6 +395,101 @@ const UI = {
   iniciais(nome) {
     const p = String(nome || '').trim().split(/\s+/);
     return ((p[0] || '')[0] || '').toUpperCase() + ((p.length > 1 ? p[p.length - 1][0] : '') || '').toUpperCase();
+  },
+
+  data(v) {
+    const m = String(v || '').match(/^(\d{4})-(\d{2})-(\d{2})/);
+    return m ? `${m[3]}/${m[2]}/${m[1]}` : (v ? UI.esc(v) : '-');
+  },
+
+  idade(v) {
+    const m = String(v || '').match(/^(\d{4})-(\d{2})-(\d{2})/);
+    if (!m) return '';
+    const h = new Date(), n = new Date(+m[1], +m[2] - 1, +m[3]);
+    let a = h.getFullYear() - n.getFullYear();
+    if (h < new Date(h.getFullYear(), n.getMonth(), n.getDate())) a--;
+    return a >= 0 && a < 130 ? `${a} anos` : '';
+  },
+
+  hojeISO() {
+    const d = new Date();
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+  },
+
+  linkWhats(tel) {
+    let d = String(tel || '').replace(/\D/g, '');
+    if (d.length < 10) return '';
+    if (d.length <= 11) d = '55' + d;
+    return `https://wa.me/${d}`;
+  },
+
+  /**
+   * Gera um campo de formulário padronizado.
+   * c: { rotulo, campo, valor, tipo, col, opcoes, vazio, mascara, lista, obrig, ajuda, attrs, linhas }
+   */
+  campo(c) {
+    const col = c.col || 'col-md-6';
+    const id = 'f_' + c.campo + '_' + Math.random().toString(36).slice(2, 7);
+    const rot = `<label class="form-label" for="${id}">${UI.esc(c.rotulo)}${c.obrig ? ' *' : ''}</label>`;
+    const extra = `${c.mascara ? `data-mascara="${c.mascara}"` : ''} ${c.attrs || ''}`;
+    let input;
+    if (c.tipo === 'select') {
+      input = `<select class="form-select" id="${id}" data-campo="${c.campo}" ${extra}>${UI.opcoes(c.opcoes || [], c.valor, { vazio: c.vazio === undefined ? 'Selecione' : c.vazio })}</select>`;
+    } else if (c.tipo === 'textarea') {
+      input = `<textarea class="form-control" id="${id}" rows="${c.linhas || 3}" data-campo="${c.campo}" ${extra}>${UI.esc(c.valor)}</textarea>`;
+    } else if (c.tipo === 'checkbox') {
+      return `<div class="${col}"><label class="form-check mt-md-4"><input class="form-check-input" type="checkbox" data-campo="${c.campo}" ${c.valor === 'SIM' || c.valor === true ? 'checked' : ''} ${extra}>
+        <span class="form-check-label">${UI.esc(c.rotulo)}</span></label>${c.ajuda ? `<div class="form-text">${c.ajuda}</div>` : ''}</div>`;
+    } else {
+      const lista = c.lista ? 'dl_' + id : '';
+      input = `<input class="form-control" id="${id}" type="${c.tipo || 'text'}" data-campo="${c.campo}" value="${UI.esc(c.valor)}" ${lista ? `list="${lista}"` : ''} ${extra}>
+        ${lista ? `<datalist id="${lista}">${c.lista.map(v => `<option value="${UI.esc(v)}">`).join('')}</datalist>` : ''}`;
+    }
+    return `<div class="${col}" data-bloco-campo="${c.campo}">${rot}${input}${c.ajuda ? `<div class="form-text">${c.ajuda}</div>` : ''}</div>`;
+  },
+
+  secao(titulo) {
+    return `<div class="col-12"><div class="secao-form">${UI.esc(titulo)}</div></div>`;
+  },
+
+  /** Máscaras: cpf, cnpj, doc (CPF ou CNPJ pelo tamanho), telefone, cep, cnj */
+  mascaras(el) {
+    const f = {
+      cpf: v => v.slice(0, 11).replace(/(\d{3})(\d)/, '$1.$2').replace(/(\d{3})(\d)/, '$1.$2').replace(/(\d{3})(\d{1,2})$/, '$1-$2'),
+      cnpj: v => v.slice(0, 14).replace(/^(\d{2})(\d)/, '$1.$2').replace(/^(\d{2})\.(\d{3})(\d)/, '$1.$2.$3').replace(/\.(\d{3})(\d)/, '.$1/$2').replace(/(\d{4})(\d)/, '$1-$2'),
+      telefone: v => { v = v.slice(0, 11); return v.length > 10 ? v.replace(/^(\d\d)(\d{5})(\d{4}).*/, '($1) $2-$3') : v.length > 6 ? v.replace(/^(\d\d)(\d{4})(\d{0,4}).*/, '($1) $2-$3') : v.length > 2 ? v.replace(/^(\d\d)(\d{0,5})/, '($1) $2') : v; },
+      cep: v => v.slice(0, 8).replace(/^(\d{5})(\d)/, '$1-$2'),
+      cnj: v => v.slice(0, 20).replace(/^(\d{7})(\d)/, '$1-$2').replace(/^(\d{7}-\d{2})(\d)/, '$1.$2').replace(/^(.{15})(\d)/, '$1.$2').replace(/^(.{17})(\d{1,2})/, '$1.$2').replace(/^(.{20})(\d)/, '$1.$2')
+    };
+    f.doc = v => v.length > 11 ? f.cnpj(v) : f.cpf(v);
+    el.querySelectorAll('[data-mascara]').forEach(i => {
+      const fn = f[i.dataset.mascara];
+      if (!fn || i.dataset.mascaraLigada) return;
+      i.dataset.mascaraLigada = '1';
+      i.addEventListener('input', () => { i.value = fn(i.value.replace(/\D/g, '')); });
+    });
+  },
+
+  /** Exporta dados para CSV (abre no Excel em pt-BR, separador ;) */
+  exportarCSV(nomeArquivo, colunas, dados) {
+    const esc = v => `"${String(v === null || v === undefined ? '' : v).replace(/"/g, '""')}"`;
+    const linhas = [colunas.map(c => esc(c.titulo)).join(';')]
+      .concat(dados.map(r => colunas.map(c => esc(c.valor ? c.valor(r) : r[c.campo])).join(';')));
+    const blob = new Blob(['﻿' + linhas.join('\r\n')], { type: 'text/csv;charset=utf-8' });
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = `${nomeArquivo}_${UI.hojeISO()}.csv`;
+    a.click();
+    setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+  },
+
+  /** Abas simples dentro de uma página (após a renderização) */
+  abas(el, aoTrocar) {
+    el.querySelectorAll('[data-aba-btn]').forEach(b => b.addEventListener('click', () => {
+      el.querySelectorAll('[data-aba-btn]').forEach(x => x.classList.toggle('active', x === b));
+      el.querySelectorAll('[data-aba-painel]').forEach(p => p.classList.toggle('d-none', p.dataset.abaPainel !== b.dataset.abaBtn));
+      if (aoTrocar) aoTrocar(b.dataset.abaBtn);
+    }));
   },
 
   toast(msg, tipo = 'sucesso') {
@@ -548,6 +663,7 @@ const UI = {
  * Cada módulo se registra em window.Modulos = { id: { render(el, S) } }.
  */
 window.Modulos = window.Modulos || {};
+const FASE_ATUAL = 2; // módulos com fase <= FASE_ATUAL estão prontos
 
 const MENU = [
   { id: 'painel',        icone: 'bi-speedometer2',      fase: 1 },
@@ -613,6 +729,43 @@ const App = {
     try { this.S = await Api.chamar('app.inicial'); this.montarMenu(); } catch (e) { UI.erro(e); }
   },
 
+  /** Nomes a partir dos IDs (usa os dados carregados no login) */
+  nomeUsuario(id) { const u = (this.S.usuarios || []).find(x => x.id === id); return u ? u.nome : (id || '-'); },
+  nomeArea(id) { const a = (this.S.areas || []).find(x => x.id === id); return a ? a.nome : (id || '-'); },
+  corArea(id) { const a = (this.S.areas || []).find(x => x.id === id); return a ? a.cor : '#999'; },
+  nomeUnidade(id) { const u = (this.S.unidades || []).find(x => x.id === id); return u ? u.nome : (id || '-'); },
+  areaHtml(id) { return `<span class="ponto-cor" style="background:${UI.esc(this.corArea(id))}"></span>${UI.esc(this.nomeArea(id))}`; },
+  lista(nome) { return (this.S.listas && this.S.listas[nome]) || []; },
+
+  ligarBuscaGlobal() {
+    const input = document.getElementById('busca-global');
+    const caixa = document.getElementById('busca-resultados');
+    let timer = null, seq = 0;
+    const fechar = () => caixa.classList.add('d-none');
+    input.addEventListener('input', () => {
+      clearTimeout(timer);
+      const termo = input.value.trim();
+      if (termo.length < 2) return fechar();
+      timer = setTimeout(async () => {
+        const meu = ++seq;
+        caixa.innerHTML = '<div class="p-3 small texto-2"><span class="spinner-border spinner-border-sm me-2"></span>Buscando…</div>';
+        caixa.classList.remove('d-none');
+        try {
+          const r = await Api.chamar('busca.global', { termo });
+          if (meu !== seq) return;
+          const itens = r.clientes.map(c => `<a class="resultado" href="#/clientes/${encodeURIComponent(c.id)}"><i class="bi bi-person"></i>
+              <span><strong>${UI.esc(c.nome)}</strong><small>${UI.esc(c.id)}${c.doc ? ' · ' + UI.esc(c.doc) : ''}</small></span></a>`)
+            .concat(r.casos.map(c => `<a class="resultado" href="#/casos/${encodeURIComponent(c.id)}"><i class="bi bi-briefcase"></i>
+              <span><strong>${UI.esc(c.titulo)}</strong><small>${UI.esc(c.id)} · ${UI.esc(c.cliente)}${c.ref ? ' · ' + UI.esc(c.ref) : ''}</small></span></a>`));
+          caixa.innerHTML = itens.length ? itens.join('') : '<div class="p-3 small texto-2">Nada encontrado.</div>';
+        } catch (e) { caixa.innerHTML = `<div class="p-3 small text-danger">${UI.esc(e.message)}</div>`; }
+      }, 350);
+    });
+    caixa.addEventListener('click', e => { if (e.target.closest('a')) { fechar(); input.value = ''; } });
+    document.addEventListener('click', e => { if (!e.target.closest('.busca-global')) fechar(); });
+    input.addEventListener('keydown', e => { if (e.key === 'Escape') { fechar(); input.blur(); } });
+  },
+
   pode(modulo, acao = 'ver') {
     if (!this.S) return false;
     if (this.S.master) return true;
@@ -635,7 +788,7 @@ const App = {
       if (mod.grupo !== grupoAtual) { grupoAtual = mod.grupo; html += `<div class="menu-grupo">${UI.esc(grupoAtual)}</div>`; }
       html += `<a class="menu-item" href="#/${item.id}" data-rota="${item.id}">
         <i class="bi ${item.icone}"></i><span>${UI.esc(mod.nome)}</span>
-        ${item.fase > 1 ? `<span class="badge-fase">fase ${item.fase}</span>` : ''}</a>`;
+        ${item.fase > FASE_ATUAL ? `<span class="badge-fase">fase ${item.fase}</span>` : ''}</a>`;
     });
     nav.innerHTML = html;
 
@@ -649,7 +802,9 @@ const App = {
 
   rotear() {
     if (!this.S) return;
-    let rota = (location.hash.replace(/^#\//, '') || 'painel').split('?')[0];
+    const partes = (location.hash.replace(/^#\//, '') || 'painel').split('?')[0].split('/');
+    let rota = partes[0] || 'painel';
+    const param = decodeURIComponent(partes[1] || '');
     const especiais = ['perfil'];
     if (!especiais.includes(rota) && !this.pode(rota)) rota = 'painel';
 
@@ -660,7 +815,7 @@ const App = {
     const mod = window.Modulos[rota];
     view.innerHTML = '';
     if (mod) {
-      Promise.resolve(mod.render(view, this.S)).catch(e => UI.erro(e));
+      Promise.resolve(mod.render(view, this.S, param)).catch(e => UI.erro(e));
     } else {
       const item = MENU.find(i => i.id === rota) || { fase: '?' };
       view.innerHTML = `<div class="cabecalho-pagina"><div><h1>${UI.esc(this.nomeModulo(rota))}</h1></div></div>
@@ -682,7 +837,7 @@ const App = {
   },
 
   ligarEventosFixos() {
-    window.addEventListener('hashchange', () => this.rotear());
+    window.addEventListener('hashchange', () => { document.getElementById('busca-resultados').classList.add('d-none'); this.rotear(); });
 
     document.querySelectorAll('.bolinha-tema').forEach(b => b.addEventListener('click', () => this.aplicarTema(b.dataset.tema)));
 
@@ -695,9 +850,7 @@ const App = {
       b.innerHTML = `<i class="bi ${i.type === 'password' ? 'bi-eye' : 'bi-eye-slash'}"></i>`;
     }));
 
-    document.getElementById('busca-global').addEventListener('keydown', e => {
-      if (e.key === 'Enter') UI.toast('A busca global passa a funcionar junto com Clientes e Casos (fase 2).', 'info');
-    });
+    this.ligarBuscaGlobal();
 
     document.getElementById('form-login').addEventListener('submit', async e => {
       e.preventDefault();
@@ -763,51 +916,714 @@ const App = {
 <script>
 /* ======== js/modulos/painel.js ======== */
 /**
- * Painel — na fase 1 mostra o status da implantação e atalhos.
- * Os indicadores reais (casos, prazos, financeiro) entram nas fases 2 a 5.
+ * Painel — indicadores do escopo do usuário (clientes, casos, atendimentos, retornos).
+ * Prazos e financeiro entram nas fases 4 e 5.
  */
 Modulos.painel = {
-  render(el, S) {
+  async render(el, S) {
     const hora = new Date().getHours();
     const saud = hora < 12 ? 'Bom dia' : hora < 18 ? 'Boa tarde' : 'Boa noite';
     const primeiro = UI.esc(String(S.usuario.nome).split(' ')[0]);
     const escopos = { TODOS: 'visão de todo o escritório', AREAS: 'visão das suas áreas de atuação', PROPRIOS: 'visão dos casos em que você atua' };
-    const fases = [
-      ['Fase 1', 'Núcleo: login, usuários, cargos, permissões, configurações e temas', true],
-      ['Fase 2', 'Clientes, atendimentos, casos e andamentos', false],
-      ['Fase 3', 'Contratos, modelos de documento, procuração, assinatura e anexos', false],
-      ['Fase 4', 'Agenda e prazos, financeiro (parcelas e lançamentos)', false],
-      ['Fase 5', 'Painéis com indicadores e relatórios', false]
-    ];
-    const atalhos = [
-      ['usuarios', 'bi-person-badge', 'Usuários'], ['cargos', 'bi-shield-lock', 'Cargos e permissões'],
-      ['configuracoes', 'bi-sliders', 'Configurações'], ['auditoria', 'bi-clock-history', 'Auditoria']
-    ].filter(a => App.pode(a[0]));
 
     el.innerHTML = `
       <div class="cabecalho-pagina">
         <div><h1>${saud}, ${primeiro}</h1><p>${UI.esc(S.cargo.nome)} · ${escopos[S.escopo] || ''}</p></div>
+        <div class="d-flex gap-2">
+          ${App.pode('atendimentos', 'criar') ? '<a class="btn btn-outline-secondary" href="#/atendimentos"><i class="bi bi-headset me-1"></i>Atendimentos</a>' : ''}
+          ${App.pode('casos', 'ver') ? '<a class="btn btn-primary" href="#/casos"><i class="bi bi-briefcase me-1"></i>Casos</a>' : ''}
+        </div>
       </div>
+      <div id="painel-conteudo"><div class="vazio"><div class="spinner-border"></div></div></div>`;
+
+    let R;
+    try { R = await Api.chamar('painel.resumo'); } catch (e) { return UI.erro(e); }
+    const kpi = (rot, val, link, cor = '') => val === null ? '' :
+      `<div class="col-6 col-lg-3"><a class="link-limpo" href="${link}"><div class="kpi"><div class="rotulo">${rot}</div><div class="valor ${cor}">${val}</div></div></a></div>`;
+    const hoje = UI.hojeISO();
+    const vencidos = (R.retornos || []).filter(r => r.data_retorno <= hoje).length;
+    const maxArea = Math.max(1, ...R.por_area.map(a => a.qtd));
+
+    document.getElementById('painel-conteudo').innerHTML = `
       <div class="row g-3 mb-3">
-        <div class="col-6 col-lg-3"><div class="kpi"><div class="rotulo">Usuários ativos</div><div class="valor">${S.usuarios.length}</div></div></div>
-        <div class="col-6 col-lg-3"><div class="kpi"><div class="rotulo">Unidades</div><div class="valor">${S.unidades.length}</div></div></div>
-        <div class="col-6 col-lg-3"><div class="kpi"><div class="rotulo">Áreas de atuação</div><div class="valor">${S.areas.length}</div></div></div>
-        <div class="col-6 col-lg-3"><div class="kpi"><div class="rotulo">Cargos</div><div class="valor">${S.cargos.length}</div></div></div>
+        ${kpi('Casos ativos', R.casos_ativos, '#/casos')}
+        ${kpi('Clientes', R.clientes, '#/clientes')}
+        ${kpi('Atendimentos no mês', R.atendimentos_mes, '#/atendimentos')}
+        ${kpi('Retornos pendentes', R.atendimentos_mes === null ? null : (R.retornos || []).length, '#/atendimentos', vencidos ? 'text-danger' : '')}
       </div>
       <div class="row g-3">
-        <div class="col-lg-7"><div class="cartao h-100">
-          <h2 class="h6 mb-3">Implantação do sistema</h2>
-          ${fases.map(f => `<div class="d-flex gap-2 align-items-start py-2 border-top">
-            <i class="bi ${f[2] ? 'bi-check-circle-fill text-success' : 'bi-circle texto-2'} mt-1"></i>
-            <div><strong>${f[0]}</strong> <span class="texto-2">— ${f[1]}</span></div></div>`).join('')}
-        </div></div>
-        <div class="col-lg-5"><div class="cartao h-100">
-          <h2 class="h6 mb-3">Atalhos</h2>
-          ${atalhos.length ? atalhos.map(a => `<a href="#/${a[0]}" class="btn btn-outline-secondary w-100 text-start mb-2"><i class="bi ${a[1]} me-2"></i>${a[2]}</a>`).join('')
-            : '<p class="texto-2 small mb-0">Os módulos do seu cargo aparecem no menu lateral conforme forem liberados.</p>'}
-          <a href="#/perfil" class="btn btn-outline-secondary w-100 text-start"><i class="bi bi-person-gear me-2"></i>Minha conta e tema</a>
+        ${R.casos_ativos !== null ? `<div class="col-lg-6"><div class="cartao h-100">
+          <h2 class="h6 mb-3">Casos ativos por área</h2>
+          ${R.por_area.length ? R.por_area.map(a => `<div class="mb-2">
+              <div class="d-flex justify-content-between small"><span>${App.areaHtml(a.id_area)}</span><strong>${a.qtd}</strong></div>
+              <div class="barra-h"><div style="width:${Math.round(a.qtd / maxArea * 100)}%;background:${UI.esc(App.corArea(a.id_area))}"></div></div></div>`).join('')
+            : '<div class="texto-2 small">Nenhum caso ativo ainda.</div>'}
+          ${R.por_status.length ? `<hr><div class="d-flex flex-wrap gap-2">${R.por_status.map(s => `${Modulos.casos.chipStatus(s.status)}<span class="small fw-semibold me-2">${s.qtd}</span>`).join('')}</div>` : ''}
+        </div></div>` : ''}
+        ${R.atendimentos_mes !== null ? `<div class="col-lg-6"><div class="cartao h-100">
+          <h2 class="h6 mb-3">Próximos retornos a clientes</h2>
+          ${(R.retornos || []).length ? R.retornos.map(r => `<div class="d-flex gap-2 py-2 border-top align-items-start">
+              <span class="chip ${r.data_retorno < hoje ? 'chip-off' : r.data_retorno === hoje ? 'chip-alerta' : ''}">${r.data_retorno === hoje ? 'Hoje' : UI.data(r.data_retorno)}</span>
+              <div><div>${UI.esc(r.nome || 'Cliente')}</div><div class="small texto-2">${UI.esc(r.assunto)}</div></div></div>`).join('')
+            : '<div class="texto-2 small">Nenhum retorno agendado.</div>'}
+        </div></div>` : ''}
+        <div class="col-12"><div class="cartao small texto-2">
+          <i class="bi bi-info-circle me-1"></i>Prazos, audiências e financeiro aparecem aqui a partir das fases 4 e 5.
         </div></div>
       </div>`;
+  }
+};
+
+</script>
+<script>
+/* ======== js/modulos/clientes.js ======== */
+/**
+ * Clientes — lista, cadastro (PF/PJ) e ficha com casos e atendimentos.
+ * Rotas: #/clientes  e  #/clientes/CLI-000001
+ */
+Modulos.clientes = {
+  dados: [],
+
+  render(el, S, param) {
+    return param ? this.ficha(el, S, param) : this.lista(el, S);
+  },
+
+  /** Lista usada também por outros módulos (seleção de cliente) */
+  async carregarLista() {
+    this.dados = await Api.chamar('clientes.listar');
+    return this.dados;
+  },
+
+  opcaoDatalist(c) { return `${c.nome_razao}${c.cpf_cnpj ? ' — ' + c.cpf_cnpj : ''} [${c.id_cliente}]`; },
+  idDoDatalist(txt) { const m = String(txt || '').match(/\[(CLI-\d+)\]\s*$/); return m ? m[1] : ''; },
+
+  async lista(el, S) {
+    el.innerHTML = `
+      <div class="cabecalho-pagina">
+        <div><h1>Clientes</h1><p>Pessoas físicas e jurídicas atendidas pelo escritório</p></div>
+        <div class="d-flex gap-2">
+          ${App.pode('clientes', 'exportar') ? '<button class="btn btn-outline-secondary" data-exportar><i class="bi bi-download me-1"></i>Exportar</button>' : ''}
+          ${App.pode('clientes', 'criar') ? '<button class="btn btn-primary" data-novo><i class="bi bi-plus-lg me-1"></i>Novo cliente</button>' : ''}
+        </div>
+      </div>
+      <div class="cartao" id="cli-tabela"><div class="vazio"><div class="spinner-border"></div></div></div>`;
+
+    const novo = el.querySelector('[data-novo]');
+    if (novo) novo.onclick = () => this.formulario(null, S, c => { location.hash = '#/clientes/' + c.id_cliente; });
+
+    try { await this.carregarLista(); } catch (e) { return UI.erro(e); }
+
+    const exp = el.querySelector('[data-exportar]');
+    if (exp) exp.onclick = () => UI.exportarCSV('clientes', [
+      { titulo: 'ID', campo: 'id_cliente' }, { titulo: 'Tipo', campo: 'tipo' }, { titulo: 'Nome/Razão social', campo: 'nome_razao' },
+      { titulo: 'CPF/CNPJ', campo: 'cpf_cnpj' }, { titulo: 'Telefone', campo: 'telefone' }, { titulo: 'WhatsApp', campo: 'whatsapp' },
+      { titulo: 'E-mail', campo: 'email' }, { titulo: 'Cidade', campo: 'cidade' }, { titulo: 'UF', campo: 'uf' },
+      { titulo: 'Unidade', valor: r => App.nomeUnidade(r.id_unidade) }, { titulo: 'Responsável', valor: r => App.nomeUsuario(r.id_responsavel) },
+      { titulo: 'Casos ativos', campo: 'casos_ativos' }, { titulo: 'Situação', valor: r => r.ativo === 'NAO' ? 'Inativo' : 'Ativo' }
+    ], this.dados);
+
+    this.dados.forEach(c => { c._ativos = c.casos_ativos > 0 ? 'COM' : 'SEM'; });
+    UI.tabela(el.querySelector('#cli-tabela'), {
+      dados: this.dados,
+      placeholder: 'Pesquisar por nome, CPF/CNPJ, telefone, cidade, NIT…',
+      busca: ['nome_razao', 'nome_fantasia', 'cpf_cnpj', 'telefone', 'whatsapp', 'email', 'cidade', 'nit_pis', 'id_cliente'],
+      filtros: [
+        { campo: 'tipo', titulo: 'Tipo', opcoes: [{ valor: 'PF', rotulo: 'Pessoa física' }, { valor: 'PJ', rotulo: 'Pessoa jurídica' }] },
+        { campo: 'id_unidade', titulo: 'Unidade', opcoes: S.unidades.map(u => ({ valor: u.id, rotulo: u.nome })) },
+        { campo: 'id_responsavel', titulo: 'Responsável', opcoes: S.usuarios.map(u => ({ valor: u.id, rotulo: u.nome })) },
+        { campo: '_ativos', titulo: 'Casos', opcoes: [{ valor: 'COM', rotulo: 'Com casos ativos' }, { valor: 'SEM', rotulo: 'Sem casos ativos' }] },
+        { campo: 'ativo', titulo: 'Situação', opcoes: [{ valor: 'SIM', rotulo: 'Ativos' }, { valor: 'NAO', rotulo: 'Inativos' }] }
+      ],
+      linhaClasse: r => r.ativo === 'NAO' ? 'linha-inativa' : '',
+      colunas: [
+        { titulo: 'Cliente', render: r => `<a class="link-limpo fw-semibold" href="#/clientes/${UI.esc(r.id_cliente)}">${UI.esc(r.nome_razao)}</a>
+            <div class="small texto-2">${r.tipo} · ${UI.esc(App.nomeUnidade(r.id_unidade))}</div>` },
+        { titulo: 'CPF/CNPJ', render: r => UI.esc(r.cpf_cnpj || '-') },
+        { titulo: 'Contato', render: r => {
+            const tel = r.whatsapp || r.telefone; const wa = UI.linkWhats(tel);
+            return tel ? `${UI.esc(tel)} ${wa ? `<a href="${wa}" target="_blank" rel="noopener" title="WhatsApp"><i class="bi bi-whatsapp text-success"></i></a>` : ''}` : '<span class="texto-2">-</span>';
+          } },
+        { titulo: 'Casos', render: r => r.casos_ativos ? `<span class="chip chip-ok">${r.casos_ativos} ativo(s)</span>` : '<span class="chip">nenhum</span>' },
+        { titulo: 'Responsável', render: r => `<span class="small">${UI.esc(App.nomeUsuario(r.id_responsavel))}</span>` },
+        { titulo: '', classe: 'text-end', render: r => `<a class="btn btn-sm btn-outline-secondary" href="#/clientes/${UI.esc(r.id_cliente)}">Abrir</a>` }
+      ]
+    });
+  },
+
+  formulario(c, S, aoSalvar) {
+    const v = c || { tipo: 'PF', nacionalidade: 'brasileiro(a)', id_responsavel: S.usuario.id_usuario, id_unidade: S.usuario.id_unidade };
+    const ufs = 'AC AL AP AM BA CE DF ES GO MA MT MS MG PA PB PR PE PI RJ RN RS RO RR SC SP SE TO'.split(' ');
+    const m = UI.modal({
+      titulo: c ? 'Editar cliente' : 'Novo cliente',
+      tamanho: 'modal-xl',
+      corpo: `<form class="row g-3" novalidate>
+        ${UI.secao('Identificação')}
+        ${UI.campo({ rotulo: 'Tipo', campo: 'tipo', tipo: 'select', valor: v.tipo, vazio: null, col: 'col-md-2', opcoes: [{ id: 'PF', nome: 'Pessoa física' }, { id: 'PJ', nome: 'Pessoa jurídica' }] })}
+        ${UI.campo({ rotulo: 'Nome completo / razão social', campo: 'nome_razao', valor: v.nome_razao, col: 'col-md-6', obrig: true })}
+        ${UI.campo({ rotulo: 'CPF / CNPJ', campo: 'cpf_cnpj', valor: v.cpf_cnpj, col: 'col-md-4', mascara: 'doc' })}
+        ${UI.campo({ rotulo: 'Nome fantasia', campo: 'nome_fantasia', valor: v.nome_fantasia, col: 'col-md-6 so-pj' })}
+        ${UI.campo({ rotulo: 'RG / inscrição estadual', campo: 'rg_ie', valor: v.rg_ie, col: 'col-md-3' })}
+        ${UI.campo({ rotulo: 'Órgão emissor', campo: 'orgao_emissor', valor: v.orgao_emissor, col: 'col-md-2 so-pf' })}
+        ${UI.campo({ rotulo: 'Data de nascimento', campo: 'data_nascimento', valor: v.data_nascimento, tipo: 'date', col: 'col-md-3 so-pf' })}
+        ${UI.campo({ rotulo: 'Nacionalidade', campo: 'nacionalidade', valor: v.nacionalidade, col: 'col-md-2 so-pf' })}
+        ${UI.campo({ rotulo: 'Estado civil', campo: 'estado_civil', valor: v.estado_civil, tipo: 'select', col: 'col-md-2 so-pf', opcoes: App.lista('estado_civil'), vazio: '-' })}
+        ${UI.campo({ rotulo: 'Profissão', campo: 'profissao', valor: v.profissao, col: 'col-md-3 so-pf' })}
+        ${UI.campo({ rotulo: 'Nome da mãe', campo: 'nome_mae', valor: v.nome_mae, col: 'col-md-4 so-pf', ajuda: 'Usado em requerimentos do INSS.' })}
+        ${UI.campo({ rotulo: 'NIT / PIS', campo: 'nit_pis', valor: v.nit_pis, col: 'col-md-3 so-pf' })}
+        ${UI.secao('Contato')}
+        ${UI.campo({ rotulo: 'Telefone', campo: 'telefone', valor: v.telefone, col: 'col-md-3', mascara: 'telefone' })}
+        ${UI.campo({ rotulo: 'WhatsApp', campo: 'whatsapp', valor: v.whatsapp, col: 'col-md-3', mascara: 'telefone' })}
+        ${UI.campo({ rotulo: 'E-mail', campo: 'email', valor: v.email, tipo: 'email', col: 'col-md-6' })}
+        ${UI.secao('Endereço')}
+        ${UI.campo({ rotulo: 'CEP', campo: 'cep', valor: v.cep, col: 'col-md-2', mascara: 'cep', ajuda: 'Preenche o endereço sozinho.' })}
+        ${UI.campo({ rotulo: 'Logradouro', campo: 'logradouro', valor: v.logradouro, col: 'col-md-6' })}
+        ${UI.campo({ rotulo: 'Número', campo: 'numero', valor: v.numero, col: 'col-md-2' })}
+        ${UI.campo({ rotulo: 'Complemento', campo: 'complemento', valor: v.complemento, col: 'col-md-2' })}
+        ${UI.campo({ rotulo: 'Bairro / distrito', campo: 'bairro', valor: v.bairro, col: 'col-md-4' })}
+        ${UI.campo({ rotulo: 'Cidade', campo: 'cidade', valor: v.cidade, col: 'col-md-4' })}
+        ${UI.campo({ rotulo: 'UF', campo: 'uf', valor: v.uf, tipo: 'select', col: 'col-md-2', opcoes: ufs, vazio: '-' })}
+        ${UI.secao('Escritório')}
+        ${UI.campo({ rotulo: 'Origem', campo: 'origem', valor: v.origem, tipo: 'select', col: 'col-md-3', opcoes: App.lista('origem_cliente'), vazio: '-' })}
+        ${UI.campo({ rotulo: 'Unidade', campo: 'id_unidade', valor: v.id_unidade, tipo: 'select', col: 'col-md-3', opcoes: S.unidades, vazio: '-' })}
+        ${UI.campo({ rotulo: 'Responsável pelo cadastro', campo: 'id_responsavel', valor: v.id_responsavel, tipo: 'select', col: 'col-md-3', opcoes: S.usuarios, vazio: '-' })}
+        ${UI.campo({ rotulo: 'Autorizou o uso dos dados (LGPD)', campo: 'consentimento_lgpd', valor: v.consentimento_lgpd, tipo: 'checkbox', col: 'col-md-3',
+          ajuda: v.data_consentimento ? 'Registrado em ' + UI.data(v.data_consentimento) : '' })}
+        ${UI.campo({ rotulo: 'Observações', campo: 'obs', valor: v.obs, tipo: 'textarea', col: 'col-12', linhas: 2 })}
+      </form>`,
+      rodape: `<button class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancelar</button><button class="btn btn-primary" data-salvar>Salvar</button>`
+    });
+
+    UI.mascaras(m.el);
+    const tipo = m.el.querySelector('[data-campo="tipo"]');
+    const ajustarTipo = () => {
+      const pj = tipo.value === 'PJ';
+      m.el.querySelectorAll('.so-pf').forEach(x => x.classList.toggle('d-none', pj));
+      m.el.querySelectorAll('.so-pj').forEach(x => x.classList.toggle('d-none', !pj));
+    };
+    tipo.addEventListener('change', ajustarTipo);
+    ajustarTipo();
+
+    const cep = m.el.querySelector('[data-campo="cep"]');
+    cep.addEventListener('blur', async () => {
+      const d = cep.value.replace(/\D/g, '');
+      if (d.length !== 8) return;
+      try {
+        const r = await (await fetch(`https://viacep.com.br/ws/${d}/json/`)).json();
+        if (r.erro) return UI.toast('CEP não encontrado.', 'aviso');
+        const set = (k, val) => { const i = m.el.querySelector(`[data-campo="${k}"]`); if (i && val && !i.value) i.value = val; };
+        set('logradouro', r.logradouro); set('bairro', r.bairro); set('cidade', r.localidade); set('uf', r.uf);
+        m.el.querySelector('[data-campo="numero"]').focus();
+      } catch (e) { /* sem internet ou serviço fora: preenche manualmente */ }
+    });
+
+    m.el.querySelector('[data-salvar]').onclick = async ev => {
+      const d = UI.lerForm(m.el);
+      if (c) d.id_cliente = c.id_cliente;
+      if (!d.nome_razao) return UI.toast('Informe o nome.', 'aviso');
+      await UI.ocupado(ev.target, async () => {
+        try {
+          const salvo = await Api.chamar('clientes.salvar', d);
+          m.fechar();
+          UI.toast(c ? 'Cliente atualizado.' : 'Cliente cadastrado.');
+          if (aoSalvar) aoSalvar(salvo);
+        } catch (e) { UI.erro(e); }
+      });
+    };
+  },
+
+  async ficha(el, S, id) {
+    el.innerHTML = '<div class="vazio"><div class="spinner-border"></div></div>';
+    let F;
+    try { F = await Api.chamar('clientes.ficha', { id_cliente: id }); }
+    catch (e) { el.innerHTML = `<div class="cartao"><div class="vazio"><i class="bi bi-lock"></i>${UI.esc(e.message)}</div></div>`; return; }
+    const c = F.cliente;
+    const wa = UI.linkWhats(c.whatsapp || c.telefone);
+    const info = (rot, val, col = 'col-md-4') => `<div class="${col} campo-info"><div class="rotulo">${rot}</div><div class="valor">${val || '<span class="texto-2">-</span>'}</div></div>`;
+    const end = [c.logradouro && `${c.logradouro}${c.numero ? ', ' + c.numero : ''}`, c.complemento, c.bairro, c.cidade && `${c.cidade}${c.uf ? '/' + c.uf : ''}`, c.cep].filter(Boolean).map(UI.esc).join(' · ');
+
+    el.innerHTML = `
+      <div class="cabecalho-pagina">
+        <div>
+          <div class="small"><a href="#/clientes" class="link-limpo texto-2"><i class="bi bi-arrow-left"></i> Clientes</a></div>
+          <h1>${UI.esc(c.nome_razao)} ${c.ativo === 'NAO' ? '<span class="chip chip-off">inativo</span>' : ''}</h1>
+          <p>${UI.esc(c.id_cliente)} · ${c.tipo === 'PJ' ? 'CNPJ' : 'CPF'} ${UI.esc(c.cpf_cnpj || 'não informado')} · responsável ${UI.esc(App.nomeUsuario(c.id_responsavel))}</p>
+        </div>
+        <div class="d-flex gap-2 flex-wrap">
+          ${wa ? `<a class="btn btn-outline-success" href="${wa}" target="_blank" rel="noopener"><i class="bi bi-whatsapp me-1"></i>WhatsApp</a>` : ''}
+          ${App.pode('clientes', 'editar') ? '<button class="btn btn-outline-secondary" data-editar><i class="bi bi-pencil me-1"></i>Editar</button>' : ''}
+          ${App.pode('clientes', 'excluir') ? `<button class="btn btn-outline-secondary" data-ativo>${c.ativo === 'NAO' ? 'Reativar' : 'Inativar'}</button>` : ''}
+          ${App.pode('casos', 'criar') && c.ativo !== 'NAO' ? '<button class="btn btn-primary" data-novo-caso><i class="bi bi-plus-lg me-1"></i>Novo caso</button>' : ''}
+        </div>
+      </div>
+      <ul class="nav nav-pills mb-3 gap-1">
+        <li class="nav-item"><button class="nav-link active" data-aba-btn="dados">Dados</button></li>
+        <li class="nav-item"><button class="nav-link" data-aba-btn="casos">Casos (${F.casos.length})</button></li>
+        ${App.pode('atendimentos') ? `<li class="nav-item"><button class="nav-link" data-aba-btn="atend">Atendimentos (${F.atendimentos.length})</button></li>` : ''}
+      </ul>
+      <div class="cartao" data-aba-painel="dados"><div class="row g-3">
+        ${c.tipo === 'PJ' ? info('Nome fantasia', UI.esc(c.nome_fantasia)) + info('Inscrição estadual', UI.esc(c.rg_ie)) :
+          info('Nascimento', c.data_nascimento ? `${UI.data(c.data_nascimento)} <span class="texto-2">(${UI.idade(c.data_nascimento)})</span>` : '') +
+          info('RG', UI.esc([c.rg_ie, c.orgao_emissor].filter(Boolean).join(' - '))) + info('Nome da mãe', UI.esc(c.nome_mae)) +
+          info('Estado civil · profissão', UI.esc([c.estado_civil, c.profissao].filter(Boolean).join(' · '))) +
+          info('Nacionalidade', UI.esc(c.nacionalidade)) + info('NIT / PIS', UI.esc(c.nit_pis))}
+        ${info('Telefone', UI.esc(c.telefone))}${info('WhatsApp', UI.esc(c.whatsapp))}${info('E-mail', UI.esc(c.email))}
+        ${info('Endereço', end, 'col-12')}
+        ${info('Unidade', UI.esc(App.nomeUnidade(c.id_unidade)))}${info('Origem', UI.esc(c.origem))}
+        ${info('LGPD', c.consentimento_lgpd === 'SIM' ? `<span class="chip chip-ok">autorizado em ${UI.data(c.data_consentimento)}</span>` : '<span class="chip chip-alerta">sem registro</span>')}
+        ${c.obs ? info('Observações', `<span style="white-space:pre-wrap">${UI.esc(c.obs)}</span>`, 'col-12') : ''}
+      </div></div>
+      <div class="cartao d-none" data-aba-painel="casos">${this.htmlCasos(F.casos)}</div>
+      <div class="cartao d-none" data-aba-painel="atend">${this.htmlAtendimentos(F.atendimentos)}</div>`;
+
+    UI.abas(el);
+    const recarregar = () => this.ficha(el, S, id);
+    const b1 = el.querySelector('[data-editar]');
+    if (b1) b1.onclick = () => this.formulario(c, S, recarregar);
+    const b2 = el.querySelector('[data-novo-caso]');
+    if (b2) b2.onclick = () => Modulos.casos.formulario(null, S, { id_cliente: c.id_cliente, cliente_nome: c.nome_razao }, caso => { location.hash = '#/casos/' + caso.id_caso; });
+    const b3 = el.querySelector('[data-ativo]');
+    if (b3) b3.onclick = async () => {
+      const ativar = c.ativo === 'NAO';
+      if (!await UI.confirmar(ativar ? 'Reativar este cliente?' : 'Inativar este cliente? Ele sai das listas, mas o histórico é mantido.', { perigo: !ativar, botao: ativar ? 'Reativar' : 'Inativar' })) return;
+      try { await Api.chamar('clientes.alternarAtivo', { id_cliente: c.id_cliente }); UI.toast('Cliente atualizado.'); recarregar(); } catch (e) { UI.erro(e); }
+    };
+  },
+
+  htmlCasos(casos) {
+    if (!casos.length) return '<div class="vazio"><i class="bi bi-briefcase"></i>Nenhum caso deste cliente que você possa ver.</div>';
+    return `<div class="table-responsive"><table class="table table-hover align-middle mb-0"><thead><tr>
+      <th>Caso</th><th>Área</th><th>Nº</th><th>Responsável</th><th>Status</th></tr></thead><tbody>
+      ${casos.map(k => `<tr class="${k.ativo === 'NAO' ? 'linha-inativa' : ''}">
+        <td><a class="link-limpo fw-semibold" href="#/casos/${UI.esc(k.id_caso)}">${UI.esc(k.titulo)}</a><div class="small texto-2">${UI.esc(k.id_caso)} · ${UI.esc(k.natureza || '')}</div></td>
+        <td>${App.areaHtml(k.id_area)}</td>
+        <td class="small">${UI.esc(k.num_cnj || k.nb_beneficio || k.num_protocolo || '-')}</td>
+        <td class="small">${UI.esc(App.nomeUsuario(k.id_responsavel))}</td>
+        <td>${Modulos.casos.chipStatus(k.status)}</td></tr>`).join('')}
+      </tbody></table></div>`;
+  },
+
+  htmlAtendimentos(ats) {
+    if (!ats.length) return '<div class="vazio"><i class="bi bi-headset"></i>Nenhum atendimento registrado.</div>';
+    return ats.sort((a, b) => b.data.localeCompare(a.data)).map(a => `<div class="border-bottom py-2">
+      <div class="d-flex justify-content-between"><strong>${UI.esc(a.assunto)}</strong><span class="small texto-2">${UI.data(a.data)}</span></div>
+      <div class="small texto-2">${App.areaHtml(a.id_area)} · ${UI.esc(App.nomeUsuario(a.id_responsavel))} · ${UI.esc(a.resultado || 'sem resultado')}
+        ${a.id_caso_gerado ? ` · <a href="#/casos/${UI.esc(a.id_caso_gerado)}">${UI.esc(a.id_caso_gerado)}</a>` : ''}</div>
+      ${a.relato ? `<div class="small mt-1" style="white-space:pre-wrap">${UI.esc(a.relato)}</div>` : ''}</div>`).join('');
+  }
+};
+
+</script>
+<script>
+/* ======== js/modulos/atendimentos.js ======== */
+/**
+ * Atendimentos — primeiro contato / triagem, com conversão em caso.
+ */
+Modulos.atendimentos = {
+  dados: [],
+
+  async render(el, S) {
+    el.innerHTML = `
+      <div class="cabecalho-pagina">
+        <div><h1>Atendimentos</h1><p>Primeiros contatos e consultas, mesmo os que não viram caso</p></div>
+        <div class="d-flex gap-2">
+          ${App.pode('atendimentos', 'exportar') ? '<button class="btn btn-outline-secondary" data-exportar><i class="bi bi-download me-1"></i>Exportar</button>' : ''}
+          ${App.pode('atendimentos', 'criar') ? '<button class="btn btn-primary" data-novo><i class="bi bi-plus-lg me-1"></i>Novo atendimento</button>' : ''}
+        </div>
+      </div>
+      <div class="cartao" id="ate-tabela"><div class="vazio"><div class="spinner-border"></div></div></div>`;
+
+    const recarregar = () => this.render(el, S);
+    const novo = el.querySelector('[data-novo]');
+    if (novo) novo.onclick = () => this.formulario(null, S, recarregar);
+
+    try { this.dados = await Api.chamar('atendimentos.listar'); } catch (e) { return UI.erro(e); }
+    const hoje = UI.hojeISO();
+    this.dados.forEach(a => {
+      a._quem = a.cliente_nome || a.nome_contato;
+      a._pend = a.data_retorno && !a.id_caso_gerado && a.data_retorno <= hoje && !['Sem viabilidade', 'Cliente desistiu'].includes(a.resultado) ? 'SIM' : 'NAO';
+    });
+    this.dados.sort((a, b) => (b.data + b.id_atendimento).localeCompare(a.data + a.id_atendimento));
+
+    const exp = el.querySelector('[data-exportar]');
+    if (exp) exp.onclick = () => UI.exportarCSV('atendimentos', [
+      { titulo: 'ID', campo: 'id_atendimento' }, { titulo: 'Data', campo: 'data' }, { titulo: 'Contato/cliente', campo: '_quem' },
+      { titulo: 'Telefone', campo: 'telefone_contato' }, { titulo: 'Área', valor: r => App.nomeArea(r.id_area) }, { titulo: 'Assunto', campo: 'assunto' },
+      { titulo: 'Resultado', campo: 'resultado' }, { titulo: 'Retorno', campo: 'data_retorno' }, { titulo: 'Caso gerado', campo: 'id_caso_gerado' },
+      { titulo: 'Responsável', valor: r => App.nomeUsuario(r.id_responsavel) }
+    ], this.dados);
+
+    const cont = el.querySelector('#ate-tabela');
+    UI.tabela(cont, {
+      dados: this.dados,
+      placeholder: 'Pesquisar por nome, telefone, assunto…',
+      busca: ['_quem', 'telefone_contato', 'assunto', 'relato', 'id_atendimento'],
+      filtros: [
+        { campo: 'resultado', titulo: 'Resultado', opcoes: App.lista('resultado_atendimento').map(v => ({ valor: v, rotulo: v })) },
+        { campo: '_pend', titulo: 'Retorno', opcoes: [{ valor: 'SIM', rotulo: 'Retorno vencido/hoje' }] },
+        { campo: 'id_area', titulo: 'Área', opcoes: S.areas.map(a => ({ valor: a.id, rotulo: a.nome })) },
+        { campo: 'id_responsavel', titulo: 'Responsável', opcoes: S.usuarios.map(u => ({ valor: u.id, rotulo: u.nome })) }
+      ],
+      colunas: [
+        { titulo: 'Data', render: r => `<span class="small">${UI.data(r.data)}</span>` },
+        { titulo: 'Quem procurou', render: r => (r.id_cliente ? `<a class="link-limpo fw-semibold" href="#/clientes/${UI.esc(r.id_cliente)}">${UI.esc(r._quem)}</a>` : `<span class="fw-semibold">${UI.esc(r._quem)}</span>`)
+            + (r.telefone_contato ? `<div class="small texto-2">${UI.esc(r.telefone_contato)}</div>` : '') },
+        { titulo: 'Assunto', render: r => `${UI.esc(r.assunto)}<div class="small texto-2">${App.areaHtml(r.id_area)}</div>` },
+        { titulo: 'Resultado', render: r => r.id_caso_gerado ? `<a href="#/casos/${UI.esc(r.id_caso_gerado)}" class="chip chip-ok">Virou caso ${UI.esc(r.id_caso_gerado)}</a>`
+            : `<span class="chip">${UI.esc(r.resultado || 'Em aberto')}</span>` },
+        { titulo: 'Retorno', render: r => r.data_retorno ? `<span class="small ${r._pend === 'SIM' ? 'text-danger fw-semibold' : ''}">${UI.data(r.data_retorno)}</span>` : '<span class="texto-2">-</span>' },
+        { titulo: '', classe: 'text-end', render: r => `<div class="btn-group btn-group-sm">
+            ${App.pode('atendimentos', 'editar') ? `<button class="btn btn-outline-secondary" data-acao="editar" data-id="${UI.esc(r.id_atendimento)}" title="Editar"><i class="bi bi-pencil"></i></button>` : ''}
+            ${!r.id_caso_gerado && App.pode('casos', 'criar') && App.pode('atendimentos', 'editar') ? `<button class="btn btn-outline-primary" data-acao="converter" data-id="${UI.esc(r.id_atendimento)}"><i class="bi bi-arrow-right-circle me-1"></i>Virar caso</button>` : ''}
+          </div>` }
+      ]
+    });
+
+    cont.addEventListener('click', e => {
+      const b = e.target.closest('[data-acao]');
+      if (!b) return;
+      const a = this.dados.find(x => x.id_atendimento === b.dataset.id);
+      if (b.dataset.acao === 'editar') this.formulario(a, S, recarregar);
+      if (b.dataset.acao === 'converter') this.converter(a, S);
+    });
+  },
+
+  async formulario(a, S, aoSalvar) {
+    const v = a || { data: UI.hojeISO(), id_responsavel: S.usuario.id_usuario, id_unidade: S.usuario.id_unidade };
+    let clientes = [];
+    if (App.pode('clientes')) { try { clientes = (await Modulos.clientes.carregarLista()).filter(c => c.ativo !== 'NAO'); } catch (e) { /* segue sem lista */ } }
+    const cliAtual = v.id_cliente ? clientes.find(c => c.id_cliente === v.id_cliente) : null;
+
+    const m = UI.modal({
+      titulo: a ? 'Editar atendimento' : 'Novo atendimento',
+      tamanho: 'modal-lg',
+      corpo: `<form class="row g-3" novalidate>
+        ${UI.campo({ rotulo: 'Data', campo: 'data', valor: v.data, tipo: 'date', col: 'col-md-3' })}
+        ${UI.campo({ rotulo: 'Já é cliente? (opcional)', campo: '_cliente', valor: cliAtual ? Modulos.clientes.opcaoDatalist(cliAtual) : '', col: 'col-md-9',
+          lista: clientes.map(c => Modulos.clientes.opcaoDatalist(c)), attrs: 'placeholder="Digite o nome ou CPF e escolha na lista"' })}
+        ${UI.campo({ rotulo: 'Nome de quem procurou', campo: 'nome_contato', valor: v.nome_contato, col: 'col-md-7', ajuda: 'Obrigatório se não for cliente cadastrado.' })}
+        ${UI.campo({ rotulo: 'Telefone', campo: 'telefone_contato', valor: v.telefone_contato, col: 'col-md-5', mascara: 'telefone' })}
+        ${UI.campo({ rotulo: 'Assunto', campo: 'assunto', valor: v.assunto, col: 'col-md-7', obrig: true, attrs: 'placeholder="Ex.: aposentadoria rural da mãe"' })}
+        ${UI.campo({ rotulo: 'Área', campo: 'id_area', valor: v.id_area, tipo: 'select', col: 'col-md-5', opcoes: S.areas })}
+        ${UI.campo({ rotulo: 'Relato', campo: 'relato', valor: v.relato, tipo: 'textarea', col: 'col-12', linhas: 4 })}
+        ${UI.campo({ rotulo: 'Resultado', campo: 'resultado', valor: v.resultado, tipo: 'select', col: 'col-md-4', opcoes: App.lista('resultado_atendimento'), vazio: 'Em aberto' })}
+        ${UI.campo({ rotulo: 'Data de retorno', campo: 'data_retorno', valor: v.data_retorno, tipo: 'date', col: 'col-md-4' })}
+        ${UI.campo({ rotulo: 'Responsável', campo: 'id_responsavel', valor: v.id_responsavel, tipo: 'select', col: 'col-md-4', opcoes: S.usuarios })}
+        ${UI.campo({ rotulo: 'Unidade', campo: 'id_unidade', valor: v.id_unidade, tipo: 'select', col: 'col-md-4', opcoes: S.unidades, vazio: '-' })}
+      </form>`,
+      rodape: `<button class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancelar</button><button class="btn btn-primary" data-salvar>Salvar</button>`
+    });
+    UI.mascaras(m.el);
+
+    m.el.querySelector('[data-salvar]').onclick = async ev => {
+      const d = UI.lerForm(m.el);
+      d.id_cliente = Modulos.clientes.idDoDatalist(d._cliente);
+      delete d._cliente;
+      if (a) d.id_atendimento = a.id_atendimento;
+      if (!d.id_cliente && !d.nome_contato) return UI.toast('Informe o nome ou escolha um cliente.', 'aviso');
+      if (!d.assunto) return UI.toast('Informe o assunto.', 'aviso');
+      await UI.ocupado(ev.target, async () => {
+        try { await Api.chamar('atendimentos.salvar', d); m.fechar(); UI.toast('Atendimento salvo.'); if (aoSalvar) aoSalvar(); }
+        catch (e) { UI.erro(e); }
+      });
+    };
+  },
+
+  converter(a, S) {
+    const precisaCliente = !a.id_cliente;
+    const m = UI.modal({
+      titulo: 'Converter atendimento em caso',
+      tamanho: 'modal-lg',
+      corpo: `<form class="row g-3" novalidate>
+        ${precisaCliente ? `${UI.secao('Cadastrar cliente')}
+          ${UI.campo({ rotulo: 'Tipo', campo: 'c_tipo', tipo: 'select', col: 'col-md-3', opcoes: [{ id: 'PF', nome: 'Pessoa física' }, { id: 'PJ', nome: 'Pessoa jurídica' }], vazio: null })}
+          ${UI.campo({ rotulo: 'Nome completo', campo: 'c_nome_razao', valor: a.nome_contato, col: 'col-md-9', obrig: true })}
+          ${UI.campo({ rotulo: 'CPF / CNPJ', campo: 'c_cpf_cnpj', col: 'col-md-6', mascara: 'doc' })}
+          ${UI.campo({ rotulo: 'Telefone', campo: 'c_telefone', valor: a.telefone_contato, col: 'col-md-6', mascara: 'telefone' })}
+          <div class="col-12 form-text mt-0">Os demais dados podem ser completados depois, na ficha do cliente.</div>`
+        : `<div class="col-12"><div class="alert alert-secondary small mb-0">Cliente: <strong>${UI.esc(a.cliente_nome)}</strong></div></div>`}
+        ${UI.secao('Caso')}
+        ${UI.campo({ rotulo: 'Área', campo: 'id_area', valor: a.id_area, tipo: 'select', col: 'col-md-4', opcoes: S.areas, obrig: true })}
+        ${UI.campo({ rotulo: 'Natureza', campo: 'natureza', valor: /inss|previd/i.test(App.nomeArea(a.id_area)) ? 'Administrativo' : 'Judicial', tipo: 'select', col: 'col-md-4', opcoes: App.lista('natureza_caso'), vazio: null })}
+        ${UI.campo({ rotulo: 'Responsável', campo: 'id_responsavel', valor: a.id_responsavel, tipo: 'select', col: 'col-md-4', opcoes: S.usuarios })}
+        ${UI.campo({ rotulo: 'Tipo de ação / benefício', campo: 'tipo_acao', col: 'col-md-6', lista: App.lista('tipo_acao'), obrig: true })}
+        ${UI.campo({ rotulo: 'Título do caso', campo: 'titulo', valor: a.assunto, col: 'col-md-6' })}
+      </form>`,
+      rodape: `<button class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancelar</button><button class="btn btn-primary" data-salvar>Criar caso</button>`
+    });
+    UI.mascaras(m.el);
+
+    m.el.querySelector('[data-salvar]').onclick = async ev => {
+      const f = UI.lerForm(m.el);
+      const caso = { id_area: f.id_area, natureza: f.natureza, id_responsavel: f.id_responsavel, tipo_acao: f.tipo_acao, titulo: f.titulo, id_unidade: a.id_unidade };
+      const d = { id_atendimento: a.id_atendimento, caso };
+      if (precisaCliente) {
+        if (!f.c_nome_razao) return UI.toast('Informe o nome do cliente.', 'aviso');
+        d.cliente = { tipo: f.c_tipo, nome_razao: f.c_nome_razao, cpf_cnpj: f.c_cpf_cnpj, telefone: f.c_telefone, id_unidade: a.id_unidade };
+      }
+      if (!caso.id_area || (!caso.tipo_acao && !caso.titulo)) return UI.toast('Informe a área e o tipo de ação.', 'aviso');
+      await UI.ocupado(ev.target, async () => {
+        try {
+          const k = await Api.chamar('atendimentos.converter', d);
+          m.fechar();
+          UI.toast('Caso criado.');
+          location.hash = '#/casos/' + k.id_caso;
+        } catch (e) { UI.erro(e); }
+      });
+    };
+  }
+};
+
+</script>
+<script>
+/* ======== js/modulos/casos.js ======== */
+/**
+ * Casos e processos — lista, cadastro (judicial / administrativo INSS) e ficha com andamentos.
+ * Rotas: #/casos  e  #/casos/CAS-000001
+ */
+Modulos.casos = {
+  dados: [],
+  sugestoes: {},
+
+  render(el, S, param) {
+    return param ? this.ficha(el, S, param) : this.lista(el, S);
+  },
+
+  chipStatus(s) {
+    const t = String(s || '').toLowerCase();
+    const cls = t.indexOf('encerrado - êxito') === 0 ? 'chip-ok' : t.indexOf('encerrado') === 0 || t === 'arquivado' ? 'chip-off'
+      : t.indexOf('aguardando') === 0 || t === 'suspenso' ? 'chip-alerta' : '';
+    return `<span class="chip ${cls}">${UI.esc(s || '-')}</span>`;
+  },
+
+  numero(k) { return k.num_cnj || (k.nb_beneficio ? 'NB ' + k.nb_beneficio : '') || (k.num_protocolo ? 'Prot. ' + k.num_protocolo : ''); },
+
+  async lista(el, S) {
+    el.innerHTML = `
+      <div class="cabecalho-pagina">
+        <div><h1>Casos e processos</h1><p>Judiciais, administrativos (INSS) e consultivos</p></div>
+        <div class="d-flex gap-2">
+          ${App.pode('casos', 'exportar') ? '<button class="btn btn-outline-secondary" data-exportar><i class="bi bi-download me-1"></i>Exportar</button>' : ''}
+          ${App.pode('casos', 'criar') ? '<button class="btn btn-primary" data-novo><i class="bi bi-plus-lg me-1"></i>Novo caso</button>' : ''}
+        </div>
+      </div>
+      <div class="cartao" id="cas-tabela"><div class="vazio"><div class="spinner-border"></div></div></div>`;
+
+    const novo = el.querySelector('[data-novo]');
+    if (novo) novo.onclick = () => this.formulario(null, S, {}, k => { location.hash = '#/casos/' + k.id_caso; });
+
+    try {
+      const r = await Api.chamar('casos.listar');
+      this.dados = r.casos; this.sugestoes = r.sugestoes;
+    } catch (e) { return UI.erro(e); }
+
+    const exp = el.querySelector('[data-exportar]');
+    if (exp) exp.onclick = () => UI.exportarCSV('casos', [
+      { titulo: 'ID', campo: 'id_caso' }, { titulo: 'Título', campo: 'titulo' }, { titulo: 'Cliente', campo: 'cliente_nome' },
+      { titulo: 'CPF/CNPJ', campo: 'cliente_doc' }, { titulo: 'Área', valor: r => App.nomeArea(r.id_area) }, { titulo: 'Natureza', campo: 'natureza' },
+      { titulo: 'Tipo de ação', campo: 'tipo_acao' }, { titulo: 'Nº CNJ', campo: 'num_cnj' }, { titulo: 'Protocolo', campo: 'num_protocolo' },
+      { titulo: 'NB', campo: 'nb_beneficio' }, { titulo: 'Parte contrária', campo: 'parte_contraria' }, { titulo: 'Fase', campo: 'fase' },
+      { titulo: 'Status', campo: 'status' }, { titulo: 'Responsável', valor: r => App.nomeUsuario(r.id_responsavel) },
+      { titulo: 'Apoio', valor: r => r.id_apoio ? App.nomeUsuario(r.id_apoio) : '' }, { titulo: 'Abertura', campo: 'data_abertura' },
+      { titulo: 'Encerramento', campo: 'data_encerramento' }
+    ], this.dados);
+
+    UI.tabela(el.querySelector('#cas-tabela'), {
+      dados: this.dados,
+      placeholder: 'Pesquisar por título, cliente, CPF, nº CNJ, NB, protocolo, parte contrária…',
+      busca: ['titulo', 'cliente_nome', 'cliente_doc', 'num_cnj', 'nb_beneficio', 'num_protocolo', 'parte_contraria', 'tipo_acao', 'id_caso'],
+      filtros: [
+        { campo: 'situacao', titulo: 'Situação', opcoes: [{ valor: 'ATIVO', rotulo: 'Ativos' }, { valor: 'ENCERRADO', rotulo: 'Encerrados' }] },
+        { campo: 'id_area', titulo: 'Área', opcoes: S.areas.map(a => ({ valor: a.id, rotulo: a.nome })) },
+        { campo: 'status', titulo: 'Status', opcoes: App.lista('status_caso').map(v => ({ valor: v, rotulo: v })) },
+        { campo: 'id_responsavel', titulo: 'Responsável', opcoes: S.usuarios.map(u => ({ valor: u.id, rotulo: u.nome })) },
+        { campo: 'id_unidade', titulo: 'Unidade', opcoes: S.unidades.map(u => ({ valor: u.id, rotulo: u.nome })) }
+      ],
+      linhaClasse: r => r.ativo === 'NAO' ? 'linha-inativa' : '',
+      colunas: [
+        { titulo: 'Caso', render: r => `<a class="link-limpo fw-semibold" href="#/casos/${UI.esc(r.id_caso)}">${UI.esc(r.titulo)}</a>
+            <div class="small texto-2">${UI.esc(r.id_caso)} · ${UI.esc(r.natureza || '-')}</div>` },
+        { titulo: 'Cliente', render: r => `<a class="link-limpo" href="#/clientes/${UI.esc(r.id_cliente)}">${UI.esc(r.cliente_nome)}</a>` },
+        { titulo: 'Área', render: r => `<span class="small">${App.areaHtml(r.id_area)}</span>` },
+        { titulo: 'Nº / referência', render: r => `<span class="small">${UI.esc(this.numero(r) || '-')}</span>` },
+        { titulo: 'Responsável', render: r => `<span class="small">${UI.esc(App.nomeUsuario(r.id_responsavel))}</span>` },
+        { titulo: 'Status', render: r => this.chipStatus(r.status) }
+      ]
+    });
+  },
+
+  /**
+   * Formulário do caso. preset: { id_cliente, cliente_nome, id_area, ... } para novos casos.
+   */
+  async formulario(k, S, preset, aoSalvar) {
+    preset = preset || {};
+    const v = Object.assign({ id_responsavel: S.usuario.id_usuario, id_unidade: S.usuario.id_unidade, natureza: 'Judicial' }, preset, k || {});
+    if (!this.sugestoes.parte_contraria) {
+      try { const r = await Api.chamar('casos.listar'); this.dados = r.casos; this.sugestoes = r.sugestoes; } catch (e) { /* segue sem sugestões */ }
+    }
+    let clientes = [];
+    const clienteFixo = !!(k || preset.id_cliente);
+    if (!clienteFixo) {
+      try { clientes = (await Modulos.clientes.carregarLista()).filter(c => c.ativo !== 'NAO'); } catch (e) { return UI.erro(e); }
+    }
+    const nomeCli = k ? (k.cliente_nome || k.id_cliente) : preset.cliente_nome;
+    const sug = this.sugestoes || {};
+
+    const m = UI.modal({
+      titulo: k ? 'Editar caso' : 'Novo caso',
+      tamanho: 'modal-xl',
+      corpo: `<form class="row g-3" novalidate>
+        ${UI.secao('Cliente e classificação')}
+        ${clienteFixo ? `<div class="col-md-6"><label class="form-label">Cliente</label><input class="form-control" value="${UI.esc(nomeCli)}" disabled></div>`
+          : UI.campo({ rotulo: 'Cliente', campo: '_cliente', col: 'col-md-6', obrig: true, lista: clientes.map(c => Modulos.clientes.opcaoDatalist(c)),
+              attrs: 'placeholder="Digite o nome ou CPF e escolha na lista"', ajuda: 'Não achou? Cadastre primeiro em Clientes.' })}
+        ${UI.campo({ rotulo: 'Área de atuação', campo: 'id_area', valor: v.id_area, tipo: 'select', col: 'col-md-3', opcoes: S.areas, obrig: true })}
+        ${UI.campo({ rotulo: 'Natureza', campo: 'natureza', valor: v.natureza, tipo: 'select', col: 'col-md-3', opcoes: App.lista('natureza_caso'), vazio: null })}
+        ${UI.campo({ rotulo: 'Tipo de ação / benefício', campo: 'tipo_acao', valor: v.tipo_acao, col: 'col-md-4', lista: App.lista('tipo_acao'), obrig: true })}
+        ${UI.campo({ rotulo: 'Título do caso', campo: 'titulo', valor: v.titulo, col: 'col-md-5', ajuda: 'Se ficar vazio, usa o tipo de ação.' })}
+        ${UI.campo({ rotulo: 'Polo do cliente', campo: 'polo', valor: v.polo, tipo: 'select', col: 'col-md-3', opcoes: ['Autor / requerente', 'Réu / requerido', 'Terceiro interessado'], vazio: '-' })}
+        ${UI.campo({ rotulo: 'Parte contrária', campo: 'parte_contraria', valor: v.parte_contraria, col: 'col-md-6', lista: ['INSS'].concat(sug.parte_contraria || []).filter((x, i, a) => a.indexOf(x) === i) })}
+        ${UI.campo({ rotulo: 'Valor da causa', campo: 'valor_causa', valor: v.valor_causa, col: 'col-md-3', attrs: 'placeholder="R$ 0,00"' })}
+        ${UI.campo({ rotulo: 'Data de abertura', campo: 'data_abertura', valor: v.data_abertura || UI.hojeISO(), tipo: 'date', col: 'col-md-3' })}
+
+        <div class="col-12 bloco-judicial"><div class="row g-3">
+          ${UI.secao('Processo judicial')}
+          ${UI.campo({ rotulo: 'Número CNJ', campo: 'num_cnj', valor: v.num_cnj, col: 'col-md-4', mascara: 'cnj', attrs: 'placeholder="0000000-00.0000.0.00.0000"' })}
+          ${UI.campo({ rotulo: 'Vara / órgão julgador', campo: 'orgao_vara', valor: v.orgao_vara, col: 'col-md-5', lista: sug.orgao_vara || [] })}
+          ${UI.campo({ rotulo: 'Comarca', campo: 'comarca', valor: v.comarca, col: 'col-md-3', lista: sug.comarca || [] })}
+        </div></div>
+
+        <div class="col-12 bloco-adm"><div class="row g-3">
+          ${UI.secao('Requerimento administrativo (INSS)')}
+          ${UI.campo({ rotulo: 'Nº do protocolo', campo: 'num_protocolo', valor: v.num_protocolo, col: 'col-md-3' })}
+          ${UI.campo({ rotulo: 'NB (nº do benefício)', campo: 'nb_beneficio', valor: v.nb_beneficio, col: 'col-md-3' })}
+          ${UI.campo({ rotulo: 'Espécie do benefício', campo: 'especie_beneficio', valor: v.especie_beneficio, col: 'col-md-6', lista: sug.especie_beneficio || [], attrs: 'placeholder="Ex.: B41 - Aposentadoria por idade"' })}
+          ${UI.campo({ rotulo: 'DER (entrada do requerimento)', campo: 'der', valor: v.der, tipo: 'date', col: 'col-md-3' })}
+          ${UI.campo({ rotulo: 'DIB (início do benefício)', campo: 'dib', valor: v.dib, tipo: 'date', col: 'col-md-3' })}
+        </div></div>
+
+        ${UI.secao('Equipe e andamento')}
+        ${UI.campo({ rotulo: 'Responsável', campo: 'id_responsavel', valor: v.id_responsavel, tipo: 'select', col: 'col-md-3', opcoes: S.usuarios, obrig: true })}
+        ${UI.campo({ rotulo: 'Apoio', campo: 'id_apoio', valor: v.id_apoio, tipo: 'select', col: 'col-md-3', opcoes: S.usuarios, vazio: 'Nenhum' })}
+        ${UI.campo({ rotulo: 'Unidade', campo: 'id_unidade', valor: v.id_unidade, tipo: 'select', col: 'col-md-2', opcoes: S.unidades, vazio: '-' })}
+        ${UI.campo({ rotulo: 'Fase', campo: 'fase', valor: v.fase, tipo: 'select', col: 'col-md-2', opcoes: App.lista('fase_caso'), vazio: '-' })}
+        ${UI.campo({ rotulo: 'Status', campo: 'status', valor: v.status || 'Em análise', tipo: 'select', col: 'col-md-2', opcoes: App.lista('status_caso'), vazio: null })}
+        ${k ? UI.campo({ rotulo: 'Resultado / desfecho', campo: 'resultado', valor: v.resultado, col: 'col-md-12', ajuda: 'Preencha ao encerrar o caso.' }) : ''}
+        ${UI.campo({ rotulo: 'Observações', campo: 'obs', valor: v.obs, tipo: 'textarea', col: 'col-12', linhas: 2 })}
+      </form>`,
+      rodape: `<button class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancelar</button><button class="btn btn-primary" data-salvar>Salvar</button>`
+    });
+
+    UI.mascaras(m.el);
+    const nat = m.el.querySelector('[data-campo="natureza"]');
+    const ajustar = () => {
+      const n = (nat.value || '').toLowerCase();
+      m.el.querySelector('.bloco-judicial').classList.toggle('d-none', n.indexOf('admin') === 0);
+      m.el.querySelector('.bloco-adm').classList.toggle('d-none', n === 'judicial');
+    };
+    nat.addEventListener('change', ajustar);
+    ajustar();
+
+    m.el.querySelector('[data-salvar]').onclick = async ev => {
+      const d = UI.lerForm(m.el);
+      if (k) d.id_caso = k.id_caso;
+      d.id_cliente = clienteFixo ? (k ? k.id_cliente : preset.id_cliente) : Modulos.clientes.idDoDatalist(d._cliente);
+      delete d._cliente;
+      if (!d.id_cliente) return UI.toast('Escolha o cliente na lista de sugestões.', 'aviso');
+      if (!d.id_area) return UI.toast('Escolha a área de atuação.', 'aviso');
+      if (!d.tipo_acao && !d.titulo) return UI.toast('Informe o tipo de ação ou um título.', 'aviso');
+      await UI.ocupado(ev.target, async () => {
+        try {
+          const salvo = await Api.chamar('casos.salvar', d);
+          this.sugestoes = {};
+          m.fechar();
+          UI.toast(k ? 'Caso atualizado.' : 'Caso cadastrado.');
+          if (aoSalvar) aoSalvar(salvo);
+        } catch (e) { UI.erro(e); }
+      });
+    };
+  },
+
+  async ficha(el, S, id) {
+    el.innerHTML = '<div class="vazio"><div class="spinner-border"></div></div>';
+    let F;
+    try { F = await Api.chamar('casos.ficha', { id_caso: id }); }
+    catch (e) { el.innerHTML = `<div class="cartao"><div class="vazio"><i class="bi bi-lock"></i>${UI.esc(e.message)}</div></div>`; return; }
+    const k = F.caso, c = F.cliente || {};
+    k.cliente_nome = c.nome_razao;
+    const info = (rot, val) => val ? `<div class="campo-info mb-2"><div class="rotulo">${rot}</div><div class="valor">${val}</div></div>` : '';
+    const adm = (k.natureza || '').toLowerCase().indexOf('admin') === 0;
+    const podeAnd = App.pode('casos', 'editar') || App.pode('casos', 'criar');
+
+    el.innerHTML = `
+      <div class="cabecalho-pagina">
+        <div>
+          <div class="small"><a href="#/casos" class="link-limpo texto-2"><i class="bi bi-arrow-left"></i> Casos</a></div>
+          <h1>${UI.esc(k.titulo)} ${k.ativo === 'NAO' ? '<span class="chip chip-off">inativo</span>' : ''}</h1>
+          <p>${UI.esc(k.id_caso)} · <a href="#/clientes/${UI.esc(k.id_cliente)}" class="link-limpo">${UI.esc(c.nome_razao || k.id_cliente)}</a> · ${App.areaHtml(k.id_area)}</p>
+        </div>
+        <div class="d-flex gap-2 align-items-center flex-wrap">
+          ${this.chipStatus(k.status)} ${k.fase ? `<span class="chip">${UI.esc(k.fase)}</span>` : ''}
+          ${App.pode('casos', 'editar') ? '<button class="btn btn-outline-secondary" data-editar><i class="bi bi-pencil me-1"></i>Editar</button>' : ''}
+          ${App.pode('casos', 'excluir') ? `<button class="btn btn-outline-secondary" data-ativo>${k.ativo === 'NAO' ? 'Reativar' : 'Inativar'}</button>` : ''}
+        </div>
+      </div>
+      <div class="row g-3">
+        <div class="col-lg-5"><div class="cartao h-100">
+          <h2 class="h6 mb-3">Dados do caso</h2>
+          ${info('Natureza · tipo', UI.esc([k.natureza, k.tipo_acao].filter(Boolean).join(' · ')))}
+          ${adm ? info('Protocolo · NB', UI.esc([k.num_protocolo, k.nb_beneficio].filter(Boolean).join(' · '))) +
+                  info('Espécie', UI.esc(k.especie_beneficio)) +
+                  info('DER · DIB', [k.der && 'DER ' + UI.data(k.der), k.dib && 'DIB ' + UI.data(k.dib)].filter(Boolean).join(' · '))
+                : info('Número CNJ', UI.esc(k.num_cnj)) + info('Vara · comarca', UI.esc([k.orgao_vara, k.comarca].filter(Boolean).join(' · ')))}
+          ${info('Polo do cliente', UI.esc(k.polo))}
+          ${info('Parte contrária', UI.esc(k.parte_contraria))}
+          ${info('Valor da causa', UI.esc(k.valor_causa))}
+          ${info('Responsável · apoio', UI.esc([App.nomeUsuario(k.id_responsavel), k.id_apoio && App.nomeUsuario(k.id_apoio)].filter(Boolean).join(' · ')))}
+          ${info('Unidade', UI.esc(App.nomeUnidade(k.id_unidade)))}
+          ${info('Abertura · encerramento', [UI.data(k.data_abertura), k.data_encerramento && UI.data(k.data_encerramento)].filter(Boolean).join(' → '))}
+          ${info('Resultado', UI.esc(k.resultado))}
+          ${k.obs ? info('Observações', `<span style="white-space:pre-wrap">${UI.esc(k.obs)}</span>`) : ''}
+          <hr><div class="small texto-2">Cliente: ${[c.cpf_cnpj, c.whatsapp || c.telefone].filter(Boolean).map(UI.esc).join(' · ') || 'sem documento/contato'}
+            ${UI.linkWhats(c.whatsapp || c.telefone) ? ` <a href="${UI.linkWhats(c.whatsapp || c.telefone)}" target="_blank" rel="noopener"><i class="bi bi-whatsapp text-success"></i></a>` : ''}</div>
+        </div></div>
+        <div class="col-lg-7"><div class="cartao h-100">
+          <h2 class="h6 mb-3">Andamentos</h2>
+          ${podeAnd && k.ativo !== 'NAO' ? `<div class="row g-2 mb-3" id="novo-and">
+            ${UI.campo({ rotulo: 'Data', campo: 'data', valor: UI.hojeISO(), tipo: 'date', col: 'col-md-4' })}
+            ${UI.campo({ rotulo: 'Tipo', campo: 'tipo', tipo: 'select', col: 'col-md-8', opcoes: App.lista('tipo_andamento'), vazio: null })}
+            ${UI.campo({ rotulo: 'Descrição', campo: 'descricao', tipo: 'textarea', col: 'col-12', linhas: 2, attrs: 'placeholder="O que aconteceu? Ex.: exigência do INSS, audiência marcada, contato com o cliente…"' })}
+            <div class="col-12 text-end"><button class="btn btn-primary btn-sm" data-add-and><i class="bi bi-plus-lg me-1"></i>Registrar andamento</button></div>
+          </div>` : ''}
+          <div class="linha-tempo">${F.andamentos.length ? F.andamentos.map(a => `<div class="item">
+              <div class="meta">${UI.data(a.data)} · ${UI.esc(App.nomeUsuario(a.criado_por) === 'SISTEMA' ? 'Sistema' : App.nomeUsuario(a.criado_por))} · ${UI.esc(a.tipo)}
+                ${App.pode('casos', 'excluir') ? `<button class="btn btn-link btn-sm p-0 ms-2 texto-2" data-rem="${UI.esc(a.id_andamento)}" title="Remover"><i class="bi bi-x-circle"></i></button>` : ''}</div>
+              <div class="texto">${UI.esc(a.descricao)}</div></div>`).join('')
+            : '<div class="texto-2 small">Nenhum andamento registrado.</div>'}</div>
+        </div></div>
+      </div>`;
+
+    const recarregar = () => this.ficha(el, S, id);
+    const be = el.querySelector('[data-editar]');
+    if (be) be.onclick = () => this.formulario(k, S, {}, recarregar);
+    const ba = el.querySelector('[data-ativo]');
+    if (ba) ba.onclick = async () => {
+      const ativar = k.ativo === 'NAO';
+      if (!await UI.confirmar(ativar ? 'Reativar este caso?' : 'Inativar este caso? Use só para cadastro feito por engano; para casos concluídos, mude o status para "Encerrado".', { perigo: !ativar, botao: ativar ? 'Reativar' : 'Inativar' })) return;
+      try { await Api.chamar('casos.alternarAtivo', { id_caso: k.id_caso }); UI.toast('Caso atualizado.'); recarregar(); } catch (e) { UI.erro(e); }
+    };
+    const bAdd = el.querySelector('[data-add-and]');
+    if (bAdd) bAdd.onclick = async () => {
+      const d = UI.lerForm(el.querySelector('#novo-and'));
+      if (!d.descricao) return UI.toast('Escreva a descrição do andamento.', 'aviso');
+      d.id_caso = k.id_caso;
+      await UI.ocupado(bAdd, async () => {
+        try { await Api.chamar('casos.adicionarAndamento', d); UI.toast('Andamento registrado.'); recarregar(); } catch (e) { UI.erro(e); }
+      });
+    };
+    el.querySelectorAll('[data-rem]').forEach(b => b.onclick = async () => {
+      if (!await UI.confirmar('Remover este andamento? Ele continua registrado na auditoria.', { perigo: true, botao: 'Remover' })) return;
+      try { await Api.chamar('casos.removerAndamento', { id_andamento: b.dataset.rem }); recarregar(); } catch (e) { UI.erro(e); }
+    });
   }
 };
 
