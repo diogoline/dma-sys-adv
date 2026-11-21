@@ -196,6 +196,11 @@ a.link-limpo:hover { text-decoration: underline; }
 /* Textos longos sempre justificados (fichas, andamentos e campos de texto) */
 .campo-info .valor, .linha-tempo .texto, textarea.form-control, .texto-justificado { text-align: justify; }
 
+/* Barra fina no topo enquanto há chamada ao servidor */
+body::before { content: ''; position: fixed; top: 0; left: 0; height: 3px; width: 0; background: var(--adv-destaque); z-index: 2000; opacity: 0; transition: opacity .2s; }
+body.api-ocupada::before { opacity: 1; animation: barra-api 1.6s ease-in-out infinite; }
+@keyframes barra-api { 0% { left: 0; width: 0; } 50% { left: 20%; width: 50%; } 100% { left: 100%; width: 0; } }
+
 </style>
 </head>
 <body>
@@ -342,7 +347,10 @@ const Api = {
   limparToken() { sessionStorage.removeItem(this.CHAVE_TOKEN); },
 
   _cache: {},
-  LEITURAS: /\.(listar|ficha|textosPadrao|modelos|dados)$|^(app\.inicial|painel\.resumo|busca\.global)$/,
+  _swr: {},          // leituras das telas: mostra na hora o que já tem e confere com o servidor em segundo plano
+  _pendentes: 0,
+  tempos: [],        // últimas medições { acao, total, servidor }
+  LEITURAS: /\.(listar|ficha|textosPadrao|modelos|dados|dadosDocumento|baixar)$|^(app\.inicial|painel\.resumo|busca\.global)$/,
 
   /** Leitura com cache em memória por alguns segundos (para listas de seleção em formulários) */
   async chamarCache(acao, dados = {}, segundos = 60) {
@@ -354,13 +362,55 @@ const Api = {
     return v;
   },
 
+  chave(acao, dados) { return acao + JSON.stringify(dados || {}); },
+
+  /**
+   * Leitura rápida: se a tela já foi carregada antes, devolve na hora e confere com o servidor em segundo plano.
+   * Se o servidor trouxer algo diferente, chama aoMudar() para redesenhar a tela.
+   */
+  async ler(acao, dados = {}, aoMudar) {
+    const k = this.chave(acao, dados);
+    const c = this._swr[k];
+    if (c) {
+      if (Date.now() - c.t > 3000 && !c.buscando) {
+        c.buscando = true;
+        this.chamar(acao, dados).then(v => {
+          const json = JSON.stringify(v);
+          const mudou = json !== c.json;
+          this._swr[k] = { v, json, t: Date.now() };
+          if (mudou && aoMudar) aoMudar();
+        }).catch(() => { c.buscando = false; });
+      }
+      return c.v;
+    }
+    const v = await this.chamar(acao, dados);
+    this._swr[k] = { v, json: JSON.stringify(v), t: Date.now() };
+    return v;
+  },
+
+  /** Várias leituras numa ida só ao servidor; guarda tudo para as telas abrirem na hora */
+  async lote(itens) {
+    const res = await this.chamar('app.lote', { itens });
+    res.forEach((r, i) => {
+      if (r.ok) this._swr[this.chave(itens[i].acao, itens[i].dados)] = { v: r.dados, json: JSON.stringify(r.dados), t: Date.now() };
+    });
+    return res;
+  },
+
+  _barra(delta) {
+    this._pendentes = Math.max(0, this._pendentes + delta);
+    document.body.classList.toggle('api-ocupada', this._pendentes > 0);
+  },
+
   async chamar(acao, dados = {}) {
-    if (!this.LEITURAS.test(acao)) this._cache = {}; // gravou algo: descarta leituras guardadas
+    const gravacao = !this.LEITURAS.test(acao) && !/^(app\.lote|app\.ping|perfil\.salvarTema|auth\.)/.test(acao);
     APP_CONFIG.API_URL = String(APP_CONFIG.API_URL || '').trim();
     if (!/^https:\/\/script\.google\.com\/.+\/exec$/.test(APP_CONFIG.API_URL)) {
       throw new Error('URL da API inválida: "' + APP_CONFIG.API_URL + '". Ela deve começar com https://script.google.com/ e terminar com /exec.');
     }
     let resp;
+    const t0 = performance.now();
+    this._barra(1);
     try {
       const r = await fetch(APP_CONFIG.API_URL, {
         method: 'POST',
@@ -370,7 +420,11 @@ const Api = {
       resp = await r.json();
     } catch (e) {
       throw new Error('Não foi possível falar com o servidor. Verifique a internet e tente de novo.');
+    } finally {
+      this._barra(-1);
     }
+    this.tempos.push({ acao, total: Math.round(performance.now() - t0), servidor: resp && resp.ms });
+    if (this.tempos.length > 30) this.tempos.shift();
 
     if (!resp.ok) {
       const erro = new Error(resp.erro || 'Erro inesperado.');
@@ -378,6 +432,12 @@ const Api = {
       if (resp.codigo === 'SESSAO') App.encerrarSessao(resp.erro);
       if (resp.codigo === 'TROCAR_SENHA') App.mostrarTela('senha');
       throw erro;
+    }
+    if (gravacao) {
+      // Gravou algo: descarta o que estava guardado e recarrega as listas em segundo plano
+      this._cache = {}; this._swr = {};
+      clearTimeout(this._tPre);
+      this._tPre = setTimeout(() => { if (window.App && App.S) App.preCarregar(); }, 400);
     }
     return resp.dados;
   }
@@ -724,7 +784,9 @@ const App = {
 
   async carregar() {
     this.mostrarTela('carregando');
-    this.S = await Api.chamar('app.inicial');
+    const [ini] = await Api.lote([{ acao: 'app.inicial', dados: {} }, { acao: 'painel.resumo', dados: {} }]);
+    if (!ini.ok) { const e = new Error(ini.erro); e.codigo = ini.codigo; throw e; }
+    this.S = ini.dados;
     const u = this.S.usuario;
     this.aplicarTema(u.tema || this.S.tema_padrao || 'classico', false);
     document.querySelectorAll('[data-escritorio-nome]').forEach(e => e.textContent = this.S.escritorio.nome);
@@ -740,6 +802,15 @@ const App = {
     this.montarMenu();
     this.mostrarTela('app');
     this.rotear();
+    setTimeout(() => this.preCarregar(), 300);
+  },
+
+  /** Busca de uma vez as listas principais, para as telas abrirem sem esperar */
+  preCarregar() {
+    const itens = [['painel.resumo', 'painel'], ['clientes.listar', 'clientes'], ['casos.listar', 'casos'],
+      ['atendimentos.listar', 'atendimentos'], ['contratos.listar', 'contratos'], ['documentos.listar', 'documentos']]
+      .filter(([, m]) => this.pode(m)).map(([acao]) => ({ acao, dados: {} }));
+    if (itens.length) Api.lote(itens).catch(() => { /* sem problema: as telas buscam quando abrirem */ });
   },
 
   /** Recarrega só os dados globais (após mudar unidades, áreas, listas...) */
@@ -958,7 +1029,7 @@ Modulos.painel = {
       <div id="painel-conteudo"><div class="vazio"><div class="spinner-border"></div></div></div>`;
 
     let R;
-    try { R = await Api.chamar('painel.resumo'); } catch (e) { return UI.erro(e); }
+    try { R = await Api.ler('painel.resumo', {}, () => el.isConnected && this.render(el, S)); } catch (e) { return UI.erro(e); }
     const kpi = (rot, val, link, cor = '') => val === null ? '' :
       `<div class="col-6 col-lg-3"><a class="link-limpo" href="${link}"><div class="kpi"><div class="rotulo">${rot}</div><div class="valor ${cor}">${val}</div></div></a></div>`;
     const hoje = UI.hojeISO();
@@ -1348,7 +1419,7 @@ Modulos.documentos = {
   async painel(el, filtro, opcoes = {}) {
     el.innerHTML = '<div class="vazio py-3"><div class="spinner-border spinner-border-sm"></div></div>';
     let docs;
-    try { docs = await Api.chamar('documentos.listar', filtro); } catch (e) { el.innerHTML = `<div class="small text-danger">${UI.esc(e.message)}</div>`; return; }
+    try { docs = await Api.ler('documentos.listar', filtro, () => el.isConnected && this.painel(el, filtro, opcoes)); } catch (e) { el.innerHTML = `<div class="small text-danger">${UI.esc(e.message)}</div>`; return; }
     const podeEnviar = App.pode('documentos', 'criar');
     const podeExcluir = App.pode('documentos', 'excluir');
 
@@ -1404,7 +1475,7 @@ Modulos.documentos = {
     el.innerHTML = `<div class="cabecalho-pagina"><div><h1>Documentos</h1><p>Arquivos anexados aos clientes e casos (guardados no Drive do escritório)</p></div></div>
       <div class="cartao" id="doc-tabela"><div class="vazio"><div class="spinner-border"></div></div></div>`;
     let docs;
-    try { docs = await Api.chamar('documentos.listar', {}); } catch (e) { return UI.erro(e); }
+    try { docs = await Api.ler('documentos.listar', {}, () => el.isConnected && this.render(el, S)); } catch (e) { return UI.erro(e); }
     const cont = el.querySelector('#doc-tabela');
     UI.tabela(cont, {
       dados: docs, porPagina: 20, placeholder: 'Pesquisar por nome do arquivo, cliente, caso…',
@@ -1461,7 +1532,7 @@ Modulos.contratos = {
       <div class="cartao" id="ctr-tabela"><div class="vazio"><div class="spinner-border"></div></div></div>`;
     const novo = el.querySelector('[data-novo]');
     if (novo) novo.onclick = () => this.formulario(null, S, {}, k => { location.hash = '#/contratos/' + k.id_contrato; });
-    try { this.dados = await Api.chamar('contratos.listar'); } catch (e) { return UI.erro(e); }
+    try { this.dados = await Api.ler('contratos.listar', {}, () => el.isConnected && this.lista(el, S)); } catch (e) { return UI.erro(e); }
 
     const exp = el.querySelector('[data-exportar]');
     if (exp) exp.onclick = () => UI.exportarCSV('contratos', [
@@ -1605,7 +1676,7 @@ Modulos.contratos = {
   async ficha(el, S, id) {
     el.innerHTML = '<div class="vazio"><div class="spinner-border"></div></div>';
     let F;
-    try { F = await Api.chamar('contratos.ficha', { id_contrato: id }); }
+    try { F = await Api.ler('contratos.ficha', { id_contrato: id }, () => el.isConnected && this.ficha(el, S, id)); }
     catch (e) { el.innerHTML = `<div class="cartao"><div class="vazio"><i class="bi bi-lock"></i>${UI.esc(e.message)}</div></div>`; return; }
     const k = F.contrato, caso = F.caso || {}, cli = F.cliente || {};
     caso.cliente_nome = cli.nome_razao;
@@ -1776,7 +1847,7 @@ Modulos.clientes = {
     const novo = el.querySelector('[data-novo]');
     if (novo) novo.onclick = () => this.formulario(null, S, c => { location.hash = '#/clientes/' + c.id_cliente; });
 
-    try { this.dados = await Api.chamar('clientes.listar'); } catch (e) { return UI.erro(e); } // lista da tela: sempre atualizada
+    try { this.dados = await Api.ler('clientes.listar', {}, () => el.isConnected && this.lista(el, S)); } catch (e) { return UI.erro(e); }
 
     const exp = el.querySelector('[data-exportar]');
     if (exp) exp.onclick = () => UI.exportarCSV('clientes', [
@@ -1900,7 +1971,7 @@ Modulos.clientes = {
   async ficha(el, S, id) {
     el.innerHTML = '<div class="vazio"><div class="spinner-border"></div></div>';
     let F;
-    try { F = await Api.chamar('clientes.ficha', { id_cliente: id }); }
+    try { F = await Api.ler('clientes.ficha', { id_cliente: id }, () => el.isConnected && this.ficha(el, S, id)); }
     catch (e) { el.innerHTML = `<div class="cartao"><div class="vazio"><i class="bi bi-lock"></i>${UI.esc(e.message)}</div></div>`; return; }
     const c = F.cliente;
     const wa = UI.linkWhats(c.whatsapp || c.telefone);
@@ -2007,7 +2078,7 @@ Modulos.atendimentos = {
     const novo = el.querySelector('[data-novo]');
     if (novo) novo.onclick = () => this.formulario(null, S, recarregar);
 
-    try { this.dados = await Api.chamar('atendimentos.listar'); } catch (e) { return UI.erro(e); }
+    try { this.dados = await Api.ler('atendimentos.listar', {}, () => el.isConnected && this.render(el, S)); } catch (e) { return UI.erro(e); }
     const hoje = UI.hojeISO();
     this.dados.forEach(a => {
       a._quem = a.cliente_nome || a.nome_contato;
@@ -2183,7 +2254,7 @@ Modulos.casos = {
     if (novo) novo.onclick = () => this.formulario(null, S, {}, k => { location.hash = '#/casos/' + k.id_caso; });
 
     try {
-      const r = await Api.chamar('casos.listar');
+      const r = await Api.ler('casos.listar', {}, () => el.isConnected && this.lista(el, S));
       this.dados = r.casos; this.sugestoes = r.sugestoes;
     } catch (e) { return UI.erro(e); }
 
@@ -2317,7 +2388,7 @@ Modulos.casos = {
   async ficha(el, S, id) {
     el.innerHTML = '<div class="vazio"><div class="spinner-border"></div></div>';
     let F;
-    try { F = await Api.chamar('casos.ficha', { id_caso: id }); }
+    try { F = await Api.ler('casos.ficha', { id_caso: id }, () => el.isConnected && this.ficha(el, S, id)); }
     catch (e) { el.innerHTML = `<div class="cartao"><div class="vazio"><i class="bi bi-lock"></i>${UI.esc(e.message)}</div></div>`; return; }
     const k = F.caso, c = F.cliente || {};
     k.cliente_nome = c.nome_razao;
@@ -2384,7 +2455,7 @@ Modulos.casos = {
     const recarregar = () => this.ficha(el, S, id);
     const boxCtr = el.querySelector('[data-contratos]');
     if (boxCtr) {
-      Api.chamar('contratos.listar', { id_caso: k.id_caso }).then(lista => {
+      Api.ler('contratos.listar', { id_caso: k.id_caso }).then(lista => {
         boxCtr.innerHTML = lista.length ? lista.map(c => `<div class="d-flex justify-content-between align-items-center py-2 border-top">
             <div><a class="link-limpo fw-semibold" href="#/contratos/${UI.esc(c.id_contrato)}">${UI.esc(c.id_contrato)}</a>
             <div class="small texto-2">${UI.data(c.data_contrato)} · ${UI.esc(Modulos.contratos.resumoHonorarios(c))}</div></div>${Modulos.contratos.chip(c.status)}</div>`).join('')
@@ -2454,7 +2525,7 @@ Modulos.usuarios = {
 
   async carregar(S) {
     try {
-      this.dados = await Api.chamar('usuarios.listar');
+      this.dados = await Api.ler('usuarios.listar', {}, () => this.el && this.el.isConnected && this.carregar(S));
     } catch (e) { UI.erro(e); return; }
 
     const areasNome = Object.fromEntries(S.areas.map(a => [a.id, a.nome]));
@@ -2626,7 +2697,7 @@ Modulos.cargos = {
   },
 
   async carregar() {
-    try { this.dados = await Api.chamar('cargos.listar'); } catch (e) { return UI.erro(e); }
+    try { this.dados = await Api.ler('cargos.listar', {}, () => this.el && this.el.isConnected && this.carregar()); } catch (e) { return UI.erro(e); }
     const lista = this.el && this.el.querySelector('#cargos-lista');
     if (!lista) return;
     lista.innerHTML = this.dados.map(c => {
@@ -3105,6 +3176,12 @@ Modulos.perfil = {
             <div class="mb-3"><label class="form-label">Confirmar nova senha</label><input type="password" class="form-control" data-campo="confirmacao" autocomplete="new-password"></div>
             <button class="btn btn-primary w-100" data-salvar-senha>Trocar senha</button>
           </div>
+          <div class="cartao mt-3">
+            <h2 class="h6 mb-2">Velocidade do sistema</h2>
+            <p class="small texto-2 mb-2">Mede quanto do tempo de cada clique é gasto no servidor (código + planilha) e quanto é rede/Google.</p>
+            <button class="btn btn-outline-secondary w-100" data-teste-vel><i class="bi bi-speedometer me-1"></i>Testar velocidade</button>
+            <div class="small mt-2" data-res-vel></div>
+          </div>
         </div>
       </div>`;
 
@@ -3122,6 +3199,30 @@ Modulos.perfil = {
           document.getElementById('avatar-iniciais').textContent = UI.iniciais(novo.nome);
           UI.toast('Dados salvos.');
         } catch (e) { UI.erro(e); }
+      });
+    };
+
+    el.querySelector('[data-teste-vel]').onclick = async ev => {
+      const out = el.querySelector('[data-res-vel]');
+      await UI.ocupado(ev.target, async () => {
+        const med = [];
+        for (let i = 0; i < 3; i++) {
+          const t0 = performance.now();
+          try { await Api.chamar('app.ping'); } catch (e) { out.innerHTML = `<span class="text-danger">${UI.esc(e.message)}</span>`; return; }
+          med.push({ total: performance.now() - t0, servidor: (Api.tempos[Api.tempos.length - 1] || {}).servidor || 0 });
+        }
+        const t0 = performance.now();
+        await Api.chamar('casos.listar');
+        const lista = { total: performance.now() - t0, servidor: (Api.tempos[Api.tempos.length - 1] || {}).servidor || 0 };
+        const media = k => med.reduce((s, m) => s + m[k], 0) / med.length;
+        const seg = ms => (ms / 1000).toFixed(1).replace('.', ',') + ' s';
+        const rede = media('total') - media('servidor');
+        out.innerHTML = `<table class="table table-sm mb-1"><tbody>
+          <tr><td>Chamada vazia (média de 3)</td><td class="text-end"><b>${seg(media('total'))}</b></td></tr>
+          <tr><td class="ps-3 texto-2">no servidor</td><td class="text-end">${seg(media('servidor'))}</td></tr>
+          <tr><td class="ps-3 texto-2">rede + Google</td><td class="text-end">${seg(rede)}</td></tr>
+          <tr><td>Lista de casos</td><td class="text-end"><b>${seg(lista.total)}</b> <span class="texto-2">(servidor ${seg(lista.servidor)})</span></td></tr>
+          </tbody></table><div class="texto-2">${rede > 2500 ? 'A maior parte do tempo é rede/Google (fora do código). Teste em outra conexão para comparar.' : 'Tempos dentro do esperado para Google Apps Script.'}</div>`;
       });
     };
 
