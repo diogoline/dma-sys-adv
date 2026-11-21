@@ -824,7 +824,8 @@ const App = {
     const itens = [['painel.resumo', 'painel'], ['clientes.listar', 'clientes'], ['casos.listar', 'casos'],
       ['atendimentos.listar', 'atendimentos'], ['contratos.listar', 'contratos'], ['documentos.listar', 'documentos'], ['agenda.listar', 'agenda']]
       .filter(([, m]) => this.pode(m)).map(([acao]) => ({ acao, dados: {} }));
-    if (this.pode('financeiro')) itens.push({ acao: 'financeiro.resumo', dados: { mes: UI.hojeISO().substring(0, 7), id_unidade: '' } });
+    if (this.pode('financeiro')) itens.push({ acao: 'financeiro.resumo', dados: { mes: UI.hojeISO().substring(0, 7), id_unidade: '' } },
+      { acao: 'financeiro.parcelas.listar', dados: { id_unidade: '' } }, { acao: 'financeiro.lancamentos.listar', dados: { id_unidade: '' } });
     if (itens.length) Api.lote(itens).catch(() => { /* sem problema: as telas buscam quando abrirem */ });
   },
 
@@ -3401,7 +3402,7 @@ Modulos.configuracoes = {
   },
 
   async carregar() {
-    try { this.D = await Api.chamar('config.dados'); } catch (e) { return UI.erro(e); }
+    try { this.D = await Api.ler('config.dados', {}, () => this.el && this.el.isConnected && this.desenhar()); } catch (e) { return UI.erro(e); }
     this.desenhar();
   },
 
