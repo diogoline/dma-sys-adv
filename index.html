@@ -363,7 +363,8 @@ const Api = {
   _swr: {},          // leituras das telas: mostra na hora o que já tem e confere com o servidor em segundo plano
   _pendentes: 0,
   tempos: [],        // últimas medições { acao, total, servidor }
-  LEITURAS: /\.(listar|ficha|textosPadrao|modelos|dados|dadosDocumento|baixar)$|^(app\.inicial|painel\.resumo|busca\.global)$/,
+  // Ações que só LEEM dados. Qualquer outra é tratada como gravação (limpa o cache e recarrega as listas).
+  LEITURAS: /\.(listar|ficha|resumo|status|textosPadrao|modelos|dados|dadosDocumento|dadosRecibo|baixar|calcularPrazo)$|^(app\.|busca\.)/,
 
   /** Leitura com cache em memória por alguns segundos (para listas de seleção em formulários) */
   async chamarCache(acao, dados = {}, segundos = 60) {
