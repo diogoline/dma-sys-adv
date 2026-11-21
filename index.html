@@ -214,6 +214,16 @@ body.api-ocupada::before { opacity: 1; animation: barra-api 1.6s ease-in-out inf
 .cal-ev.cal-atras { border-left-color: #c0392b; }
 @media (max-width: 767.98px) { .cal-dia { min-height: 54px; } .cal-ev { font-size: 0; height: 6px; padding: 0; margin: 1px 0; } }
 
+/* ---------- Impressão de relatórios ---------- */
+@media print {
+  .sidebar, .sidebar-fundo, .topo, .no-print, .toast-container, .barra-ferramentas, nav[data-paginacao] { display: none !important; }
+  .principal { margin-left: 0 !important; }
+  .conteudo { padding: 0 !important; }
+  body { background: #fff !important; }
+  .cartao, .kpi { break-inside: avoid; border-color: #ccc !important; }
+  body::before { display: none !important; }
+}
+
 </style>
 </head>
 <body>
@@ -755,7 +765,7 @@ const UI = {
  * Cada módulo se registra em window.Modulos = { id: { render(el, S) } }.
  */
 window.Modulos = window.Modulos || {};
-const FASE_ATUAL = 4; // módulos com fase <= FASE_ATUAL estão prontos
+const FASE_ATUAL = 5; // módulos com fase <= FASE_ATUAL estão prontos
 
 const MENU = [
   { id: 'painel',        icone: 'bi-speedometer2',      fase: 1 },
@@ -2376,6 +2386,240 @@ Modulos.financeiro = {
         try { await Api.chamar('financeiro.salvarLancamento', d); m.fechar(); UI.toast('Lançamento salvo.'); if (aoSalvar) aoSalvar(); } catch (e) { UI.erro(e); }
       });
     };
+  }
+};
+
+</script>
+<script>
+/* ======== js/modulos/relatorios.js ======== */
+/**
+ * Relatórios — indicadores do período: visão geral, produtividade, financeiro e casos administrativos (INSS).
+ * Rota: #/relatorios   ·   Gráficos com Chart.js (carregado só nesta tela).
+ */
+Modulos.relatorios = {
+  f: null,
+  aba: 'geral',
+  graficos: [],
+  CHART_URL: 'https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.js',
+
+  periodo(preset) {
+    const h = new Date(), iso = d => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+    const ini = { mes: new Date(h.getFullYear(), h.getMonth(), 1), tri: new Date(h.getFullYear(), h.getMonth() - 2, 1),
+      sem: new Date(h.getFullYear(), h.getMonth() - 5, 1), ano: new Date(h.getFullYear(), 0, 1), anterior: new Date(h.getFullYear() - 1, 0, 1) }[preset];
+    const fim = preset === 'anterior' ? new Date(h.getFullYear() - 1, 11, 31) : h;
+    return ini ? { de: iso(ini), ate: iso(fim) } : null;
+  },
+
+  carregarChart() {
+    if (window.Chart) return Promise.resolve();
+    if (this._carregando) return this._carregando;
+    this._carregando = new Promise((ok, erro) => {
+      const s = document.createElement('script');
+      s.src = this.CHART_URL; s.onload = ok; s.onerror = () => erro(new Error('Não foi possível carregar a biblioteca de gráficos.'));
+      document.head.appendChild(s);
+    });
+    return this._carregando;
+  },
+
+  cores() {
+    const css = getComputedStyle(document.documentElement);
+    const escuro = document.documentElement.dataset.tema === 'noturno';
+    return {
+      s1: escuro ? '#3987e5' : '#2a78d6', s2: escuro ? '#d95926' : '#eb6834',
+      texto: css.getPropertyValue('--adv-texto-2').trim(), grade: css.getPropertyValue('--adv-borda').trim(), fundo: css.getPropertyValue('--adv-card').trim()
+    };
+  },
+
+  /** Eixo em moeda curto: R$ 1,5 mil */
+  curto(v) { return Math.abs(v) >= 1000 ? 'R$ ' + (v / 1000).toLocaleString('pt-BR', { maximumFractionDigits: 1 }) + ' mil' : 'R$ ' + Math.round(v); },
+
+  destruirGraficos() { this.graficos.forEach(g => g.destroy()); this.graficos = []; },
+
+  /** Barras horizontais (uma série). itens: [{rotulo, valor, cor?}] */
+  barrasH(canvas, itens, fmt) {
+    const c = this.cores();
+    canvas.parentElement.style.height = Math.max(120, itens.length * 34 + 30) + 'px';
+    canvas.parentElement.style.position = 'relative';
+    this.graficos.push(new Chart(canvas, {
+      type: 'bar',
+      data: { labels: itens.map(i => `${i.rotulo}  (${fmt ? fmt(i.valor) : i.valor})`),
+        datasets: [{ data: itens.map(i => i.valor), backgroundColor: itens.map(i => i.cor || c.s1), borderRadius: 4, borderSkipped: 'start', maxBarThickness: 22 }] },
+      options: { indexAxis: 'y', maintainAspectRatio: false, animation: false,
+        plugins: { legend: { display: false }, tooltip: { callbacks: { label: ctx => ' ' + (fmt ? fmt(ctx.raw) : ctx.raw) } } },
+        scales: { x: { beginAtZero: true, grid: { color: c.grade }, ticks: { color: c.texto, precision: 0, maxTicksLimit: 5, maxRotation: 0, callback: v => fmt ? this.curto(v) : v } },
+          y: { grid: { display: false }, ticks: { color: c.texto } } } }
+    }));
+  },
+
+  async render(el, S) {
+    if (!this.f) this.f = Object.assign({ preset: 'ano', id_unidade: '', id_area: '', id_responsavel: '' }, this.periodo('ano'));
+    const podeFin = App.pode('financeiro');
+    el.innerHTML = `
+      <div class="cabecalho-pagina">
+        <div><h1>Relatórios</h1><p>Indicadores do período, respeitando o que o seu cargo pode ver</p></div>
+        <button class="btn btn-outline-secondary no-print" data-imprimir><i class="bi bi-printer me-1"></i>Imprimir / PDF</button>
+      </div>
+      <div class="cartao mb-3 no-print"><div class="row g-2 align-items-end">
+        ${UI.campo({ rotulo: 'Período', campo: 'preset', valor: this.f.preset, tipo: 'select', col: 'col-md-2', vazio: null,
+          opcoes: [{ id: 'mes', nome: 'Este mês' }, { id: 'tri', nome: 'Últimos 3 meses' }, { id: 'sem', nome: 'Últimos 6 meses' }, { id: 'ano', nome: 'Este ano' }, { id: 'anterior', nome: 'Ano passado' }, { id: 'livre', nome: 'Personalizado' }] })}
+        ${UI.campo({ rotulo: 'De', campo: 'de', valor: this.f.de, tipo: 'date', col: 'col-md-2' })}
+        ${UI.campo({ rotulo: 'Até', campo: 'ate', valor: this.f.ate, tipo: 'date', col: 'col-md-2' })}
+        ${UI.campo({ rotulo: 'Unidade', campo: 'id_unidade', valor: this.f.id_unidade, tipo: 'select', col: 'col-md-2', opcoes: S.unidades, vazio: 'Todas' })}
+        ${UI.campo({ rotulo: 'Área', campo: 'id_area', valor: this.f.id_area, tipo: 'select', col: 'col-md-2', opcoes: S.areas, vazio: 'Todas' })}
+        ${UI.campo({ rotulo: 'Advogado', campo: 'id_responsavel', valor: this.f.id_responsavel, tipo: 'select', col: 'col-md-2', opcoes: S.usuarios, vazio: 'Todos' })}
+      </div></div>
+      <ul class="nav nav-pills mb-3 gap-1 no-print">
+        ${[['geral', 'Visão geral'], ['produtividade', 'Produtividade'], podeFin ? ['financeiro', 'Financeiro'] : null, ['inss', 'Administrativos (INSS)']].filter(Boolean)
+          .map(([k, t]) => `<li class="nav-item"><button class="nav-link ${this.aba === k ? 'active' : ''}" data-aba="${k}">${t}</button></li>`).join('')}
+      </ul>
+      <div class="d-none d-print-block mb-2 small">Período: ${UI.data(this.f.de)} a ${UI.data(this.f.ate)}</div>
+      <div id="rel-conteudo"><div class="vazio"><div class="spinner-border"></div></div></div>`;
+
+    const recarregar = () => el.isConnected && this.render(el, S);
+    el.querySelector('[data-imprimir]').onclick = () => window.print();
+    el.querySelectorAll('[data-aba]').forEach(b => b.onclick = () => { this.aba = b.dataset.aba; recarregar(); });
+    el.querySelectorAll('.cartao [data-campo]').forEach(i => i.addEventListener('change', () => {
+      const v = UI.lerForm(el.querySelector('.cartao'));
+      if (i.dataset.campo === 'preset' && v.preset !== 'livre') Object.assign(v, this.periodo(v.preset));
+      if (i.dataset.campo === 'de' || i.dataset.campo === 'ate') v.preset = 'livre';
+      this.f = v; recarregar();
+    }));
+
+    const filtros = { de: this.f.de, ate: this.f.ate, id_unidade: this.f.id_unidade, id_area: this.f.id_area, id_responsavel: this.f.id_responsavel };
+    let R;
+    try {
+      [R] = await Promise.all([Api.ler('relatorios.resumo', filtros, recarregar), this.carregarChart().catch(() => null)]);
+    } catch (e) { return UI.erro(e); }
+    const box = el.querySelector('#rel-conteudo');
+    if (!box) return;
+    this.destruirGraficos();
+    ({ geral: () => this.geral(box, R), produtividade: () => this.produtividade(box, R), financeiro: () => this.financeiro(box, R), inss: () => this.inss(box, R) }[this.aba] || (() => this.geral(box, R)))();
+  },
+
+  kpi(rot, valor, sub, cor = '') {
+    return `<div class="col-6 col-lg-3"><div class="kpi"><div class="rotulo">${rot}</div><div class="valor ${cor}">${valor}</div>${sub ? `<div class="small texto-2">${sub}</div>` : ''}</div></div>`;
+  },
+
+  pct(v) { return v === null || v === undefined ? '—' : v + '%'; },
+
+  semGrafico() { return !window.Chart ? '<div class="small text-danger">Gráficos indisponíveis (sem conexão com a biblioteca). Os números continuam corretos.</div>' : ''; },
+
+  geral(box, R) {
+    const c = R.casos, a = R.atendimentos, p = R.prazos;
+    const nomeArea = id => id === '(não informado)' ? id : App.nomeArea(id);
+    box.innerHTML = `
+      <div class="row g-3 mb-3">
+        ${this.kpi('Casos ativos', c.ativos, 'situação atual')}
+        ${this.kpi('Casos novos', c.abertos, 'abertos no período')}
+        ${this.kpi('Casos encerrados', c.encerrados, `${c.exito} com êxito · ${c.sem_exito} sem êxito`)}
+        ${this.kpi('Taxa de êxito', this.pct(c.taxa_exito), c.duracao_media_dias !== null ? `duração média ${c.duracao_media_dias} dias` : 'sem encerramentos com êxito/sem êxito')}
+        ${this.kpi('Atendimentos', a.total, `${a.convertidos} viraram caso`)}
+        ${this.kpi('Conversão', this.pct(a.taxa_conversao), 'atendimentos → casos')}
+        ${this.kpi('Clientes novos', R.clientes.novos, 'cadastrados no período')}
+        ${this.kpi('Pontualidade nos prazos', this.pct(p.pontualidade), `${p.no_prazo} no prazo · ${p.com_atraso} com atraso · ${p.vencidos_pendentes} vencidos em aberto`, p.vencidos_pendentes ? 'text-danger' : '')}
+      </div>
+      ${this.semGrafico()}
+      <div class="row g-3">
+        <div class="col-lg-6"><div class="cartao h-100"><h2 class="h6">Casos ativos por área</h2><div class="pos-relative"><canvas data-g="area"></canvas></div></div></div>
+        <div class="col-lg-6"><div class="cartao h-100"><h2 class="h6">Casos ativos por fase</h2><div class="pos-relative"><canvas data-g="fase"></canvas></div></div></div>
+        <div class="col-lg-6"><div class="cartao h-100"><h2 class="h6">Origem dos clientes novos</h2><div class="pos-relative"><canvas data-g="origem"></canvas></div></div></div>
+        <div class="col-lg-6"><div class="cartao h-100"><h2 class="h6">Resultado dos atendimentos</h2><div class="pos-relative"><canvas data-g="result"></canvas></div></div></div>
+      </div>`;
+    if (!window.Chart) return;
+    const vazio = (cv, l) => { if (!l.length) { cv.parentElement.innerHTML = '<div class="texto-2 small">Sem dados no período.</div>'; return true; } return false; };
+    const g = n => box.querySelector(`[data-g="${n}"]`);
+    if (!vazio(g('area'), c.por_area)) this.barrasH(g('area'), c.por_area.map(x => ({ rotulo: nomeArea(x.chave), valor: x.qtd, cor: x.chave !== '(não informado)' ? App.corArea(x.chave) : undefined })));
+    if (!vazio(g('fase'), c.por_fase)) this.barrasH(g('fase'), c.por_fase.map(x => ({ rotulo: x.chave === '(não informado)' ? 'Sem fase' : x.chave, valor: x.qtd })));
+    if (!vazio(g('origem'), R.clientes.por_origem)) this.barrasH(g('origem'), R.clientes.por_origem.map(x => ({ rotulo: x.chave === '(não informado)' ? 'Não informada' : x.chave, valor: x.qtd })));
+    if (!vazio(g('result'), a.por_resultado)) this.barrasH(g('result'), a.por_resultado.map(x => ({ rotulo: x.chave === '(não informado)' ? 'Em aberto' : x.chave, valor: x.qtd })));
+  },
+
+  produtividade(box, R) {
+    const cols = [['casos_ativos', 'Casos ativos'], ['casos_novos', 'Casos novos'], ['casos_encerrados', 'Encerrados'], ['exito', 'Com êxito'],
+      ['atendimentos', 'Atendimentos'], ['prazos_cumpridos', 'Prazos concluídos'], ['prazos_vencidos', 'Prazos vencidos'], ['andamentos', 'Andamentos registrados']];
+    box.innerHTML = `<div class="cartao">
+      <div class="d-flex justify-content-between align-items-center mb-2"><h2 class="h6 mb-0">Produtividade por advogado (responsável)</h2>
+        ${App.pode('relatorios', 'exportar') ? '<button class="btn btn-sm btn-outline-secondary no-print" data-exp><i class="bi bi-download me-1"></i>Exportar</button>' : ''}</div>
+      ${R.produtividade.length ? `<div class="table-responsive"><table class="table table-sm align-middle">
+        <thead><tr><th>Advogado</th>${cols.map(c => `<th class="text-end">${c[1]}</th>`).join('')}</tr></thead>
+        <tbody>${R.produtividade.map(p => `<tr><td class="fw-semibold">${UI.esc(p.nome)}</td>${cols.map(c => `<td class="text-end ${c[0] === 'prazos_vencidos' && p[c[0]] ? 'text-danger fw-semibold' : ''}">${p[c[0]]}</td>`).join('')}</tr>`).join('')}</tbody>
+      </table></div>` : '<div class="texto-2 small">Sem movimentação no período.</div>'}
+      <div class="form-text">Casos contam pelo responsável principal. "Andamentos registrados" conta o que cada um lançou nos casos (exceto registros automáticos).</div></div>`;
+    const exp = box.querySelector('[data-exp]');
+    if (exp) exp.onclick = () => UI.exportarCSV('produtividade', [{ titulo: 'Advogado', campo: 'nome' }].concat(cols.map(c => ({ titulo: c[1], campo: c[0] }))), R.produtividade);
+  },
+
+  financeiro(box, R) {
+    const F = R.financeiro;
+    if (!F) { box.innerHTML = '<div class="cartao"><div class="vazio"><i class="bi bi-lock"></i>Seu cargo não tem acesso ao Financeiro.</div></div>'; return; }
+    const M = v => DocGen.moeda(v);
+    const nomeMes = k => { const [a, m] = k.split('-').map(Number); return new Date(a, m - 1, 1).toLocaleDateString('pt-BR', { month: 'short', year: '2-digit' }).replace('.', ''); };
+    box.innerHTML = `
+      <div class="row g-3 mb-3">
+        ${this.kpi('Recebido no período', M(F.total_recebido), '', 'text-success')}
+        ${this.kpi('Despesas no período', M(F.total_despesas))}
+        ${this.kpi('Saldo', M(F.saldo), '', F.saldo < 0 ? 'text-danger' : '')}
+        ${this.kpi('Contratos novos', F.contratos_novos, F.ticket_medio !== null ? 'valor fixo médio ' + M(F.ticket_medio) : '')}
+      </div>
+      ${this.semGrafico()}
+      <div class="cartao mb-3"><div class="d-flex justify-content-between align-items-center"><h2 class="h6 mb-0">Recebido e despesas por mês</h2>
+        ${App.pode('financeiro', 'exportar') ? '<button class="btn btn-sm btn-outline-secondary no-print" data-exp><i class="bi bi-download me-1"></i>Exportar</button>' : ''}</div>
+        <div style="height:280px" class="mt-2"><canvas data-g="mensal"></canvas></div>
+        <details class="mt-2"><summary class="small texto-2">Ver tabela</summary><div class="table-responsive"><table class="table table-sm mb-0">
+          <thead><tr><th>Mês</th><th class="text-end">Recebido</th><th class="text-end">Despesas</th><th class="text-end">Saldo</th></tr></thead>
+          <tbody>${F.mensal.map(x => `<tr><td>${nomeMes(x.mes)}</td><td class="text-end">${M(x.recebido)}</td><td class="text-end">${M(x.despesas)}</td><td class="text-end ${x.saldo < 0 ? 'text-danger' : ''}">${M(x.saldo)}</td></tr>`).join('')}</tbody></table></div></details>
+      </div>
+      <div class="row g-3">
+        <div class="col-lg-6"><div class="cartao h-100"><h2 class="h6">Recebido por área</h2><div><canvas data-g="area"></canvas></div></div></div>
+        <div class="col-lg-6"><div class="cartao h-100"><h2 class="h6">Recebido por advogado (divisão)</h2><div><canvas data-g="adv"></canvas></div></div></div>
+        <div class="col-lg-6"><div class="cartao h-100"><h2 class="h6">Em atraso por tempo</h2>
+          <table class="table table-sm mb-0"><tbody>${F.atraso_faixas.map(f => `<tr><td>${f.faixa}</td><td class="text-end">${f.qtd} parcela(s)</td><td class="text-end fw-semibold ${f.valor ? 'text-danger' : ''}">${M(f.valor)}</td></tr>`).join('')}</tbody></table></div></div>
+        <div class="col-lg-6"><div class="cartao h-100"><h2 class="h6">A receber nos próximos 6 meses</h2><div><canvas data-g="proj"></canvas></div>
+          <div class="form-text">Parcelas em aberto ainda não vencidas (não inclui atrasadas).</div></div></div>
+      </div>`;
+    const exp = box.querySelector('[data-exp]');
+    if (exp) exp.onclick = () => UI.exportarCSV('financeiro_mensal', [{ titulo: 'Mês', campo: 'mes' },
+      { titulo: 'Recebido', valor: r => String(r.recebido.toFixed(2)).replace('.', ',') }, { titulo: 'Despesas', valor: r => String(r.despesas.toFixed(2)).replace('.', ',') },
+      { titulo: 'Saldo', valor: r => String(r.saldo.toFixed(2)).replace('.', ',') }], F.mensal);
+    if (!window.Chart) return;
+    const c = this.cores(), g = n => box.querySelector(`[data-g="${n}"]`);
+    this.graficos.push(new Chart(g('mensal'), {
+      type: 'bar',
+      data: { labels: F.mensal.map(x => nomeMes(x.mes)), datasets: [
+        { label: 'Recebido', data: F.mensal.map(x => x.recebido), backgroundColor: c.s1, borderRadius: 4, maxBarThickness: 26, borderColor: c.fundo, borderWidth: { left: 1, right: 1 } },
+        { label: 'Despesas', data: F.mensal.map(x => x.despesas), backgroundColor: c.s2, borderRadius: 4, maxBarThickness: 26, borderColor: c.fundo, borderWidth: { left: 1, right: 1 } }] },
+      options: { maintainAspectRatio: false, animation: false, interaction: { mode: 'index', intersect: false },
+        plugins: { legend: { position: 'top', align: 'end', labels: { color: c.texto, boxWidth: 12, boxHeight: 12 } },
+          tooltip: { callbacks: { label: x => ` ${x.dataset.label}: ${M(x.raw)}` } } },
+        scales: { x: { grid: { display: false }, ticks: { color: c.texto } }, y: { beginAtZero: true, grid: { color: c.grade }, ticks: { color: c.texto, maxTicksLimit: 6, callback: v => this.curto(v) } } } }
+    }));
+    const vazio = (cv, l) => { if (!l.length) { cv.parentElement.innerHTML = '<div class="texto-2 small">Sem recebimentos no período.</div>'; return true; } return false; };
+    if (!vazio(g('area'), F.por_area)) this.barrasH(g('area'), F.por_area.map(x => ({ rotulo: x.id_area ? App.nomeArea(x.id_area) : 'Sem área', valor: x.valor, cor: x.id_area ? App.corArea(x.id_area) : undefined })), M);
+    if (!vazio(g('adv'), F.por_advogado)) this.barrasH(g('adv'), F.por_advogado.map(x => ({ rotulo: App.nomeUsuario(x.id_usuario), valor: x.valor })), M);
+    this.barrasH(g('proj'), F.a_receber_6m.map(x => ({ rotulo: nomeMes(x.mes), valor: x.valor })), M);
+  },
+
+  inss(box, R) {
+    box.innerHTML = '<div class="cartao" data-tab></div>';
+    const cont = box.querySelector('[data-tab]');
+    UI.tabela(cont, {
+      dados: R.inss, porPagina: 25, placeholder: 'Pesquisar por cliente, NB, protocolo…', busca: ['cliente_nome', 'titulo', 'nb', 'protocolo', 'tipo_acao'],
+      vazio: 'Nenhum caso administrativo ativo.',
+      extraBarra: App.pode('relatorios', 'exportar') ? '<button class="btn btn-outline-secondary" data-exp><i class="bi bi-download me-1"></i>Exportar</button>' : '',
+      colunas: [
+        { titulo: 'Cliente / caso', render: r => `<a class="link-limpo fw-semibold" href="#/casos/${UI.esc(r.id_caso)}">${UI.esc(r.cliente_nome)}</a><div class="small texto-2">${UI.esc(r.titulo)}</div>` },
+        { titulo: 'NB / protocolo', render: r => `<span class="small">${UI.esc([r.nb && 'NB ' + r.nb, r.protocolo && 'Prot. ' + r.protocolo].filter(Boolean).join(' · ') || '-')}</span>` },
+        { titulo: 'DER', render: r => r.der ? UI.data(r.der) : '<span class="texto-2 small">não informada</span>' },
+        { titulo: 'Dias desde a DER', classe: 'text-end', render: r => r.dias_der === null ? '-' : `<span class="${r.dias_der > 90 ? 'text-danger fw-semibold' : r.dias_der > 45 ? 'fw-semibold' : ''}">${r.dias_der}</span>` },
+        { titulo: 'Fase / status', render: r => `<span class="small">${UI.esc(r.fase || '-')}</span><br>${Modulos.casos.chipStatus(r.status)}` },
+        { titulo: 'Responsável', render: r => `<span class="small">${UI.esc(App.nomeUsuario(r.id_responsavel))}</span>` }
+      ]
+    });
+    cont.insertAdjacentHTML('afterbegin', '<div class="small texto-2 mb-2">Casos administrativos ativos, do mais antigo para o mais recente (pela DER). Use para acompanhar requerimentos parados e decidir a hora de cobrar o INSS ou judicializar.</div>');
+    const exp = cont.querySelector('[data-exp]');
+    if (exp) exp.onclick = () => UI.exportarCSV('administrativos', [{ titulo: 'Cliente', campo: 'cliente_nome' }, { titulo: 'Caso', campo: 'titulo' }, { titulo: 'NB', campo: 'nb' },
+      { titulo: 'Protocolo', campo: 'protocolo' }, { titulo: 'DER', campo: 'der' }, { titulo: 'Dias desde DER', campo: 'dias_der' }, { titulo: 'Fase', campo: 'fase' },
+      { titulo: 'Status', campo: 'status' }, { titulo: 'Responsável', valor: r => App.nomeUsuario(r.id_responsavel) }], R.inss);
   }
 };
 
