@@ -1,1478 +1,1439 @@
 <!DOCTYPE html>
-<html lang="pt-BR">
+<html lang="pt-BR" data-tema="classico">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>DMA SYS - Advocacia</title>
-  <!-- Bootstrap 5 CSS -->
-  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
-  <!-- FontAwesome Ícones -->
-  <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+  <meta name="robots" content="noindex, nofollow">
+  <title>DMA SYS ADV</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css" rel="stylesheet">
   <style>
-    body { background-color: #f8fafc; font-family: 'Segoe UI', system-ui, -apple-system, sans-serif; }
-    .sidebar { min-height: 100vh; background-color: #0f172a; color: #fff; }
-    .sidebar .nav-link { color: #94a3b8; font-weight: 500; margin-bottom: 0.3rem; border-radius: 0.5rem; transition: all 0.2s; }
-    .sidebar .nav-link:hover, .sidebar .nav-link.active { background-color: #1e293b; color: #38bdf8; }
-    .card-custom { border: none; border-radius: 0.75rem; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05), 0 2px 4px -1px rgba(0,0,0,0.03); }
-    .brand-header { font-weight: 700; letter-spacing: 0.5px; color: #38bdf8; }
-    .login-container { max-width: 420px; margin: 80px auto; }
-    .cursor-pointer { cursor: pointer; }
+/* ==========================================================
+   DMA SYS ADV — Estilos e temas
+   Os 3 temas mudam apenas as variáveis abaixo.
+   ========================================================== */
 
-    /* Estilização dos Tabs da Modal de Detalhes */
-    .modal-nav-pills .nav-link {
-      color: #64748b;
-      font-weight: 600;
-      border-radius: 0.5rem;
-      padding: 0.5rem 1rem;
-    }
-    .modal-nav-pills .nav-link.active {
-      background-color: #0284c7;
-      color: #ffffff;
-    }
+:root, [data-tema="classico"] {
+  --adv-fundo: #f4f5f8;
+  --adv-card: #ffffff;
+  --adv-borda: #e2e5ec;
+  --adv-texto: #1c2333;
+  --adv-texto-2: #5d6679;
+  --adv-chip: #eef1f7;
+  --adv-side: #14213d;
+  --adv-side-texto: #aab4c8;
+  --adv-side-ativo: #c9a227;
+  --adv-side-hover: rgba(255,255,255,.07);
+  --adv-pri: #14213d;
+  --adv-pri-hover: #22345e;
+  --adv-pri-texto: #ffffff;
+  --adv-destaque: #c9a227;
+}
 
-    /* Canvas da Assinatura */
-    #sigCanvas {
-      border: 2px dashed #cbd5e1;
-      border-radius: 8px;
-      background-color: #ffffff;
-      cursor: crosshair;
-      touch-action: none;
-    }
+[data-tema="noturno"] {
+  --adv-fundo: #15171c;
+  --adv-card: #1f232b;
+  --adv-borda: #2d323c;
+  --adv-texto: #e8eaef;
+  --adv-texto-2: #9aa2b1;
+  --adv-chip: #2a2f38;
+  --adv-side: #0d0f13;
+  --adv-side-texto: #8b93a3;
+  --adv-side-ativo: #e0a43a;
+  --adv-side-hover: rgba(255,255,255,.05);
+  --adv-pri: #e0a43a;
+  --adv-pri-hover: #f0b44a;
+  --adv-pri-texto: #15171c;
+  --adv-destaque: #e0a43a;
+}
 
-    /* Estilos de Impressão do Contrato/Procuração */
-    @media print {
-      body * { visibility: hidden !important; }
-      #printableDoc, #printableDoc * { visibility: visible !important; }
-      #printableDoc { position: absolute; left: 0; top: 0; width: 100%; margin: 0; padding: 20px; font-family: 'Times New Roman', Times, serif; font-size: 11pt; line-height: 1.5; color: #000; }
-      .no-print { display: none !important; }
-      .page-break { page-break-before: always; }
-    }
-  </style>
+[data-tema="bordo"] {
+  --adv-fundo: #f5f3ef;
+  --adv-card: #ffffff;
+  --adv-borda: #e5e1d8;
+  --adv-texto: #2a2a26;
+  --adv-texto-2: #6b6a62;
+  --adv-chip: #f0ece4;
+  --adv-side: #2f3e36;
+  --adv-side-texto: #b8c4bc;
+  --adv-side-ativo: #d8b878;
+  --adv-side-hover: rgba(255,255,255,.07);
+  --adv-pri: #6b2737;
+  --adv-pri-hover: #84334a;
+  --adv-pri-texto: #ffffff;
+  --adv-destaque: #6b2737;
+}
+
+/* ---------- Base ---------- */
+body {
+  background: var(--adv-fundo);
+  color: var(--adv-texto);
+  font-family: "Segoe UI", system-ui, -apple-system, Roboto, sans-serif;
+  font-size: 14px;
+}
+.texto-2 { color: var(--adv-texto-2) !important; }
+.card, .cartao {
+  background: var(--adv-card);
+  border: 1px solid var(--adv-borda);
+  border-radius: 12px;
+  color: var(--adv-texto);
+}
+.cartao { padding: 1.25rem; }
+.modal-content, .dropdown-menu { background: var(--adv-card); color: var(--adv-texto); border-color: var(--adv-borda); }
+.dropdown-item { color: var(--adv-texto); }
+.dropdown-item:hover { background: var(--adv-chip); color: var(--adv-texto); }
+.table { --bs-table-bg: transparent; --bs-table-color: var(--adv-texto); --bs-table-border-color: var(--adv-borda); --bs-table-hover-bg: var(--adv-chip); --bs-table-hover-color: var(--adv-texto); }
+.table thead th { font-size: 12px; text-transform: uppercase; letter-spacing: .03em; color: var(--adv-texto-2); font-weight: 600; white-space: nowrap; }
+.form-label { font-weight: 500; font-size: 13px; margin-bottom: .25rem; }
+
+.btn-primary {
+  --bs-btn-bg: var(--adv-pri); --bs-btn-border-color: var(--adv-pri); --bs-btn-color: var(--adv-pri-texto);
+  --bs-btn-hover-bg: var(--adv-pri-hover); --bs-btn-hover-border-color: var(--adv-pri-hover); --bs-btn-hover-color: var(--adv-pri-texto);
+  --bs-btn-active-bg: var(--adv-pri-hover); --bs-btn-active-border-color: var(--adv-pri-hover); --bs-btn-active-color: var(--adv-pri-texto);
+  --bs-btn-disabled-bg: var(--adv-pri); --bs-btn-disabled-border-color: var(--adv-pri); --bs-btn-disabled-color: var(--adv-pri-texto);
+}
+.nav-pills .nav-link { color: var(--adv-texto-2); }
+.nav-pills .nav-link.active { background: var(--adv-pri); color: var(--adv-pri-texto); }
+.form-check-input:checked { background-color: var(--adv-pri); border-color: var(--adv-pri); }
+
+/* ---------- Login ---------- */
+.tela-centro { min-height: 100vh; display: flex; align-items: center; justify-content: center; padding: 1rem; }
+.cartao-login { width: 100%; max-width: 400px; background: var(--adv-card); border: 1px solid var(--adv-borda); border-radius: 14px; padding: 2rem; }
+.logo-circulo { width: 64px; height: 64px; border-radius: 50%; background: var(--adv-pri); color: var(--adv-pri-texto); display: inline-flex; align-items: center; justify-content: center; font-size: 28px; }
+
+/* ---------- Layout ---------- */
+.sidebar {
+  position: fixed; top: 0; left: 0; bottom: 0; width: 240px;
+  background: var(--adv-side); color: var(--adv-side-texto);
+  display: flex; flex-direction: column; z-index: 1040; transition: transform .2s;
+}
+.sidebar-marca { display: flex; align-items: center; gap: 10px; padding: 18px 18px 14px; color: var(--adv-side-ativo); font-weight: 600; font-size: 15px; }
+.sidebar-marca i { font-size: 22px; }
+.sidebar-marca img { max-height: 32px; max-width: 120px; object-fit: contain; }
+.sidebar-menu { flex: 1; overflow-y: auto; padding: 0 10px 10px; }
+.menu-grupo { font-size: 11px; text-transform: uppercase; letter-spacing: .06em; padding: 14px 10px 6px; opacity: .7; }
+.menu-item { display: flex; align-items: center; gap: 10px; padding: 8px 10px; border-radius: 8px; color: var(--adv-side-texto); text-decoration: none; font-size: 13.5px; }
+.menu-item:hover { background: var(--adv-side-hover); color: #fff; }
+.menu-item.ativo { background: var(--adv-side-hover); color: var(--adv-side-ativo); }
+.menu-item i { font-size: 16px; width: 18px; text-align: center; }
+.menu-item .badge-fase { margin-left: auto; font-size: 10px; opacity: .6; }
+.sidebar-rodape { padding: 10px 18px; opacity: .5; }
+
+.principal { margin-left: 240px; min-height: 100vh; display: flex; flex-direction: column; }
+.topo { position: sticky; top: 0; z-index: 1030; display: flex; align-items: center; gap: 12px; padding: 10px 20px; background: var(--adv-card); border-bottom: 1px solid var(--adv-borda); }
+.busca-global { flex: 1; max-width: 520px; position: relative; }
+.busca-global i { position: absolute; left: 12px; top: 50%; transform: translateY(-50%); color: var(--adv-texto-2); }
+.busca-global input { width: 100%; border: 1px solid var(--adv-borda); background: var(--adv-chip); color: var(--adv-texto); border-radius: 8px; padding: 7px 12px 7px 34px; outline: none; }
+.busca-global input:focus { border-color: var(--adv-pri); }
+.btn-icone { width: 36px; height: 36px; padding: 0; border-radius: 8px; color: var(--adv-texto-2); font-size: 18px; border: none; background: transparent; }
+.btn-icone:hover { background: var(--adv-chip); color: var(--adv-texto); }
+.btn-avatar { width: 36px; height: 36px; padding: 0; border-radius: 50%; background: var(--adv-pri); color: var(--adv-pri-texto); font-size: 12px; font-weight: 600; border: none; }
+.seletor-tema { gap: 6px; align-items: center; padding: 0 6px; }
+.bolinha-tema { width: 20px; height: 20px; border-radius: 50%; border: 2px solid transparent; padding: 0; cursor: pointer; }
+.bolinha-tema[data-tema="classico"] { background: #14213d; }
+.bolinha-tema[data-tema="noturno"] { background: #2a2f38; box-shadow: inset 0 0 0 4px #e0a43a; }
+.bolinha-tema[data-tema="bordo"] { background: #6b2737; }
+.bolinha-tema.ativo { border-color: var(--adv-texto); }
+.conteudo { padding: 24px; flex: 1; }
+
+.cabecalho-pagina { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; margin-bottom: 20px; }
+.cabecalho-pagina h1 { font-size: 20px; margin: 0; font-weight: 600; }
+.cabecalho-pagina p { margin: 2px 0 0; color: var(--adv-texto-2); font-size: 13px; }
+
+/* ---------- Componentes ---------- */
+.kpi { background: var(--adv-card); border: 1px solid var(--adv-borda); border-radius: 12px; padding: 14px 16px; height: 100%; }
+.kpi .rotulo { font-size: 12px; color: var(--adv-texto-2); }
+.kpi .valor { font-size: 24px; font-weight: 600; }
+.chip { display: inline-block; font-size: 11.5px; padding: 2px 9px; border-radius: 20px; background: var(--adv-chip); color: var(--adv-texto-2); white-space: nowrap; }
+.chip-ok { background: #e3f4e8; color: #1e6b37; }
+.chip-off { background: #f6e3e3; color: #8a2020; }
+.chip-alerta { background: #fdf0d5; color: #7a5200; }
+[data-tema="noturno"] .chip-ok { background: #1d3a27; color: #8fd6a5; }
+[data-tema="noturno"] .chip-off { background: #3e2020; color: #f0a0a0; }
+[data-tema="noturno"] .chip-alerta { background: #3d3118; color: #f0c674; }
+.ponto-cor { display: inline-block; width: 10px; height: 10px; border-radius: 50%; margin-right: 6px; vertical-align: middle; }
+
+.barra-ferramentas { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; margin-bottom: 12px; }
+.barra-ferramentas .busca { flex: 1; min-width: 200px; }
+.barra-ferramentas .form-select { width: auto; min-width: 160px; }
+.linha-inativa td { opacity: .55; }
+.matriz-perm th, .matriz-perm td { text-align: center; vertical-align: middle; }
+.matriz-perm td:first-child, .matriz-perm th:first-child { text-align: left; }
+.vazio { text-align: center; padding: 40px 10px; color: var(--adv-texto-2); }
+.vazio i { font-size: 32px; display: block; margin-bottom: 8px; }
+.senha-gerada { font-family: ui-monospace, Consolas, monospace; font-size: 20px; letter-spacing: .08em; background: var(--adv-chip); border-radius: 8px; padding: 12px; text-align: center; user-select: all; }
+pre.json { background: var(--adv-chip); color: var(--adv-texto); padding: 12px; border-radius: 8px; font-size: 12px; max-height: 400px; overflow: auto; white-space: pre-wrap; }
+
+/* ---------- Responsivo ---------- */
+.sidebar-fundo { display: none; }
+@media (max-width: 991.98px) {
+  .sidebar { transform: translateX(-100%); }
+  .sidebar.aberta { transform: none; }
+  .sidebar.aberta + .sidebar-fundo { display: block; position: fixed; inset: 0; background: rgba(0,0,0,.4); z-index: 1035; }
+  .principal { margin-left: 0; }
+  .conteudo { padding: 16px; }
+}
+
+</style>
 </head>
 <body>
 
-<!-- TELA DE LOGIN -->
-<div id="screen-login" class="container login-container">
-  <div class="card card-custom p-4 bg-white shadow-lg">
+<!-- ============ LOGIN ============ -->
+<section id="tela-login" class="tela-centro d-none">
+  <div class="cartao-login">
     <div class="text-center mb-4">
-      <i class="fa-solid fa-scale-balanced fa-3x text-primary mb-2"></i>
-      <h3 class="fw-bold text-dark mb-0">DMA SYS</h3>
-      <p class="text-muted small">Acesso Restrito ao Sistema Jurídico</p>
+      <div class="logo-circulo"><i class="bi bi-bank2"></i></div>
+      <h1 class="h4 mt-3 mb-0" data-escritorio-nome>DMA SYS ADV</h1>
+      <p class="texto-2 small mb-0">Acesso restrito</p>
     </div>
-    <form id="formLogin" onsubmit="executarLogin(event)">
+    <form id="form-login" novalidate>
       <div class="mb-3">
-        <label class="form-label font-weight-bold">Usuário / E-mail</label>
+        <label class="form-label" for="login-email">E-mail</label>
+        <input type="email" class="form-control" id="login-email" autocomplete="username" required>
+      </div>
+      <div class="mb-3">
+        <label class="form-label" for="login-senha">Senha</label>
         <div class="input-group">
-          <span class="input-group-text bg-light"><i class="fa-solid fa-user text-secondary"></i></span>
-          <input type="text" class="form-control" id="login_usuario" required placeholder="admsys.adv@gmail.com">
+          <input type="password" class="form-control" id="login-senha" autocomplete="current-password" required>
+          <button class="btn btn-outline-secondary" type="button" data-ver-senha="login-senha" aria-label="Mostrar senha"><i class="bi bi-eye"></i></button>
         </div>
       </div>
-      <div class="mb-4">
-        <label class="form-label font-weight-bold">Senha</label>
-        <div class="input-group">
-          <span class="input-group-text bg-light"><i class="fa-solid fa-lock text-secondary"></i></span>
-          <input type="password" class="form-control" id="login_senha" required placeholder="******">
-        </div>
-      </div>
-      <button type="submit" class="btn btn-primary w-100 py-2 fw-bold" id="btnLogin">
-        <i class="fa-solid fa-right-to-bracket me-1"></i> Entrar no Sistema
-      </button>
+      <div class="alert alert-danger small py-2 d-none" id="login-erro"></div>
+      <button type="submit" class="btn btn-primary w-100" id="btn-login">Entrar</button>
     </form>
   </div>
-</div>
+</section>
 
-<!-- SISTEMA PRINCIPAL -->
-<div id="screen-app" class="container-fluid d-none">
-  <div class="row">
-    <!-- Menu Lateral -->
-    <nav class="col-md-3 col-lg-2 d-md-block sidebar p-3 collapse show no-print">
-      <div class="d-flex align-items-center mb-3 text-decoration-none">
-        <i class="fa-solid fa-scale-balanced fa-2x me-2 text-info"></i>
-        <span class="fs-4 brand-header">DMA SYS <small class="fs-6 text-muted d-block">ADV</small></span>
+<!-- ============ TROCA DE SENHA OBRIGATÓRIA ============ -->
+<section id="tela-senha" class="tela-centro d-none">
+  <div class="cartao-login">
+    <h1 class="h5 mb-1">Defina sua senha</h1>
+    <p class="texto-2 small">É seu primeiro acesso ou sua senha foi redefinida. Crie uma senha pessoal com pelo menos 8 caracteres, letras e números.</p>
+    <form id="form-senha-obrigatoria" novalidate>
+      <div class="mb-3">
+        <label class="form-label" for="nova-senha-1">Nova senha</label>
+        <input type="password" class="form-control" id="nova-senha-1" autocomplete="new-password" required>
       </div>
-      
-      <!-- Usuário Logado -->
-      <div class="p-2 mb-3 bg-dark rounded text-light small border border-secondary">
-        <i class="fa-solid fa-user-check text-success me-1"></i> <span id="label_user_logged">Carregando...</span>
-        <button class="btn btn-link btn-sm text-danger p-0 ms-2 float-end" onclick="fazerLogout()" title="Sair do Sistema">
-          <i class="fa-solid fa-power-off"></i> Sair
-        </button>
+      <div class="mb-3">
+        <label class="form-label" for="nova-senha-2">Confirme a nova senha</label>
+        <input type="password" class="form-control" id="nova-senha-2" autocomplete="new-password" required>
       </div>
-
-      <hr class="text-secondary">
-      <ul class="nav flex-column nav-pills" id="mainTabs" role="tablist">
-        <li class="nav-item">
-          <button class="nav-link active w-100 text-start" data-bs-toggle="pill" data-bs-target="#content-home">
-            <i class="fa-solid fa-chart-line me-2"></i> Dashboard
-          </button>
-        </li>
-        <li class="nav-item">
-          <button class="nav-link w-100 text-start" data-bs-toggle="pill" data-bs-target="#content-clientes" onclick="carregarBancoDadosGlobal()">
-            <i class="fa-solid fa-user-tie me-2"></i> Clientes
-          </button>
-        </li>
-        <li class="nav-item">
-          <button class="nav-link w-100 text-start" data-bs-toggle="pill" data-bs-target="#content-processos" onclick="carregarBancoDadosGlobal()">
-            <i class="fa-solid fa-folder-open me-2"></i> Processos
-          </button>
-        </li>
-      </ul>
-    </nav>
-
-    <!-- Conteúdo Principal -->
-    <main class="col-md-9 ms-sm-auto col-lg-10 px-md-4 py-4 no-print">
-      <div class="tab-content">
-        
-        <!-- Dashboard / Painel Geral -->
-        <div class="tab-pane fade show active" id="content-home">
-          <h2 class="mb-4 text-dark fw-bold"><i class="fa-solid fa-gauge me-2 text-primary"></i> Painel Geral</h2>
-          
-          <div class="row g-3 mb-4">
-            <div class="col-md-3">
-              <div class="card card-custom p-3 bg-white border-start border-4 border-primary">
-                <small class="text-muted font-weight-bold">Total de Clientes</small>
-                <h3 class="fw-bold mb-0 text-dark" id="dash_total_clientes">0</h3>
-              </div>
-            </div>
-            <div class="col-md-3">
-              <div class="card card-custom p-3 bg-white border-start border-4 border-success">
-                <small class="text-muted font-weight-bold">Processos Cadastrados</small>
-                <h3 class="fw-bold mb-0 text-dark" id="dash_total_processos">0</h3>
-              </div>
-            </div>
-            <div class="col-md-3">
-              <div class="card card-custom p-3 bg-white border-start border-4 border-info">
-                <small class="text-muted font-weight-bold">Unidade Bem Bom</small>
-                <h3 class="fw-bold mb-0 text-dark" id="dash_total_bembom">0</h3>
-              </div>
-            </div>
-            <div class="col-md-3">
-              <div class="card card-custom p-3 bg-white border-start border-4 border-warning">
-                <small class="text-muted font-weight-bold">Unidade Casa Nova</small>
-                <h3 class="fw-bold mb-0 text-dark" id="dash_total_casanova">0</h3>
-              </div>
-            </div>
-          </div>
-
-          <div class="card card-custom p-4 bg-white">
-            <div class="d-flex justify-content-between align-items-center mb-3">
-              <h4 class="fw-bold text-dark mb-0"><i class="fa-solid fa-list-check text-primary me-2"></i> Grade Geral de Processos</h4>
-              <button class="btn btn-outline-primary btn-sm" onclick="carregarBancoDadosGlobal()">
-                <i class="fa-solid fa-arrows-rotate me-1"></i> Atualizar Lista
-              </button>
-            </div>
-
-            <div class="row g-2 mb-3">
-              <div class="col-md-6">
-                <input type="text" class="form-control" id="grid_search_input" onkeyup="filtrarGradeProcessos()" placeholder="🔍 Pesquisar por Cliente, CNJ, CPF, Ação ou Parte Contrária...">
-              </div>
-              <div class="col-md-3">
-                <select class="form-select" id="grid_filter_unidade" onchange="filtrarGradeProcessos()">
-                  <option value="">Todas as Unidades</option>
-                  <option value="Bem Bom">Unidade Bem Bom</option>
-                  <option value="Casa Nova">Unidade Casa Nova</option>
-                </select>
-              </div>
-              <div class="col-md-3">
-                <select class="form-select" id="grid_filter_status" onchange="filtrarGradeProcessos()">
-                  <option value="">Todos os Status</option>
-                  <option value="Em Andamento">Em Andamento</option>
-                  <option value="Aguardando Assinatura">Aguardando Assinatura</option>
-                  <option value="Concluído">Concluído</option>
-                  <option value="Arquivado">Arquivado</option>
-                </select>
-              </div>
-            </div>
-
-            <div class="table-responsive">
-              <table class="table table-hover align-middle">
-                <thead class="table-light">
-                  <tr>
-                    <th>ID Processo</th>
-                    <th>Cliente</th>
-                    <th>Nº CNJ</th>
-                    <th>Área / Ação</th>
-                    <th>Unidade</th>
-                    <th>Status</th>
-                    <th class="text-end">Ação</th>
-                  </tr>
-                </thead>
-                <tbody id="grid_processos_body">
-                  <tr>
-                    <td colspan="7" class="text-center text-muted py-4"><i class="fa-solid fa-spinner fa-spin me-2 text-primary"></i> Carregando dados do banco...</td>
-                  </tr>
-                </tbody>
-              </table>
-            </div>
-          </div>
-        </div>
-
-        <!-- Clientes -->
-        <div class="tab-pane fade" id="content-clientes">
-          <div class="d-flex justify-content-between align-items-center mb-4">
-            <h2 class="text-dark fw-bold mb-0"><i class="fa-solid fa-user-plus me-2 text-primary"></i> Gestão de Clientes</h2>
-            <button class="btn btn-outline-secondary btn-sm" onclick="limparFormularioCliente()">
-              <i class="fa-solid fa-file-circle-plus me-1"></i> Novo Cadastro
-            </button>
-          </div>
-
-          <div class="card card-custom p-3 bg-white mb-4 border-start border-4 border-info">
-            <label class="form-label font-weight-bold text-dark"><i class="fa-solid fa-magnifying-glass me-1 text-info"></i> Busca Inteligente de Cliente</label>
-            <div class="row g-2">
-              <div class="col-md-10">
-                <input type="text" class="form-control" id="busca_cliente_input" onkeyup="filtrarBuscaClienteTela()" placeholder="Digite o ID, Nome, CPF ou RG...">
-              </div>
-              <div class="col-md-2">
-                <button class="btn btn-info text-white w-100" onclick="carregarBancoDadosGlobal()">
-                  <i class="fa-solid fa-arrows-rotate"></i> Atualizar
-                </button>
-              </div>
-            </div>
-            <select class="form-select mt-2 d-none" id="busca_cliente_select" onchange="preencherCamposClienteSelecionado()"></select>
-          </div>
-
-          <div class="card card-custom p-4 bg-white">
-            <form id="formCliente" onsubmit="validarESalvarCliente(event)">
-              <input type="hidden" id="cli_id_hidden">
-              <div class="row g-3">
-                <div class="col-md-3">
-                  <label class="form-label font-weight-bold">Tipo de Pessoa</label>
-                  <select class="form-select" id="cli_tipo" onchange="atualizarMascarasTipo()" required>
-                    <option value="PF">Pessoa Física (PF)</option>
-                    <option value="PJ">Pessoa Jurídica (PJ)</option>
-                  </select>
-                </div>
-                <div class="col-md-6">
-                  <label class="form-label" id="lbl_nome">Nome Completo</label>
-                  <input type="text" class="form-control" id="cli_nome" required>
-                </div>
-                <div class="col-md-3">
-                  <label class="form-label" id="lbl_cpf">CPF</label>
-                  <input type="text" class="form-control" id="cli_cpf" oninput="aplicarMascaraDocumento(this)" placeholder="000.000.000-00" required>
-                </div>
-                <div class="col-md-3">
-                  <label class="form-label" id="lbl_rg">RG</label>
-                  <input type="text" class="form-control" id="cli_rg">
-                </div>
-                <div class="col-md-3">
-                  <label class="form-label">Estado Civil</label>
-                  <select class="form-select" id="cli_estado_civil">
-                    <option value="">-- Selecione --</option>
-                    <option value="Solteiro(a)">Solteiro(a)</option>
-                    <option value="Casado(a)">Casado(a)</option>
-                    <option value="Divorciado(a)">Divorciado(a)</option>
-                    <option value="Viúvo(a)">Viúvo(a)</option>
-                    <option value="União Estável">União Estável</option>
-                    <option value="Separado(a) Judicialmente">Separado(a) Judicialmente</option>
-                    <option value="Não Aplicável (PJ)">Não Aplicável (PJ)</option>
-                  </select>
-                </div>
-                <div class="col-md-3">
-                  <label class="form-label">Profissão / Atividade</label>
-                  <input type="text" class="form-control" id="cli_profissao">
-                </div>
-                <div class="col-md-3">
-                  <label class="form-label">Telefone / WhatsApp</label>
-                  <input type="text" class="form-control" id="cli_telefone" oninput="aplicarMascaraTelefone(this)" placeholder="(00) 00000-0000">
-                </div>
-                <div class="col-md-6">
-                  <label class="form-label">Endereço Completo</label>
-                  <input type="text" class="form-control" id="cli_endereco">
-                </div>
-                <div class="col-md-6">
-                  <label class="form-label">E-mail</label>
-                  <input type="email" class="form-control" id="cli_email">
-                </div>
-                <div class="col-12">
-                  <label class="form-label">Observações</label>
-                  <textarea class="form-control" id="cli_obs" rows="2"></textarea>
-                </div>
-                <div class="col-12 text-end">
-                  <button type="submit" class="btn btn-primary px-4" id="btnSalvarCli">
-                    <i class="fa-solid fa-save me-1"></i> Salvar Cliente
-                  </button>
-                </div>
-              </div>
-            </form>
-          </div>
-        </div>
-
-        <!-- Processos -->
-        <div class="tab-pane fade" id="content-processos">
-          <h2 class="mb-4 text-dark fw-bold"><i class="fa-solid fa-gavel me-2 text-primary"></i> Cadastrar Processo</h2>
-          <div class="card card-custom p-4 bg-white mb-4">
-            <form id="formProcesso" onsubmit="salvarProcesso(event)">
-              <div class="row g-3">
-                <div class="col-md-6">
-                  <label class="form-label">Buscar / Selecionar Cliente</label>
-                  <input type="text" class="form-control mb-2" id="proc_busca_cliente" onkeyup="filtrarListaClientesProcesso()" placeholder="Digite para filtrar a lista abaixo...">
-                  <select class="form-select" id="proc_id_cliente" required>
-                    <option value="">Aguardando seleção de cliente...</option>
-                  </select>
-                </div>
-                <div class="col-md-6">
-                  <label class="form-label">Número do Processo (CNJ)</label>
-                  <input type="text" class="form-control" id="proc_num" placeholder="0000000-00.2026.8.26.0000" required>
-                </div>
-                <div class="col-md-4">
-                  <label class="form-label">Unidade do Escritório</label>
-                  <select class="form-select" id="proc_unidade" required>
-                    <option value="Bem Bom">Distrito de Bem Bom - BA</option>
-                    <option value="Casa Nova">Casa Nova - BA (Sede)</option>
-                  </select>
-                </div>
-                <div class="col-md-4">
-                  <label class="form-label">Tipo de Ação</label>
-                  <select class="form-select" id="proc_tipo" required>
-                    <option value="">-- Selecione a Área/Ação --</option>
-                    <option value="Trabalhista">Trabalhista</option>
-                    <option value="Cível Geral">Cível Geral</option>
-                    <option value="Família e Sucessões">Família e Sucessões</option>
-                    <option value="Tributário">Tributário</option>
-                    <option value="Previdenciário">Previdenciário</option>
-                    <option value="Criminal / Penal">Criminal / Penal</option>
-                    <option value="Direito do Consumidor">Direito do Consumidor</option>
-                    <option value="Empresarial / Societário">Empresarial / Societário</option>
-                    <option value="Outros">Outros</option>
-                  </select>
-                </div>
-                <div class="col-md-4">
-                  <label class="form-label">Polo</label>
-                  <select class="form-select" id="proc_polo">
-                    <option value="Autor">Polo Ativo (Autor)</option>
-                    <option value="Réu">Polo Passivo (Réu)</option>
-                  </select>
-                </div>
-                <div class="col-md-4">
-                  <label class="form-label">Parte Contrária / Empresa</label>
-                  <input type="text" class="form-control" id="proc_parte_contraria" placeholder="Ex: COELBA / Neoenergia">
-                </div>
-                <div class="col-md-4">
-                  <label class="form-label">Vara / Tribunal</label>
-                  <input type="text" class="form-control" id="proc_vara">
-                </div>
-                <div class="col-md-4">
-                  <label class="form-label">Valor Causa (R$)</label>
-                  <input type="text" class="form-control" id="proc_valor">
-                </div>
-                <div class="col-md-6">
-                  <label class="form-label">Honorários Combinados</label>
-                  <input type="text" class="form-control" id="proc_honorarios" placeholder="Ex: R$ 300,00 de entrada + 30% do êxito">
-                </div>
-                <div class="col-md-6">
-                  <label class="form-label">Status do Processo</label>
-                  <select class="form-select" id="proc_status">
-                    <option value="Em Andamento">Em Andamento</option>
-                    <option value="Aguardando Assinatura">Aguardando Assinatura</option>
-                    <option value="Concluído">Concluído</option>
-                    <option value="Arquivado">Arquivado</option>
-                  </select>
-                </div>
-
-                <div class="col-12 mt-3">
-                  <label class="form-label fw-bold text-dark"><i class="fa-solid fa-file-signature me-1 text-primary"></i> Objeto do Contrato (Detalhes do Caso)</label>
-                  <textarea class="form-control" id="proc_objeto_contrato" rows="2" placeholder="Prestação de serviços advocatícios para defesa dos interesses do contratante na ação referente a..."></textarea>
-                </div>
-
-                <div class="col-md-6 mt-3">
-                  <label class="form-label fw-bold text-primary"><i class="fa-solid fa-scroll me-1"></i> Poderes Gerais (Procuração)</label>
-                  <textarea class="form-control" id="proc_poderes_gerais" rows="3" placeholder="Gerais para atuar perante qualquer juízo, instância ou Tribunal..."></textarea>
-                </div>
-
-                <div class="col-md-6 mt-3">
-                  <label class="form-label fw-bold text-success"><i class="fa-solid fa-key me-1"></i> Poderes Especiais (Procuração / Causa)</label>
-                  <textarea class="form-control" id="proc_poderes_especiais" rows="3" placeholder="Poderes para requerer suspensão de cobranças, transigir, acordos, alvarás..."></textarea>
-                </div>
-
-                <div class="col-12 text-end mt-3">
-                  <button type="submit" class="btn btn-success px-4" id="btnSalvarProc">
-                    <i class="fa-solid fa-save me-1"></i> Cadastrar Processo
-                  </button>
-                </div>
-              </div>
-            </form>
-          </div>
-        </div>
-
-      </div>
-    </main>
+      <div class="alert alert-danger small py-2 d-none" id="senha-erro"></div>
+      <button type="submit" class="btn btn-primary w-100" id="btn-senha">Salvar e entrar</button>
+      <button type="button" class="btn btn-link w-100 mt-2" onclick="App.sair()">Sair</button>
+    </form>
   </div>
-</div>
+</section>
 
-<!-- MODAL ORGANIZADA DE DETALHES DO PROCESSO (ABA A ABA) -->
-<div class="modal fade" id="modalProcesso" tabindex="-1" aria-hidden="true">
-  <div class="modal-dialog modal-lg">
-    <div class="modal-content border-0 shadow-lg">
-      <div class="modal-header bg-slate-900 text-white" style="background-color: #0f172a;">
-        <h5 class="modal-title fw-bold" id="modal_titulo"><i class="fa-solid fa-folder-open me-2 text-info"></i> Detalhes do Processo</h5>
-        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
-      </div>
-      
-      <!-- Navegação por Abas Organizadas dentro da Modal -->
-      <div class="bg-light border-bottom px-3 pt-3">
-        <ul class="nav nav-pills modal-nav-pills me-auto" id="modalProcessoTabs" role="tablist">
-          <li class="nav-item me-1">
-            <button class="nav-link active" id="tab-resumo-btn" data-bs-toggle="pill" data-bs-target="#tab-resumo">
-              <i class="fa-solid fa-circle-info me-1"></i> Visão Geral & Contrato
-            </button>
-          </li>
-          <li class="nav-item me-1">
-            <button class="nav-link" id="tab-historico-btn" data-bs-toggle="pill" data-bs-target="#tab-historico">
-              <i class="fa-solid fa-comments me-1"></i> Histórico & Notas
-            </button>
-          </li>
-          <li class="nav-item">
-            <button class="nav-link" id="tab-anexos-btn" data-bs-toggle="pill" data-bs-target="#tab-anexos">
-              <i class="fa-solid fa-paperclip me-1"></i> Anexos Drive
-            </button>
-          </li>
-        </ul>
-      </div>
+<!-- ============ CARREGANDO ============ -->
+<section id="tela-carregando" class="tela-centro">
+  <div class="text-center texto-2">
+    <div class="spinner-border mb-3" role="status"></div>
+    <div>Carregando…</div>
+  </div>
+</section>
 
-      <div class="modal-body p-4" id="modal_corpo">
-        <!-- Conteúdo preenchido dinamicamente via JS -->
-      </div>
-      
-      <div class="modal-footer bg-light" id="modal_footer">
-        <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Fechar</button>
-      </div>
+<!-- ============ APLICAÇÃO ============ -->
+<div id="tela-app" class="d-none">
+  <aside id="sidebar" class="sidebar">
+    <div class="sidebar-marca">
+      <img id="sidebar-logo" class="d-none" alt="">
+      <i class="bi bi-bank2" id="sidebar-icone"></i>
+      <span data-escritorio-nome>DMA SYS ADV</span>
     </div>
+    <nav id="menu" class="sidebar-menu"></nav>
+    <div class="sidebar-rodape small">v<span id="versao">1.0.0</span></div>
+  </aside>
+  <div class="sidebar-fundo" id="sidebar-fundo"></div>
+
+  <div class="principal">
+    <header class="topo">
+      <button class="btn btn-icone d-lg-none" id="btn-menu" aria-label="Abrir menu"><i class="bi bi-list"></i></button>
+      <div class="busca-global">
+        <i class="bi bi-search"></i>
+        <input type="search" id="busca-global" placeholder="Buscar cliente, CPF, nº do processo, NB…" aria-label="Busca global">
+      </div>
+      <div class="d-flex align-items-center gap-2 ms-auto">
+        <div class="seletor-tema d-none d-md-flex" role="group" aria-label="Tema">
+          <button class="bolinha-tema" data-tema="classico" title="Tema clássico"></button>
+          <button class="bolinha-tema" data-tema="noturno" title="Tema noturno"></button>
+          <button class="bolinha-tema" data-tema="bordo" title="Tema bordô"></button>
+        </div>
+        <div class="dropdown">
+          <button class="btn btn-icone" data-bs-toggle="dropdown" aria-label="Configurações"><i class="bi bi-gear"></i></button>
+          <ul class="dropdown-menu dropdown-menu-end" id="menu-engrenagem"></ul>
+        </div>
+        <div class="dropdown">
+          <button class="btn btn-avatar" data-bs-toggle="dropdown" aria-label="Minha conta"><span id="avatar-iniciais">--</span></button>
+          <ul class="dropdown-menu dropdown-menu-end">
+            <li><h6 class="dropdown-header"><span id="topo-nome"></span><br><small id="topo-cargo" class="texto-2"></small></h6></li>
+            <li><a class="dropdown-item" href="#/perfil"><i class="bi bi-person me-2"></i>Minha conta</a></li>
+            <li><hr class="dropdown-divider"></li>
+            <li><button class="dropdown-item text-danger" onclick="App.sair()"><i class="bi bi-box-arrow-right me-2"></i>Sair</button></li>
+          </ul>
+        </div>
+      </div>
+    </header>
+
+    <main id="view" class="conteudo"></main>
   </div>
 </div>
 
-<!-- MODAL DE PRÉ-VISUALIZAÇÃO DO CONTRATO E PROCURAÇÃO COM ASSINATURA DIGITAL NA TELA -->
-<div class="modal fade" id="modalDocumentoDoc" tabindex="-1" aria-hidden="true">
-  <div class="modal-dialog modal-xl">
-    <div class="modal-content">
-      <div class="modal-header bg-primary text-white no-print">
-        <h5 class="modal-title fw-bold"><i class="fa-solid fa-file-contract me-2"></i> Documento Gerado (Contrato & Procuração)</h5>
-        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
-      </div>
-      <div class="modal-body bg-light p-3" style="max-height: 80vh; overflow-y: auto;">
-        
-        <!-- PAINEL DE ASSINATURA DIGITAL NA TELA (TOUCH / MOUSE) COM SELEÇÃO DO SIGNATÁRIO -->
-        <div class="card p-3 mb-4 border-primary shadow-sm no-print">
-          <div class="d-flex justify-content-between align-items-center mb-2">
-            <h6 class="fw-bold text-primary mb-0"><i class="fa-solid fa-signature me-1"></i> Coletar / Atualizar Assinatura Digital</h6>
-            <button type="button" class="btn btn-sm btn-outline-danger" onclick="limparAssinaturaCanvas()">
-              <i class="fa-solid fa-eraser me-1"></i> Limpar Campo
-            </button>
-          </div>
-          
-          <div class="row g-2 mb-2 align-items-center">
-            <div class="col-md-6">
-              <label class="form-label small fw-bold text-dark mb-1"><i class="fa-solid fa-user-pen me-1"></i> Quem está assinando agora?</label>
-              <select class="form-select form-select-sm border-primary" id="sigTargetSelect">
-                <option value="cliente">Cliente (Outorgante / Contratante)</option>
-                <option value="advogado">Advogado (Contratado / Procurador)</option>
-              </select>
-            </div>
-            <div class="col-md-6">
-              <small class="text-muted d-block mt-3">Assine com o dedo no celular/tablet ou com o mouse na caixa abaixo:</small>
-            </div>
-          </div>
+<div class="toast-container position-fixed bottom-0 end-0 p-3" id="toasts"></div>
+<div id="modais"></div>
 
-          <div class="text-center">
-            <canvas id="sigCanvas" width="600" height="150" class="w-100"></canvas>
-          </div>
-          <div class="mt-2 d-flex justify-content-between align-items-center">
-            <small class="text-success fw-bold" id="sig_status_msg"><i class="fa-solid fa-floppy-disk me-1"></i> As assinaturas são salvas permanentemente no banco do processo.</small>
-            <button type="button" class="btn btn-sm btn-success fw-bold px-3" onclick="aplicarAssinaturaNoDocumento()">
-              <i class="fa-solid fa-check-double me-1"></i> Estampar & Salvar Assinatura
-            </button>
-          </div>
-        </div>
-
-        <!-- DOCUMENTO FORMATADO COM LOGO E IMPRESSÃO / PDF -->
-        <div id="printableDoc" class="bg-white p-5 shadow-sm mx-auto" style="max-width: 850px; min-height: 1000px; border: 1px solid #ddd;">
-          <!-- Conteúdo Gerado Dinamicamente -->
-        </div>
-
-      </div>
-      <div class="modal-footer bg-white no-print">
-        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Fechar</button>
-        <button type="button" class="btn btn-success fw-bold px-4" onclick="window.print()">
-          <i class="fa-solid fa-print me-1"></i> Imprimir / Guardar em PDF
-        </button>
-      </div>
-    </div>
-  </div>
-</div>
-
-<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
 <script>
-  const API_URL = "https://script.google.com/macros/s/AKfycbzmREya4ujybG5vN_2ivDF7E8JZGbHdLW8gsQkTHCrj4FzT23m_zVWmNz6uJUaghetLrA/exec";
-  const LOGO_URL = "https://lh3.googleusercontent.com/d/1frhtvkEV52HX18oThplD17mjyNF6HOOd";
-  let dbClientes = [];
-  let dbProcessos = [];
-  let usuarioLogado = null;
-  let processoAtualDoc = null;
+/* ======== js/config.js ======== */
+/* ===================================================================
+   >>> ÚNICO PONTO A EDITAR: cole a URL do Web App (/exec) abaixo <<<
+   =================================================================== */
+/**
+ * DMA SYS ADV — config.js
+ * Único arquivo que você precisa editar no frontend.
+ * Cole aqui a URL do Web App (Implantar > Gerenciar implantações > URL terminada em /exec).
+ * Esta URL NÃO é segredo: a segurança está no login e no token validado pelo servidor.
+ */
+window.APP_CONFIG = {
+  API_URL: 'COLE_AQUI_A_URL_DO_WEB_APP',
+  NOME_PADRAO: 'DMA SYS ADV'
+};
 
-  function verificarSessao() {
-    const userSession = sessionStorage.getItem('dma_user');
-    if (userSession) {
-      usuarioLogado = JSON.parse(userSession);
-      document.getElementById('screen-login').classList.add('d-none');
-      document.getElementById('screen-app').classList.remove('d-none');
-      document.getElementById('label_user_logged').innerText = usuarioLogado.usuario;
-      carregarBancoDadosGlobal();
-    } else {
-      document.getElementById('screen-login').classList.remove('d-none');
-      document.getElementById('screen-app').classList.add('d-none');
-    }
-  }
-
-  function executarLogin(e) {
-    e.preventDefault();
-    const btn = document.getElementById('btnLogin');
-    btn.disabled = true;
-    btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin me-1"></i> Verificando...';
-
-    const payload = {
-      action: 'login',
-      payload: {
-        usuario: document.getElementById('login_usuario').value,
-        senha: document.getElementById('login_senha').value
-      }
-    };
-
-    const formData = new FormData();
-    formData.append('data', JSON.stringify(payload));
-
-    fetch(API_URL, {
-      method: 'POST',
-      body: formData
-    })
-    .then(res => res.json())
-    .then(result => {
-      if (result.success) {
-        sessionStorage.setItem('dma_user', JSON.stringify({ usuario: result.usuario, chave: result.chave }));
-        verificarSessao();
-      } else {
-        alert(result.message || 'Falha ao autenticar.');
-      }
-    })
-    .catch(err => {
-      alert('Erro de conexão ao verificar credenciais.');
-    })
-    .finally(() => {
-      btn.disabled = false;
-      btn.innerHTML = '<i class="fa-solid fa-right-to-bracket me-1"></i> Entrar no Sistema';
-    });
-  }
-
-  function fazerLogout() {
-    sessionStorage.removeItem('dma_user');
-    usuarioLogado = null;
-    verificarSessao();
-  }
-
-  function carregarBancoDadosGlobal() {
-    if (!usuarioLogado) return;
-    
-    const tbody = document.getElementById('grid_processos_body');
-    if (tbody) {
-      tbody.innerHTML = '<tr><td colspan="7" class="text-center text-muted py-4"><i class="fa-solid fa-spinner fa-spin me-2 text-primary"></i> Carregando dados do banco...</td></tr>';
-    }
-
-    const scriptId = 'jsonp_db_script';
-    const oldScript = document.getElementById(scriptId);
-    if (oldScript) oldScript.remove();
-
-    let timeoutId = setTimeout(function() {
-      if (tbody && tbody.innerHTML.includes('Carregando dados do banco...')) {
-        tbody.innerHTML = '<tr><td colspan="7" class="text-center text-warning py-4"><i class="fa-solid fa-clock me-2"></i> A conexão demorou a responder. <button class="btn btn-sm btn-outline-primary ms-2" onclick="carregarBancoDadosGlobal()"><i class="fa-solid fa-rotate-right me-1"></i> Tentar Novamente</button></td></tr>';
-      }
-    }, 10000);
-
-    window.processarRetornoBanco = function(res) {
-      clearTimeout(timeoutId);
-      if (res && res.success) {
-        dbClientes = res.clientes || [];
-        dbProcessos = res.processos || [];
-        
-        atualizarIndicadoresDashboard();
-        renderizarGradeProcessos(dbProcessos);
-        renderizarOptionsProcessos(dbClientes);
-        filtrarBuscaClienteTela();
-      } else {
-        if (tbody) {
-          tbody.innerHTML = '<tr><td colspan="7" class="text-center text-danger py-4"><i class="fa-solid fa-triangle-exclamation me-2"></i> Erro ao carregar dados: ' + (res ? res.message : 'Resposta inválida') + '</td></tr>';
-        }
-      }
-    };
-
-    const script = document.createElement('script');
-    script.id = scriptId;
-    script.src = API_URL + "?action=getDadosCompletos&callback=processarRetornoBanco&t=" + new Date().getTime();
-    
-    script.onerror = function() {
-      clearTimeout(timeoutId);
-      if (tbody) {
-        tbody.innerHTML = '<tr><td colspan="7" class="text-center text-danger py-4"><i class="fa-solid fa-triangle-exclamation me-2"></i> Falha de comunicação com o servidor. <button class="btn btn-sm btn-outline-danger ms-2" onclick="carregarBancoDadosGlobal()"><i class="fa-solid fa-rotate-right me-1"></i> Tentar Novamente</button></td></tr>';
-      }
-    };
-
-    document.body.appendChild(script);
-  }
-
-  function atualizarIndicadoresDashboard() {
-    document.getElementById('dash_total_clientes').innerText = dbClientes.length;
-    document.getElementById('dash_total_processos').innerText = dbProcessos.length;
-
-    const totalBemBom = dbProcessos.filter(p => p.unidade === "Bem Bom").length;
-    const totalCasaNova = dbProcessos.filter(p => p.unidade === "Casa Nova").length;
-
-    document.getElementById('dash_total_bembom').innerText = totalBemBom;
-    document.getElementById('dash_total_casanova').innerText = totalCasaNova;
-  }
-
-  function renderizarGradeProcessos(lista) {
-    const tbody = document.getElementById('grid_processos_body');
-    if (!lista || lista.length === 0) {
-      tbody.innerHTML = '<tr><td colspan="7" class="text-center text-muted py-4">Nenhum processo encontrado.</td></tr>';
-      return;
-    }
-
-    tbody.innerHTML = '';
-    lista.forEach(p => {
-      const cliente = dbClientes.find(c => c.id === p.id_cliente);
-      const nomeCliente = cliente ? cliente.nome_razao : (p.id_cliente || "Não Vinculado");
-
-      let badgeStatus = '<span class="badge bg-secondary">' + p.status + '</span>';
-      if (p.status === 'Em Andamento') badgeStatus = '<span class="badge bg-primary">Em Andamento</span>';
-      if (p.status === 'Aguardando Assinatura') badgeStatus = '<span class="badge bg-warning text-dark">Aguardando Assinatura</span>';
-      if (p.status === 'Concluído') badgeStatus = '<span class="badge bg-success">Concluído</span>';
-      if (p.status === 'Arquivado') badgeStatus = '<span class="badge bg-dark">Arquivado</span>';
-
-      tbody.innerHTML += `
-        <tr class="cursor-pointer" onclick="abrirModalProcesso('${p.id}')">
-          <td class="fw-bold text-primary">${p.id}</td>
-          <td>${nomeCliente}</td>
-          <td class="small">${p.num_processo || '-'}</td>
-          <td>${p.acao_tipo || '-'}</td>
-          <td><span class="badge bg-light text-dark border">${p.unidade}</span></td>
-          <td>${badgeStatus}</td>
-          <td class="text-end">
-            <button class="btn btn-outline-primary btn-sm" onclick="event.stopPropagation(); abrirModalProcesso('${p.id}')">
-              <i class="fa-solid fa-eye"></i> Detalhes
-            </button>
-          </td>
-        </tr>
-      `;
-    });
-  }
-
-  function filtrarGradeProcessos() {
-    const termo = document.getElementById('grid_search_input').value.toLowerCase().trim();
-    const un = document.getElementById('grid_filter_unidade').value;
-    const st = document.getElementById('grid_filter_status').value;
-
-    const filtrados = dbProcessos.filter(p => {
-      const cliente = dbClientes.find(c => c.id === p.id_cliente);
-      const nomeCliente = cliente ? cliente.nome_razao.toLowerCase() : "";
-      const docCliente = cliente ? String(cliente.cpf_cnpj).replace(/\D/g, "") : "";
-      const termoLimpo = termo.replace(/\D/g, "");
-
-      const matchTexto = !termo ||
-        p.id.toLowerCase().includes(termo) ||
-        nomeCliente.includes(termo) ||
-        (termoLimpo !== "" && docCliente.includes(termoLimpo)) ||
-        String(p.num_processo).toLowerCase().includes(termo) ||
-        String(p.parte_contraria).toLowerCase().includes(termo) ||
-        String(p.acao_tipo).toLowerCase().includes(termo);
-
-      const matchUnidade = !un || p.unidade === un;
-      const matchStatus = !st || p.status === st;
-
-      return matchTexto && matchUnidade && matchStatus;
-    });
-
-    renderizarGradeProcessos(filtrados);
-  }
-
-  function abrirModalProcesso(idProcesso) {
-    const proc = dbProcessos.find(p => p.id === idProcesso);
-    if (!proc) return;
-
-    const cliente = dbClientes.find(c => c.id === proc.id_cliente);
-
-    // Extrai e organiza os anexos do Google Drive registrados nos logs do processo
-    const logLinhas = (proc.log_alteracao || '').split('\n');
-    const logAnexos = logLinhas.filter(line => line.includes('http://') || line.includes('https://'));
-    
-    let anexosHtml = '';
-    if (logAnexos.length > 0) {
-      anexosHtml = `
-        <div class="table-responsive">
-          <table class="table table-sm table-hover align-middle bg-white rounded border mb-0">
-            <thead class="table-light">
-              <tr>
-                <th>Data / Registro</th>
-                <th>Tipo de Documento</th>
-                <th class="text-end">Ação</th>
-              </tr>
-            </thead>
-            <tbody>
-      `;
-
-      logAnexos.forEach(linha => {
-        const matchUrl = linha.match(/(https?:\/\/[^\s]+)/g);
-        const url = matchUrl ? matchUrl[0] : '#';
-        const textoRegistro = linha.replace(url, '').replace(/:\s*$/, '').trim();
-
-        // Identifica o tipo do documento para a tag
-        let tipoBadge = '<span class="badge bg-primary-subtle text-primary border"><i class="fa-solid fa-file-pdf me-1"></i> Documento Drive</span>';
-        if (linha.includes('Contrato Assinado')) tipoBadge = '<span class="badge bg-success-subtle text-success border"><i class="fa-solid fa-file-contract me-1"></i> Contrato Assinado</span>';
-        if (linha.includes('Procuração Assinada')) tipoBadge = '<span class="badge bg-info-subtle text-info border"><i class="fa-solid fa-scroll me-1"></i> Procuração Assinada</span>';
-        if (linha.includes('Documento Pessoal')) tipoBadge = '<span class="badge bg-warning-subtle text-warning border"><i class="fa-solid fa-id-card me-1"></i> Doc. Pessoal / RG</span>';
-
-        anexosHtml += `
-          <tr>
-            <td class="small text-muted">${textoRegistro}</td>
-            <td>${tipoBadge}</td>
-            <td class="text-end">
-              <a href="${url}" target="_blank" rel="noopener noreferrer" class="btn btn-sm btn-outline-primary fw-bold">
-                <i class="fa-solid fa-arrow-up-right-from-square me-1"></i> Abrir no Drive
-              </a>
-            </td>
-          </tr>
-        `;
-      });
-
-      anexosHtml += `
-            </tbody>
-          </table>
-        </div>
-      `;
-    } else {
-      anexosHtml = `
-        <div class="alert alert-light border text-center text-muted mb-0 small">
-          <i class="fa-solid fa-folder-open me-1"></i> Nenhum documento anexado a este processo até o momento.
-        </div>
-      `;
-    }
-
-    document.getElementById('modal_titulo').innerHTML = `<i class="fa-solid fa-folder-open me-2 text-info"></i> Processo [${proc.id}]`;
-    
-    document.getElementById('modal_corpo').innerHTML = `
-      <div class="tab-content" id="modalProcessoTabContent">
-        
-        <!-- ABA 1: VISÃO GERAL, PODERES & CLÁUSULAS CONTRATUAIS -->
-        <div class="tab-pane fade show active" id="tab-resumo" role="tabpanel">
-          
-          <div class="row g-3 mb-3">
-            <div class="col-md-6">
-              <div class="card p-3 border-0 bg-light h-100">
-                <h6 class="fw-bold text-primary mb-2"><i class="fa-solid fa-user me-1"></i> Dados do Cliente</h6>
-                <p class="mb-1 small"><strong>Nome:</strong> ${cliente ? cliente.nome_razao : 'Não encontrado'}</p>
-                <p class="mb-1 small"><strong>CPF/CNPJ:</strong> ${cliente ? cliente.cpf_cnpj : '-'}</p>
-                <p class="mb-1 small"><strong>Endereço:</strong> ${cliente ? cliente.endereco : '-'}</p>
-                <p class="mb-0 small"><strong>Telefone:</strong> ${cliente ? cliente.telefone : '-'}</p>
-              </div>
-            </div>
-
-            <div class="col-md-6">
-              <div class="card p-3 border-0 bg-light h-100">
-                <h6 class="fw-bold text-success mb-2"><i class="fa-solid fa-gavel me-1"></i> Estado & Ação</h6>
-                
-                <div class="mb-2">
-                  <label class="form-label fw-bold small mb-1">Status do Processo:</label>
-                  <div class="input-group input-group-sm">
-                    <select class="form-select" id="modal_edit_status">
-                      <option value="Em Andamento" ${proc.status === 'Em Andamento' ? 'selected' : ''}>Em Andamento</option>
-                      <option value="Aguardando Assinatura" ${proc.status === 'Aguardando Assinatura' ? 'selected' : ''}>Aguardando Assinatura</option>
-                      <option value="Concluído" ${proc.status === 'Concluído' ? 'selected' : ''}>Concluído (Finalizar)</option>
-                      <option value="Arquivado" ${proc.status === 'Arquivado' ? 'selected' : ''}>Arquivado</option>
-                    </select>
-                    <button class="btn btn-sm btn-outline-success" onclick="salvarStatusProcesso('${proc.id}')"><i class="fa-solid fa-check"></i> Salvar</button>
-                  </div>
-                </div>
-
-                <p class="mb-1 small"><strong>Nº CNJ:</strong> ${proc.num_processo || '-'}</p>
-                <p class="mb-1 small"><strong>Tipo de Ação:</strong> ${proc.acao_tipo || '-'}</p>
-                <p class="mb-1 small"><strong>Unidade:</strong> ${proc.unidade}</p>
-                <p class="mb-1 small"><strong>Parte Contrária:</strong> ${proc.parte_contraria || '-'}</p>
-              </div>
-            </div>
-          </div>
-
-          <div class="card p-3 border-0 bg-light">
-            <h6 class="fw-bold text-dark mb-2"><i class="fa-solid fa-pen-to-square me-1 text-primary"></i> Personalização da Causa (Contrato & Procuração)</h6>
-            <div class="row g-2">
-              <div class="col-md-6">
-                <label class="form-label small fw-bold">Objeto do Contrato (Defesa do Cliente):</label>
-                <textarea class="form-control form-control-sm" id="modal_edit_objeto_contrato" rows="2" placeholder="Prestação de serviços para defesa dos interesses referente a...">${proc.objeto_contrato || ''}</textarea>
-              </div>
-              <div class="col-md-6">
-                <label class="form-label small fw-bold">Honorários Combinados:</label>
-                <textarea class="form-control form-control-sm" id="modal_edit_honorarios" rows="2" placeholder="Ex: R$ 300,00 de entrada + 30% sobre o proveito econômico">${proc.honorarios || ''}</textarea>
-              </div>
-              <div class="col-md-6">
-                <label class="form-label small fw-bold">Poderes Gerais (Procuração):</label>
-                <textarea class="form-control form-control-sm" id="modal_edit_poderes_gerais" rows="3" placeholder="Poderes gerais da procuração...">${proc.poderes_gerais || ''}</textarea>
-              </div>
-              <div class="col-md-6">
-                <label class="form-label small fw-bold">Poderes Especiais (Procuração / Causa):</label>
-                <textarea class="form-control form-control-sm" id="modal_edit_poderes_especiais" rows="3" placeholder="Poderes especiais e detalhes da causa...">${proc.poderes_especiais || ''}</textarea>
-              </div>
-              <div class="col-12 text-end mt-2">
-                <button type="button" class="btn btn-sm btn-primary px-3" onclick="salvarPoderesProcesso('${proc.id}')">
-                  <i class="fa-solid fa-save me-1"></i> Salvar Detalhes da Causa
-                </button>
-              </div>
-            </div>
-          </div>
-
-        </div>
-
-        <!-- ABA 2: HISTÓRICO & ANOTAÇÕES -->
-        <div class="tab-pane fade" id="tab-historico" role="tabpanel">
-          <div class="card p-3 border-0 bg-light">
-            <h6 class="fw-bold text-dark mb-2"><i class="fa-solid fa-comments me-1 text-info"></i> Histórico & Andamentos</h6>
-            <div class="bg-white p-3 rounded border mb-3" style="max-height: 220px; overflow-y: auto; font-size: 0.9rem;">
-              ${proc.anotacoes ? proc.anotacoes.replace(/\n/g, '<br>') : '<span class="text-muted">Nenhuma anotação registrada até o momento.</span>'}
-            </div>
-            <div class="input-group">
-              <input type="text" class="form-control" id="modal_nova_anotacao" placeholder="Adicionar nova nota / andamento (ex: Audiência marcada para 20/10)...">
-              <button class="btn btn-info text-white fw-bold" onclick="adicionarAnotacaoProcesso('${proc.id}')">
-                <i class="fa-solid fa-plus me-1"></i> Adicionar Nota
-              </button>
-            </div>
-          </div>
-        </div>
-
-        <!-- ABA 3: ANEXOS DRIVE -->
-        <div class="tab-pane fade" id="tab-anexos" role="tabpanel">
-          <div class="card p-3 border-0 bg-light mb-3">
-            <h6 class="fw-bold text-dark mb-2"><i class="fa-solid fa-cloud-arrow-up me-1 text-primary"></i> Anexar Novo Documento no Google Drive</h6>
-            <form id="formAnexoFile" onsubmit="enviarAnexoDrive(event, '${proc.id}')" class="row g-2 align-items-center">
-              <div class="col-md-4">
-                <select class="form-select form-select-sm" id="anexo_tipo_doc" required>
-                  <option value="Contrato Assinado">Contrato Assinado</option>
-                  <option value="Procuração Assinada">Procuração Assinada</option>
-                  <option value="Documento Pessoal / RG">Documento Pessoal / RG</option>
-                  <option value="Comprovante de Residência">Comprovante de Residência</option>
-                  <option value="Outros Anexos">Outros Anexos</option>
-                </select>
-              </div>
-              <div class="col-md-5">
-                <input type="file" class="form-control form-control-sm" id="anexo_file_input" accept=".pdf,image/*" required>
-              </div>
-              <div class="col-md-3">
-                <button type="submit" class="btn btn-sm btn-primary w-100" id="btnEnviarAnexo">
-                  <i class="fa-solid fa-upload me-1"></i> Salvar no Drive
-                </button>
-              </div>
-            </form>
-          </div>
-
-          <!-- LISTA DE ARQUIVOS JÁ ANEXADOS -->
-          <div class="card p-3 border-0 bg-light">
-            <h6 class="fw-bold text-dark mb-2"><i class="fa-solid fa-folder-tree me-1 text-success"></i> Documentos Anexados ao Processo</h6>
-            ${anexosHtml}
-          </div>
-        </div>
-
-      </div>
-    `;
-
-    document.getElementById('modal_footer').innerHTML = `
-      <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Fechar</button>
-      <button type="button" class="btn btn-primary fw-bold" onclick="gerarDocumentoPDF('${proc.id}')">
-        <i class="fa-solid fa-file-pdf me-1"></i> Gerar Minuta PDF
-      </button>
-    `;
-
-    const tabFirst = document.getElementById('tab-resumo-btn');
-    if (tabFirst) {
-      const tabObj = new bootstrap.Tab(tabFirst);
-      tabObj.show();
-    }
-
-    const myModal = new bootstrap.Modal(document.getElementById('modalProcesso'));
-    myModal.show();
-  }
-
-  function salvarStatusProcesso(idProcesso) {
-    const novoStatus = document.getElementById('modal_edit_status').value;
-    const payload = {
-      action: 'atualizarStatusProcesso',
-      payload: { id_processo: idProcesso, status: novoStatus }
-    };
-
-    enviarAtualizacaoProcesso(payload, "Status do processo atualizado com sucesso!");
-  }
-
-  function salvarPoderesProcesso(idProcesso) {
-    const gerais = document.getElementById('modal_edit_poderes_gerais').value;
-    const especiais = document.getElementById('modal_edit_poderes_especiais').value;
-    const objeto = document.getElementById('modal_edit_objeto_contrato').value;
-    const honorarios = document.getElementById('modal_edit_honorarios').value;
-
-    const payload = {
-      action: 'atualizarPoderesProcesso',
-      payload: { 
-        id_processo: idProcesso, 
-        poderes_gerais: gerais, 
-        poderes_especiais: especiais,
-        objeto_contrato: objeto,
-        honorarios: honorarios
-      }
-    };
-
-    enviarAtualizacaoProcesso(payload, "Detalhes da causa e contrato salvos com sucesso!");
-  }
-
-  function adicionarAnotacaoProcesso(idProcesso) {
-    const nota = document.getElementById('modal_nova_anotacao').value.trim();
-    if (!nota) return;
-
-    const payload = {
-      action: 'adicionarAnotacaoProcesso',
-      payload: { id_processo: idProcesso, anotacao: nota }
-    };
-
-    enviarAtualizacaoProcesso(payload, "Anotação registrada com sucesso!");
-  }
-
-  async function enviarAtualizacaoProcesso(payload, mensagemSucesso) {
-    payload.payload.usuario_operador = usuarioLogado ? usuarioLogado.usuario : "Sistema";
-    const formData = new FormData();
-    formData.append('data', JSON.stringify(payload));
-
-    try {
-      await fetch(API_URL, {
-        method: 'POST',
-        mode: 'no-cors',
-        body: formData
-      });
-
-      alert(mensagemSucesso);
-      carregarBancoDadosGlobal();
-    } catch (err) {
-      alert('Erro ao atualizar processo: ' + err);
-    }
-  }
-
-  function enviarAnexoDrive(e, idProcesso) {
-    e.preventDefault();
-    const btn = document.getElementById('btnEnviarAnexo');
-    const fileInput = document.getElementById('anexo_file_input');
-    const tipoDoc = document.getElementById('anexo_tipo_doc').value;
-
-    if (!fileInput.files || fileInput.files.length === 0) {
-      alert("Selecione um arquivo PDF ou imagem primeiro.");
-      return;
-    }
-
-    const file = fileInput.files[0];
-    btn.disabled = true;
-    btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin me-1"></i> Enviando...';
-
-    const reader = new FileReader();
-    reader.onload = function(evt) {
-      const base64Data = evt.target.result;
-
-      const payload = {
-        action: 'salvarAnexo',
-        payload: {
-          id_processo: idProcesso,
-          tipo_doc: tipoDoc,
-          nome_arquivo: file.name,
-          mime_type: file.type,
-          base64_data: base64Data,
-          usuario_operador: usuarioLogado ? usuarioLogado.usuario : "Sistema"
-        }
-      };
-
-      const formData = new FormData();
-      formData.append('data', JSON.stringify(payload));
-
-      fetch(API_URL, {
-        method: 'POST',
-        body: formData
-      })
-      .then(res => res.json())
-      .then(result => {
-        if (result.success) {
-          alert('Anexo salvo com sucesso no Google Drive!');
-          fileInput.value = '';
-          carregarBancoDadosGlobal();
-        } else {
-          alert('Erro ao enviar anexo: ' + (result.message || 'Falha ao salvar no Drive'));
-        }
-      })
-      .catch(err => {
-        alert('Erro ao enviar arquivo: ' + err);
-      })
-      .finally(() => {
-        btn.disabled = false;
-        btn.innerHTML = '<i class="fa-solid fa-upload me-1"></i> Salvar no Drive';
-      });
-    };
-
-    reader.readAsDataURL(file);
-  }
-
-  function gerarDocumentoPDF(idProcesso) {
-    const proc = dbProcessos.find(p => p.id === idProcesso);
-    if (!proc) return;
-
-    processoAtualDoc = proc;
-
-    const cliente = dbClientes.find(c => c.id === proc.id_cliente);
-    if (!cliente) {
-      alert("Erro: Cliente não localizado para este processo.");
-      return;
-    }
-
-    const modalDet = bootstrap.Modal.getInstance(document.getElementById('modalProcesso'));
-    if (modalDet) modalDet.hide();
-
-    const dataHoje = new Date().toLocaleDateString('pt-BR', { day: '2-digit', month: 'long', year: 'numeric' });
-    const localData = (proc.unidade === "Casa Nova" ? "Casa Nova/BA, " : "Distrito de Bem Bom, Casa Nova/BA, ") + dataHoje;
-
-    let advQualificacao = "";
-    if (proc.unidade === "Casa Nova") {
-      advQualificacao = `
-        <strong>GABRIELLE MARQUES FOGIATO</strong>, brasileira, convivente em união estável, advogada, portadora do RG nº 11.569.064, inscrita no CPF nº 070.568.209-99, OAB/PE 66.919, titular do e-mail gabriellefogiato@hotmail.com, com endereço profissional na Rua Coronel Amorim, Centro, Nº 200, Petrolina-PE, e <strong>RUAN DOS SANTOS MATOS SOUZA</strong>, brasileiro, solteiro, advogado, portador do RG nº 2166279902, inscrito no CPF nº 078.298.325-10, OAB/BA 86947, e-mail ruanmatos2000@gmail.com, com endereço profissional na Rua da Alegria, Centro, Distrito de Bem Bom, nº 70, Casa Nova/BA.
-      `;
-    } else {
-      advQualificacao = `
-        <strong>RUAN DOS SANTOS MATOS SOUZA</strong>, brasileiro, solteiro, advogado, portador do RG nº 2166279902, inscrito no CPF nº 078.298.325-10, regularmente inscrito na OAB/BA sob o nº 86947, titular do e-mail ruanmatos2000@gmail.com, com endereço profissional na Rua da Alegria, Centro, Distrito de Bem Bom, nº 70, Casa Nova/BA, e <strong>GABRIELLE MARQUES FOGIATO</strong>, OAB/PE 66.919.
-      `;
-    }
-
-    const parteContraria = proc.parte_contraria || "COELBA / Neoenergia";
-    const objetoTexto = proc.objeto_contrato || `prestação de serviços advocatícios para a defesa dos interesses do(a) CONTRATANTE na ação referente a ${proc.acao_tipo || 'demanda judicial/extrajudicial'} em face de ${parteContraria}`;
-    const honorariosTexto = proc.honorarios || "R$ 300,00 (trezentos reais) de entrada mais 30% (trinta por cento) sobre o proveito econômico obtido.";
-
-    const poderesGerais = proc.poderes_gerais || `Por meio deste instrumento são outorgados poderes gerais para atuar perante qualquer juízo, instância ou Tribunal, bem como perante a ${parteContraria}, ANEEL, Procon, Ouvidoria, consumidor.gov.br e demais órgãos públicos e administrativos, propondo as ações competentes com a cláusula "ad judicia et extra", nos termos do art. 105 do Código de Processo Civil.`;
-
-    const poderesEspeciais = proc.poderes_especiais || `A outorgante confere aos seus procuradores poderes especiais para requerer a suspensão ou cancelamento de cobranças, negativações e protestos; firmar acordos e transações; confessar; desistir; reconhecer pedidos; receber e dar quitação; levantar valores e alvarás judiciais; assinar declarações e compromissos; representar a outorgante perante instituições financeiras e repartições públicas; e substabelecer com ou sem reserva de poderes.`;
-
-    const logoHeaderHtml = `
-      <div style="text-align: center; margin-bottom: 20px;">
-        <img src="${LOGO_URL}" alt="Logo Escritório" style="max-height: 100px; max-width: 280px; object-fit: contain;" onerror="this.style.display='none'">
-      </div>
-    `;
-
-    // Carrega imagens de assinatura do banco caso já existam
-    const imgClienteExistente = proc.assinatura_cliente ? `<img src="${proc.assinatura_cliente}" style="max-height: 50px; display: block; margin: 0 auto;">` : '';
-    const imgAdvogadoExistente = proc.assinatura_advogado ? `<img src="${proc.assinatura_advogado}" style="max-height: 50px; display: block; margin: 0 auto;">` : '';
-
-    const htmlDocumento = `
-      <div style="font-family: 'Times New Roman', serif; line-height: 1.6; color: #000; font-size: 11pt;">
-        
-        <!-- CABEÇALHO COM LOGO DA EMPRESA -->
-        ${logoHeaderHtml}
-
-        <!-- PROCURAÇÃO -->
-        <div style="text-align: center; margin-bottom: 25px;">
-          <h4 style="font-weight: bold; margin-bottom: 2px; text-transform: uppercase;">PROCURAÇÃO "AD JUDICIA ET EXTRA"</h4>
-          <p style="font-size: 9pt; font-style: italic; margin-top: 0; color: #444;">RUAN MATOS ADVOCACIA</p>
-        </div>
-
-        <p style="text-align: justify; margin-bottom: 12px;"><strong>OUTORGANTE:</strong> ${cliente.nome_razao.toUpperCase()}, ${cliente.tipo === 'PJ' ? 'Pessoa Jurídica' : 'brasileiro(a)'}, ${cliente.estado_civil || 'estado civil não informado'}, ${cliente.profissao || 'profissão não informada'}, inscrito(a) no CPF/CNPJ nº ${cliente.cpf_cnpj}, RG nº ${cliente.rg_ie || '-'}, residente e domiciliado(a) em ${cliente.endereco}.</p>
-
-        <p style="text-align: justify; margin-bottom: 12px;"><strong>OUTORGADOS:</strong> ${advQualificacao}</p>
-
-        <p style="text-align: justify; margin-bottom: 12px;"><strong>PODERES GERAIS:</strong> ${poderesGerais}</p>
-
-        <p style="text-align: justify; margin-bottom: 12px;"><strong>PODERES ESPECIAIS:</strong> ${poderesEspeciais}</p>
-
-        <p style="text-align: right; margin-top: 25px;">${localData}</p>
-
-        <div style="margin-top: 40px; text-align: center;">
-          <div id="sig_outorgante_place" class="mb-1" style="min-height: 40px;">${imgClienteExistente}</div>
-          <p style="border-top: 1px solid #000; width: 70%; margin: 0 auto; padding-top: 5px;">${cliente.nome_razao.toUpperCase()}<br><small>OUTORGANTE</small></p>
-        </div>
-
-        <div class="page-break" style="margin-top: 60px; padding-top: 40px; border-top: 2px dashed #ccc;" class="no-print"></div>
-
-        <!-- CABEÇALHO COM LOGO CONTRATO -->
-        ${logoHeaderHtml}
-
-        <!-- CONTRATO DE HONORÁRIOS -->
-        <div style="text-align: center; margin-bottom: 25px; margin-top: 10px;">
-          <h4 style="font-weight: bold; text-transform: uppercase;">CONTRATO DE HONORÁRIOS ADVOCATÍCIOS</h4>
-        </div>
-
-        <p style="text-align: justify; margin-bottom: 12px;"><strong>CONTRATANTE:</strong> ${cliente.nome_razao.toUpperCase()}, CPF/CNPJ nº ${cliente.cpf_cnpj}, residente e domiciliado(a) em ${cliente.endereco}.</p>
-        
-        <p style="text-align: justify; margin-bottom: 12px;"><strong>CONTRATADOS:</strong> ${advQualificacao}</p>
-
-        <p style="text-align: justify; margin-bottom: 12px;"><strong>CLÁUSULA 1ª - DO OBJETO:</strong> O presente contrato tem como objeto ${objetoTexto}.</p>
-
-        <p style="text-align: justify; margin-bottom: 12px;"><strong>CLÁUSULA 2ª - DOS HONORÁRIOS:</strong> Como contraprestação pelos serviços jurídicos prestados, o(a) CONTRATANTE pagará aos CONTRATADOS o valor de ${honorariosTexto}.</p>
-
-        <p style="text-align: justify; margin-bottom: 12px;"><strong>CLÁUSULA 3ª - DA SUCUMBÊNCIA:</strong> Os honorários de sucumbência pertencem exclusivamente aos CONTRATADOS e não se confundem com os honorários contratuais ajustados.</p>
-
-        <p style="text-align: justify; margin-bottom: 12px;"><strong>CLÁUSULA 4ª - DA LGPD (PROTEÇÃO DE DADOS):</strong> O CONTRATANTE autoriza expressamente os CONTRATADOS a realizarem o tratamento de seus dados pessoais e sensíveis estritamente para o cumprimento do objeto deste contrato e peticionamento perante órgãos judiciais e administrativos, nos termos da Lei nº 13.709/2018.</p>
-
-        <p style="text-align: justify; margin-bottom: 12px;"><strong>CLÁUSULA 5ª - DO FORO:</strong> Para dirimir quaisquer controvérsias oriundas deste contrato, as partes elegem o foro da comarca de Casa Nova-BA.</p>
-
-        <p style="text-align: right; margin-top: 25px;">${localData}</p>
-
-        <div style="margin-top: 40px; text-align: center;">
-          <div id="sig_contratante_place" class="mb-1" style="min-height: 40px;">${imgClienteExistente}</div>
-          <p style="border-top: 1px solid #000; width: 70%; margin: 0 auto; padding-top: 5px;">${cliente.nome_razao.toUpperCase()}<br><small>CONTRATANTE</small></p>
-        </div>
-
-        <div style="margin-top: 45px; text-align: center;">
-          <div id="sig_advogado_place" class="mb-1" style="min-height: 40px;">${imgAdvogadoExistente}</div>
-          <p style="border-top: 1px solid #000; width: 70%; margin: 0 auto; padding-top: 5px;">RUAN MATOS ADVOCACIA / GABRIELLE FOGIATO ADVOCACIA<br><small>CONTRATADOS</small></p>
-        </div>
-
-      </div>
-    `;
-
-    document.getElementById('printableDoc').innerHTML = htmlDocumento;
-    const modalDoc = new bootstrap.Modal(document.getElementById('modalDocumentoDoc'));
-    modalDoc.show();
-
-    setTimeout(inicializarCanvasAssinatura, 500);
-  }
-
-  let canvas, ctx, isDrawing = false;
-
-  function inicializarCanvasAssinatura() {
-    canvas = document.getElementById('sigCanvas');
-    if (!canvas) return;
-    ctx = canvas.getContext('2d');
-
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
-    ctx.lineWidth = 2;
-    ctx.strokeStyle = '#000000';
-
-    canvas.onmousedown = (e) => { isDrawing = true; ctx.beginPath(); ctx.moveTo(getPos(e).x, getPos(e).y); };
-    canvas.onmousemove = (e) => { if (isDrawing) { ctx.lineTo(getPos(e).x, getPos(e).y); ctx.stroke(); } };
-    canvas.onmouseup = () => { isDrawing = false; };
-
-    canvas.ontouchstart = (e) => { isDrawing = true; ctx.beginPath(); const pos = getPos(e.touches[0]); ctx.moveTo(pos.x, pos.y); e.preventDefault(); };
-    canvas.ontouchmove = (e) => { if (isDrawing) { const pos = getPos(e.touches[0]); ctx.lineTo(pos.x, pos.y); ctx.stroke(); } e.preventDefault(); };
-    canvas.ontouchend = () => { isDrawing = false; };
-  }
-
-  function getPos(e) {
-    const rect = canvas.getBoundingClientRect();
-    const scaleX = canvas.width / rect.width;
-    const scaleY = canvas.height / rect.height;
-    return {
-      x: (e.clientX - rect.left) * scaleX,
-      y: (e.clientY - rect.top) * scaleY
-    };
-  }
-
-  function limparAssinaturaCanvas() {
-    if (ctx && canvas) {
-      ctx.clearRect(0, 0, canvas.width, canvas.height);
-    }
-  }
-
-  function aplicarAssinaturaNoDocumento() {
-    if (!canvas || !processoAtualDoc) return;
-    const imgData = canvas.toDataURL('image/png');
-    const target = document.getElementById('sigTargetSelect').value;
-
-    const htmlImg = `<img src="${imgData}" style="max-height: 50px; display: block; margin: 0 auto;">`;
-
-    if (target === 'cliente') {
-      const placeOutorgante = document.getElementById('sig_outorgante_place');
-      const placeContratante = document.getElementById('sig_contratante_place');
-
-      if (placeOutorgante) placeOutorgante.innerHTML = htmlImg;
-      if (placeContratante) placeContratante.innerHTML = htmlImg;
-
-      processoAtualDoc.assinatura_cliente = imgData;
-      salvarAssinaturasNoServidor(processoAtualDoc.id, imgData, processoAtualDoc.assinatura_advogado || "");
-
-    } else if (target === 'advogado') {
-      const placeAdvogado = document.getElementById('sig_advogado_place');
-      if (placeAdvogado) placeAdvogado.innerHTML = htmlImg;
-
-      processoAtualDoc.assinatura_advogado = imgData;
-      salvarAssinaturasNoServidor(processoAtualDoc.id, processoAtualDoc.assinatura_cliente || "", imgData);
-    }
-  }
-
-  async function salvarAssinaturasNoServidor(idProcesso, sigCliente, sigAdvogado) {
-    const statusMsg = document.getElementById('sig_status_msg');
-    if (statusMsg) statusMsg.innerHTML = '<i class="fa-solid fa-spinner fa-spin me-1"></i> Gravando assinatura no banco de dados...';
-
-    const payload = {
-      action: 'salvarAssinaturasProcesso',
-      payload: {
-        id_processo: idProcesso,
-        assinatura_cliente: sigCliente,
-        assinatura_advogado: sigAdvogado,
-        usuario_operador: usuarioLogado ? usuarioLogado.usuario : "Sistema"
-      }
-    };
-
-    const formData = new FormData();
-    formData.append('data', JSON.stringify(payload));
-
-    try {
-      await fetch(API_URL, {
-        method: 'POST',
-        mode: 'no-cors',
-        body: formData
-      });
-
-      if (statusMsg) statusMsg.innerHTML = '<i class="fa-solid fa-circle-check text-success me-1"></i> Assinatura gravada permanentemente no processo!';
-    } catch (err) {
-      if (statusMsg) statusMsg.innerHTML = '<i class="fa-solid fa-circle-exclamation text-danger me-1"></i> Erro ao salvar assinatura: ' + err;
-    }
-  }
-
-  function atualizarMascarasTipo() {
-    const tipo = document.getElementById('cli_tipo').value;
-    const inputCpf = document.getElementById('cli_cpf');
-    const lblCpf = document.getElementById('lbl_cpf');
-    const lblNome = document.getElementById('lbl_nome');
-    const lblRg = document.getElementById('lbl_rg');
-    const selectEstadoCivil = document.getElementById('cli_estado_civil');
-
-    if (tipo === 'PJ') {
-      lblNome.innerText = "Razão Social";
-      lblCpf.innerText = "CNPJ";
-      lblRg.innerText = "Inscrição Estadual (IE)";
-      inputCpf.placeholder = "00.000.000/0000-00";
-      if(!selectEstadoCivil.value) selectEstadoCivil.value = "Não Aplicável (PJ)";
-    } else {
-      lblNome.innerText = "Nome Completo";
-      lblCpf.innerText = "CPF";
-      lblRg.innerText = "RG";
-      inputCpf.placeholder = "000.000.000-00";
-    }
-  }
-
-  function aplicarMascaraDocumento(input) {
-    let v = input.value.replace(/\D/g, "");
-    const tipo = document.getElementById('cli_tipo').value;
-
-    if (tipo === 'PF') {
-      v = v.substring(0, 11);
-      v = v.replace(/(\d{3})(\d)/, "$1.$2");
-      v = v.replace(/(\d{3})(\d)/, "$1.$2");
-      v = v.replace(/(\d{3})(\d{1,2})$/, "$1-$2");
-    } else {
-      v = v.substring(0, 14);
-      v = v.replace(/^(\d{2})(\d)/, "$1.$2");
-      v = v.replace(/^(\d{2})\.(\d{3})(\d)/, "$1.$2.$3");
-      v = v.replace(/\.(\d{3})(\d)/, ".$1/$2");
-      v = v.replace(/(\d{4})(\d)/, "$1-$2");
-    }
-    input.value = v;
-  }
-
-  function aplicarMascaraTelefone(input) {
-    let v = input.value.replace(/\D/g, "").substring(0, 11);
-    if (v.length > 10) {
-      v = v.replace(/^(\d\d)(\d{5})(\d\d\d\d)$/, "($1) $2-$3");
-    } else if (v.length > 5) {
-      v = v.replace(/^(\d\d)(\d{4})(\d{0,4})$/, "($1) $2-$3");
-    } else if (v.length > 2) {
-      v = v.replace(/^(\d\d)(\d{0,5})$/, "($1) $2");
-    }
-    input.value = v;
-  }
-
-  function filtrarBuscaClienteTela() {
-    const termo = document.getElementById('busca_cliente_input').value.toLowerCase().trim();
-    const select = document.getElementById('busca_cliente_select');
-
-    if (!termo) {
-      select.classList.add('d-none');
-      return;
-    }
-
-    const encontrados = dbClientes.filter(c => {
-      const docLimpo = String(c.cpf_cnpj || "").replace(/\D/g, "");
-      const termoLimpo = termo.replace(/\D/g, "");
-      return String(c.id || "").toLowerCase().includes(termo) ||
-             String(c.nome_razao || "").toLowerCase().includes(termo) ||
-             (termoLimpo !== "" && docLimpo.includes(termoLimpo)) ||
-             String(c.rg_ie || "").toLowerCase().includes(termo);
-    });
-
-    if (encontrados.length > 0) {
-      select.innerHTML = '<option value="">-- Clique abaixo para preencher os campos --</option>';
-      encontrados.forEach(c => {
-        select.innerHTML += `<option value="${c.id}">[${c.id}] ${c.nome_razao} - Doc: ${c.cpf_cnpj}</option>`;
-      });
-      select.classList.remove('d-none');
-    } else {
-      select.innerHTML = '<option value="">Nenhum cliente encontrado</option>';
-      select.classList.remove('d-none');
-    }
-  }
-
-  function preencherCamposClienteSelecionado() {
-    const id = document.getElementById('busca_cliente_select').value;
-    if (!id) return;
-
-    const cliente = dbClientes.find(c => c.id === id);
-    if (cliente) {
-      document.getElementById('cli_id_hidden').value = cliente.id;
-      document.getElementById('cli_tipo').value = cliente.tipo || 'PF';
-      atualizarMascarasTipo();
-      
-      document.getElementById('cli_nome').value = cliente.nome_razao || '';
-      document.getElementById('cli_cpf').value = cliente.cpf_cnpj || '';
-      document.getElementById('cli_rg').value = cliente.rg_ie || '';
-      document.getElementById('cli_estado_civil').value = cliente.estado_civil || '';
-      document.getElementById('cli_profissao').value = cliente.profissao || '';
-      document.getElementById('cli_telefone').value = cliente.telefone || '';
-      document.getElementById('cli_endereco').value = cliente.endereco || '';
-      document.getElementById('cli_email').value = cliente.email || '';
-      document.getElementById('cli_obs').value = cliente.obs || '';
-
-      document.getElementById('busca_cliente_select').classList.add('d-none');
-      alert(`Cliente [${cliente.id}] carregado com sucesso!`);
-    }
-  }
-
-  function limparFormularioCliente() {
-    document.getElementById('cli_id_hidden').value = '';
-    document.getElementById('formCliente').reset();
-    document.getElementById('busca_cliente_input').value = '';
-    document.getElementById('busca_cliente_select').classList.add('d-none');
-    atualizarMascarasTipo();
-  }
-
-  async function enviarDados(payload, btnElement, formElement) {
-    btnElement.disabled = true;
-    btnElement.innerHTML = '<i class="fa-solid fa-spinner fa-spin me-1"></i> Processando...';
-
-    payload.payload.usuario_operador = usuarioLogado ? usuarioLogado.usuario : "Desconhecido";
-
-    const formData = new FormData();
-    formData.append('data', JSON.stringify(payload));
-
-    try {
-      await fetch(API_URL, {
-        method: 'POST',
-        mode: 'no-cors',
-        body: formData
-      });
-
-      alert('Operação gravada no banco de dados!');
-      if (formElement) formElement.reset();
-      limparFormularioCliente();
-      carregarBancoDadosGlobal();
-    } catch (err) {
-      alert('Erro de envio: ' + err);
-    } finally {
-      btnElement.disabled = false;
-      btnElement.innerHTML = '<i class="fa-solid fa-save me-1"></i> Salvar';
-    }
-  }
-
-  function validarESalvarCliente(e) {
-    e.preventDefault();
-    const docInput = document.getElementById('cli_cpf').value.replace(/\D/g, "");
-    const idAtual = document.getElementById('cli_id_hidden').value;
-
-    const existente = dbClientes.find(c => String(c.cpf_cnpj).replace(/\D/g, "") === docInput && docInput !== "" && c.id !== idAtual);
-
-    if (existente) {
-      const confirma = confirm(`ATENÇÃO DE DUPLICIDADE:\n\nJá existe um cliente cadastrado com este documento!\n\nID: ${existente.id}\nNome: ${existente.nome_razao}\n\nDeseja ATUALIZAR o cadastro deste cliente com as novas informações?`);
-      if (!confirma) return;
-      document.getElementById('cli_id_hidden').value = existente.id;
-    }
-
-    salvarCliente();
-  }
-
-  function salvarCliente() {
-    const btn = document.getElementById('btnSalvarCli');
-    const form = document.getElementById('formCliente');
-
-    const payload = {
-      action: 'salvarCliente',
-      payload: {
-        id_cliente: document.getElementById('cli_id_hidden').value,
-        tipo: document.getElementById('cli_tipo').value,
-        nome_razao: document.getElementById('cli_nome').value,
-        cpf_cnpj: document.getElementById('cli_cpf').value,
-        rg_ie: document.getElementById('cli_rg').value,
-        estado_civil: document.getElementById('cli_estado_civil').value,
-        profissao: document.getElementById('cli_profissao').value,
-        telefone: document.getElementById('cli_telefone').value,
-        endereco: document.getElementById('cli_endereco').value,
-        email: document.getElementById('cli_email').value,
-        obs: document.getElementById('cli_obs').value
-      }
-    };
-
-    enviarDados(payload, btn, form);
-  }
-
-  function salvarProcesso(e) {
-    e.preventDefault();
-    const btn = document.getElementById('btnSalvarProc');
-    const form = document.getElementById('formProcesso');
-
-    const payload = {
-      action: 'cadastrarProcesso',
-      payload: {
-        id_cliente: document.getElementById('proc_id_cliente').value,
-        num_processo: document.getElementById('proc_num').value,
-        unidade: document.getElementById('proc_unidade').value,
-        acao_tipo: document.getElementById('proc_tipo').value,
-        polo: document.getElementById('proc_polo').value,
-        parte_contraria: document.getElementById('proc_parte_contraria').value,
-        vara_tribunal: document.getElementById('proc_vara').value,
-        valor_causa: document.getElementById('proc_valor').value,
-        honorarios: document.getElementById('proc_honorarios').value,
-        status: document.getElementById('proc_status').value,
-        objeto_contrato: document.getElementById('proc_objeto_contrato').value,
-        poderes_gerais: document.getElementById('proc_poderes_gerais').value,
-        poderes_especiais: document.getElementById('proc_poderes_especiais').value
-      }
-    };
-
-    enviarDados(payload, btn, form);
-  }
-
-  function renderizarOptionsProcessos(lista) {
-    const select = document.getElementById('proc_id_cliente');
-    if (!lista || lista.length === 0) {
-      select.innerHTML = '<option value="">Nenhum cliente cadastrado no banco</option>';
-      return;
-    }
-    select.innerHTML = '<option value="">-- Selecione o Cliente --</option>';
-    lista.forEach(c => {
-      const doc = c.cpf_cnpj ? ' - Doc: ' + c.cpf_cnpj : '';
-      select.innerHTML += `<option value="${c.id}">[${c.id}] ${c.nome_razao}${doc}</option>`;
-    });
-  }
-
-  function filtrarListaClientesProcesso() {
-    const termo = document.getElementById('proc_busca_cliente').value.toLowerCase().trim();
-    if (!termo) {
-      renderizarOptionsProcessos(dbClientes);
-      return;
-    }
-
-    const filtrados = dbClientes.filter(c => {
-      const docLimpo = String(c.cpf_cnpj || "").replace(/\D/g, "");
-      const termoLimpo = termo.replace(/\D/g, "");
-      return String(c.id || "").toLowerCase().includes(termo) ||
-             String(c.nome_razao || "").toLowerCase().includes(termo) ||
-             (termoLimpo !== "" && docLimpo.includes(termoLimpo)) ||
-             String(c.rg_ie || "").toLowerCase().includes(termo);
-    });
-
-    renderizarOptionsProcessos(filtrados);
-  }
-
-  window.onload = function() {
-    verificarSessao();
-  };
 </script>
+<script>
+/* ======== js/api.js ======== */
+/**
+ * DMA SYS ADV — api.js
+ * Toda comunicação com o servidor passa por Api.chamar().
+ *
+ * Por que "text/plain"? O Apps Script não responde a pré-verificações de CORS.
+ * Enviando o JSON como texto simples, o navegador não faz essa pré-verificação
+ * e conseguimos LER a resposta (diferente do antigo modo "no-cors", que
+ * mostrava "sucesso" mesmo quando o servidor falhava).
+ */
+const Api = {
+  CHAVE_TOKEN: 'adv_token',
+
+  token() { return sessionStorage.getItem(this.CHAVE_TOKEN) || ''; },
+  salvarToken(t) { sessionStorage.setItem(this.CHAVE_TOKEN, t); },
+  limparToken() { sessionStorage.removeItem(this.CHAVE_TOKEN); },
+
+  async chamar(acao, dados = {}) {
+    if (!APP_CONFIG.API_URL || APP_CONFIG.API_URL.indexOf('http') !== 0) {
+      throw new Error('A URL da API não foi configurada em js/config.js.');
+    }
+    let resp;
+    try {
+      const r = await fetch(APP_CONFIG.API_URL, {
+        method: 'POST',
+        headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+        body: JSON.stringify({ acao, token: this.token(), dados })
+      });
+      resp = await r.json();
+    } catch (e) {
+      throw new Error('Não foi possível falar com o servidor. Verifique a internet e tente de novo.');
+    }
+
+    if (!resp.ok) {
+      const erro = new Error(resp.erro || 'Erro inesperado.');
+      erro.codigo = resp.codigo;
+      if (resp.codigo === 'SESSAO') App.encerrarSessao(resp.erro);
+      if (resp.codigo === 'TROCAR_SENHA') App.mostrarTela('senha');
+      throw erro;
+    }
+    return resp.dados;
+  }
+};
+
+</script>
+<script>
+/* ======== js/ui.js ======== */
+/**
+ * DMA SYS ADV — ui.js
+ * Componentes reutilizáveis: avisos, modais, confirmação, tabela com busca/filtros/paginação, formulários.
+ * Todo texto vindo do banco passa por UI.esc() antes de ir para a tela (evita XSS).
+ */
+const UI = {
+  esc(v) {
+    return String(v === null || v === undefined ? '' : v)
+      .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+  },
+
+  normalizar(v) {
+    return String(v || '').normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase();
+  },
+
+  dataHora(v) {
+    if (!v) return '-';
+    const m = String(v).match(/^(\d{4})-(\d{2})-(\d{2})(?:[ T](\d{2}):(\d{2}))?/);
+    if (!m) return UI.esc(v);
+    return `${m[3]}/${m[2]}/${m[1]}` + (m[4] ? ` ${m[4]}:${m[5]}` : '');
+  },
+
+  iniciais(nome) {
+    const p = String(nome || '').trim().split(/\s+/);
+    return ((p[0] || '')[0] || '').toUpperCase() + ((p.length > 1 ? p[p.length - 1][0] : '') || '').toUpperCase();
+  },
+
+  toast(msg, tipo = 'sucesso') {
+    const cores = { sucesso: 'text-bg-success', erro: 'text-bg-danger', aviso: 'text-bg-warning', info: 'text-bg-secondary' };
+    const el = document.createElement('div');
+    el.className = `toast align-items-center border-0 ${cores[tipo] || cores.info}`;
+    el.setAttribute('role', 'status');
+    el.innerHTML = `<div class="d-flex"><div class="toast-body">${UI.esc(msg)}</div>
+      <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast" aria-label="Fechar"></button></div>`;
+    document.getElementById('toasts').appendChild(el);
+    const t = new bootstrap.Toast(el, { delay: tipo === 'erro' ? 7000 : 3500 });
+    el.addEventListener('hidden.bs.toast', () => el.remove());
+    t.show();
+  },
+
+  erro(e) { UI.toast(e && e.message ? e.message : String(e), 'erro'); },
+
+  /** Coloca o botão em "carregando" enquanto a promessa roda */
+  async ocupado(botao, fn) {
+    const html = botao ? botao.innerHTML : '';
+    if (botao) { botao.disabled = true; botao.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span> Aguarde…'; }
+    try { return await fn(); }
+    finally { if (botao) { botao.disabled = false; botao.innerHTML = html; } }
+  },
+
+  /** Modal genérico. Retorna { el, fechar } */
+  modal({ titulo, corpo, rodape = '', tamanho = '', aoFechar }) {
+    const el = document.createElement('div');
+    el.className = 'modal fade';
+    el.tabIndex = -1;
+    el.innerHTML = `<div class="modal-dialog modal-dialog-scrollable ${tamanho}"><div class="modal-content">
+      <div class="modal-header"><h5 class="modal-title">${titulo}</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fechar"></button></div>
+      <div class="modal-body">${corpo}</div>
+      ${rodape ? `<div class="modal-footer">${rodape}</div>` : ''}
+    </div></div>`;
+    document.getElementById('modais').appendChild(el);
+    const m = new bootstrap.Modal(el);
+    el.addEventListener('hidden.bs.modal', () => { el.remove(); if (aoFechar) aoFechar(); });
+    m.show();
+    return { el, fechar: () => m.hide() };
+  },
+
+  confirmar(mensagem, { titulo = 'Confirmar', botao = 'Confirmar', perigo = false } = {}) {
+    return new Promise(resolve => {
+      let ok = false;
+      const m = UI.modal({
+        titulo: UI.esc(titulo),
+        corpo: `<p class="mb-0">${UI.esc(mensagem)}</p>`,
+        rodape: `<button class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancelar</button>
+                 <button class="btn ${perigo ? 'btn-danger' : 'btn-primary'}" data-ok>${UI.esc(botao)}</button>`,
+        aoFechar: () => resolve(ok)
+      });
+      m.el.querySelector('[data-ok]').onclick = () => { ok = true; m.fechar(); };
+    });
+  },
+
+  /** Mostra uma senha temporária com botão de copiar */
+  mostrarSenha(titulo, senha, aviso) {
+    const m = UI.modal({
+      titulo: UI.esc(titulo),
+      corpo: `<p class="small texto-2">${UI.esc(aviso)}</p>
+        <div class="senha-gerada mb-2">${UI.esc(senha)}</div>
+        <p class="small texto-2 mb-0">Ela não será exibida de novo. No primeiro acesso, o sistema pede a troca.</p>`,
+      rodape: `<button class="btn btn-outline-secondary" data-copiar><i class="bi bi-clipboard me-1"></i>Copiar</button>
+               <button class="btn btn-primary" data-bs-dismiss="modal">Concluir</button>`
+    });
+    m.el.querySelector('[data-copiar]').onclick = async (ev) => {
+      try { await navigator.clipboard.writeText(senha); ev.target.closest('button').innerHTML = '<i class="bi bi-check2 me-1"></i>Copiada'; }
+      catch (e) { UI.toast('Selecione e copie manualmente.', 'aviso'); }
+    };
+  },
+
+  opcoes(lista, selecionado, { vazio = '', valor = 'id', rotulo = 'nome' } = {}) {
+    let h = vazio !== null ? `<option value="">${UI.esc(vazio)}</option>` : '';
+    (lista || []).forEach(o => {
+      const v = typeof o === 'object' ? o[valor] : o;
+      const r = typeof o === 'object' ? o[rotulo] : o;
+      h += `<option value="${UI.esc(v)}" ${String(v) === String(selecionado) ? 'selected' : ''}>${UI.esc(r)}</option>`;
+    });
+    return h;
+  },
+
+  /** Lê todos os campos com data-campo dentro de um elemento */
+  lerForm(el) {
+    const o = {};
+    el.querySelectorAll('[data-campo]').forEach(i => {
+      o[i.dataset.campo] = i.type === 'checkbox' ? i.checked : i.value.trim();
+    });
+    return o;
+  },
+
+  /**
+   * Tabela com busca, filtros e paginação, tudo no navegador.
+   * cfg: { colunas:[{titulo, campo, render(r), classe}], dados, busca:[campos], filtros:[{campo, titulo, opcoes:[{valor,rotulo}]}],
+   *        porPagina, vazio, linhaClasse(r), extraBarra }
+   */
+  tabela(container, cfg) {
+    const estado = { termo: '', filtros: {}, pagina: 1 };
+    const porPagina = cfg.porPagina || 15;
+
+    container.innerHTML = `
+      <div class="barra-ferramentas">
+        <input type="search" class="form-control busca" placeholder="${UI.esc(cfg.placeholder || 'Pesquisar…')}" aria-label="Pesquisar">
+        ${(cfg.filtros || []).map((f, i) => `<select class="form-select" data-filtro="${i}" aria-label="${UI.esc(f.titulo)}">
+            <option value="">${UI.esc(f.titulo)}: todos</option>
+            ${f.opcoes.map(o => `<option value="${UI.esc(o.valor)}">${UI.esc(o.rotulo)}</option>`).join('')}
+          </select>`).join('')}
+        ${cfg.extraBarra || ''}
+        <span class="small texto-2 ms-auto" data-contador></span>
+      </div>
+      <div class="table-responsive"><table class="table table-hover align-middle mb-2">
+        <thead><tr>${cfg.colunas.map(c => `<th class="${c.classe || ''}">${UI.esc(c.titulo)}</th>`).join('')}</tr></thead>
+        <tbody></tbody></table></div>
+      <nav class="d-flex justify-content-end" data-paginacao></nav>`;
+
+    const tbody = container.querySelector('tbody');
+
+    function filtrados() {
+      const t = UI.normalizar(estado.termo);
+      const tDig = estado.termo.replace(/\D/g, '');
+      return cfg.dados.filter(r => {
+        for (const [i, v] of Object.entries(estado.filtros)) {
+          if (v && String(r[cfg.filtros[i].campo]) !== v) return false;
+        }
+        if (!t) return true;
+        return (cfg.busca || []).some(c => {
+          const val = String(r[c] || '');
+          return UI.normalizar(val).includes(t) || (tDig.length >= 3 && val.replace(/\D/g, '').includes(tDig));
+        });
+      });
+    }
+
+    function desenhar() {
+      const lista = filtrados();
+      const paginas = Math.max(1, Math.ceil(lista.length / porPagina));
+      if (estado.pagina > paginas) estado.pagina = paginas;
+      const ini = (estado.pagina - 1) * porPagina;
+      const pagina = lista.slice(ini, ini + porPagina);
+
+      container.querySelector('[data-contador]').textContent = `${lista.length} registro(s)`;
+      tbody.innerHTML = pagina.length ? pagina.map(r => `<tr class="${cfg.linhaClasse ? cfg.linhaClasse(r) : ''}">
+          ${cfg.colunas.map(c => `<td class="${c.classe || ''}">${c.render ? c.render(r) : UI.esc(r[c.campo])}</td>`).join('')}
+        </tr>`).join('')
+        : `<tr><td colspan="${cfg.colunas.length}"><div class="vazio"><i class="bi bi-inbox"></i>${UI.esc(cfg.vazio || 'Nenhum registro encontrado.')}</div></td></tr>`;
+
+      const nav = container.querySelector('[data-paginacao]');
+      nav.innerHTML = paginas > 1 ? `<ul class="pagination pagination-sm mb-0">
+        <li class="page-item ${estado.pagina === 1 ? 'disabled' : ''}"><button class="page-link" data-pg="${estado.pagina - 1}">‹</button></li>
+        <li class="page-item disabled"><span class="page-link">${estado.pagina} de ${paginas}</span></li>
+        <li class="page-item ${estado.pagina === paginas ? 'disabled' : ''}"><button class="page-link" data-pg="${estado.pagina + 1}">›</button></li>
+      </ul>` : '';
+      nav.querySelectorAll('[data-pg]').forEach(b => b.onclick = () => { estado.pagina = +b.dataset.pg; desenhar(); });
+    }
+
+    container.querySelector('.busca').addEventListener('input', e => { estado.termo = e.target.value; estado.pagina = 1; desenhar(); });
+    container.querySelectorAll('[data-filtro]').forEach(s => s.addEventListener('change', e => {
+      estado.filtros[e.target.dataset.filtro] = e.target.value; estado.pagina = 1; desenhar();
+    }));
+    desenhar();
+    return { atualizar(dados) { cfg.dados = dados; desenhar(); }, el: container };
+  }
+};
+
+</script>
+<script>
+/* ======== js/app.js ======== */
+/**
+ * DMA SYS ADV — app.js
+ * Núcleo: sessão, telas, menu por permissão, rotas (#/modulo) e temas.
+ * Cada módulo se registra em window.Modulos = { id: { render(el, S) } }.
+ */
+window.Modulos = window.Modulos || {};
+
+const MENU = [
+  { id: 'painel',        icone: 'bi-speedometer2',      fase: 1 },
+  { id: 'atendimentos',  icone: 'bi-headset',           fase: 2 },
+  { id: 'clientes',      icone: 'bi-people',            fase: 2 },
+  { id: 'casos',         icone: 'bi-briefcase',         fase: 2 },
+  { id: 'agenda',        icone: 'bi-calendar-event',    fase: 4 },
+  { id: 'contratos',     icone: 'bi-file-earmark-text', fase: 3 },
+  { id: 'documentos',    icone: 'bi-folder2-open',      fase: 3 },
+  { id: 'financeiro',    icone: 'bi-cash-coin',         fase: 4 },
+  { id: 'relatorios',    icone: 'bi-bar-chart',         fase: 5 },
+  { id: 'usuarios',      icone: 'bi-person-badge',      fase: 1 },
+  { id: 'cargos',        icone: 'bi-shield-lock',       fase: 1 },
+  { id: 'configuracoes', icone: 'bi-sliders',           fase: 1 },
+  { id: 'auditoria',     icone: 'bi-clock-history',     fase: 1 }
+];
+
+const App = {
+  S: null, // estado global carregado do servidor (app.inicial)
+
+  async iniciar() {
+    this.aplicarTema(localStorage.getItem('adv_tema') || 'classico', false);
+    this.ligarEventosFixos();
+    if (!Api.token()) return this.mostrarTela('login');
+    try {
+      await this.carregar();
+    } catch (e) {
+      if (e.codigo !== 'TROCAR_SENHA' && e.codigo !== 'SESSAO') {
+        this.mostrarTela('login');
+        UI.erro(e);
+      }
+    }
+  },
+
+  mostrarTela(nome) {
+    ['login', 'senha', 'carregando', 'app'].forEach(t =>
+      document.getElementById('tela-' + t).classList.toggle('d-none', t !== nome));
+    if (nome === 'login') setTimeout(() => document.getElementById('login-email').focus(), 50);
+  },
+
+  async carregar() {
+    this.mostrarTela('carregando');
+    this.S = await Api.chamar('app.inicial');
+    const u = this.S.usuario;
+    this.aplicarTema(u.tema || this.S.tema_padrao || 'classico', false);
+    document.querySelectorAll('[data-escritorio-nome]').forEach(e => e.textContent = this.S.escritorio.nome);
+    document.title = this.S.escritorio.nome;
+    document.getElementById('versao').textContent = this.S.app.versao;
+    document.getElementById('avatar-iniciais').textContent = UI.iniciais(u.nome);
+    document.getElementById('topo-nome').textContent = u.nome;
+    document.getElementById('topo-cargo').textContent = this.S.cargo.nome;
+    const logo = this.S.escritorio.logo_url;
+    document.getElementById('sidebar-logo').classList.toggle('d-none', !logo);
+    document.getElementById('sidebar-icone').classList.toggle('d-none', !!logo);
+    if (logo) document.getElementById('sidebar-logo').src = logo;
+    this.montarMenu();
+    this.mostrarTela('app');
+    this.rotear();
+  },
+
+  /** Recarrega só os dados globais (após mudar unidades, áreas, listas...) */
+  async recarregarDados() {
+    try { this.S = await Api.chamar('app.inicial'); this.montarMenu(); } catch (e) { UI.erro(e); }
+  },
+
+  pode(modulo, acao = 'ver') {
+    if (!this.S) return false;
+    if (this.S.master) return true;
+    return !!(this.S.permissoes[modulo] && this.S.permissoes[modulo][acao]);
+  },
+
+  nomeModulo(id) {
+    const m = (this.S.modulos || []).find(x => x.id === id);
+    return m ? m.nome : id;
+  },
+
+  montarMenu() {
+    const nav = document.getElementById('menu');
+    let grupoAtual = '';
+    let html = '';
+    MENU.forEach(item => {
+      if (!this.pode(item.id)) return;
+      if (['usuarios', 'cargos', 'configuracoes', 'auditoria'].includes(item.id)) return; // ficam na engrenagem
+      const mod = this.S.modulos.find(m => m.id === item.id);
+      if (mod.grupo !== grupoAtual) { grupoAtual = mod.grupo; html += `<div class="menu-grupo">${UI.esc(grupoAtual)}</div>`; }
+      html += `<a class="menu-item" href="#/${item.id}" data-rota="${item.id}">
+        <i class="bi ${item.icone}"></i><span>${UI.esc(mod.nome)}</span>
+        ${item.fase > 1 ? `<span class="badge-fase">fase ${item.fase}</span>` : ''}</a>`;
+    });
+    nav.innerHTML = html;
+
+    const eng = [];
+    MENU.filter(i => ['usuarios', 'cargos', 'configuracoes', 'auditoria'].includes(i.id) && this.pode(i.id))
+      .forEach(i => eng.push(`<li><a class="dropdown-item" href="#/${i.id}"><i class="bi ${i.icone} me-2"></i>${UI.esc(this.nomeModulo(i.id))}</a></li>`));
+    if (eng.length) eng.push('<li><hr class="dropdown-divider"></li>');
+    eng.push('<li><a class="dropdown-item" href="#/perfil"><i class="bi bi-person-gear me-2"></i>Minha conta e tema</a></li>');
+    document.getElementById('menu-engrenagem').innerHTML = eng.join('');
+  },
+
+  rotear() {
+    if (!this.S) return;
+    let rota = (location.hash.replace(/^#\//, '') || 'painel').split('?')[0];
+    const especiais = ['perfil'];
+    if (!especiais.includes(rota) && !this.pode(rota)) rota = 'painel';
+
+    document.querySelectorAll('[data-rota]').forEach(a => a.classList.toggle('ativo', a.dataset.rota === rota));
+    document.getElementById('sidebar').classList.remove('aberta');
+
+    const view = document.getElementById('view');
+    const mod = window.Modulos[rota];
+    view.innerHTML = '';
+    if (mod) {
+      Promise.resolve(mod.render(view, this.S)).catch(e => UI.erro(e));
+    } else {
+      const item = MENU.find(i => i.id === rota) || { fase: '?' };
+      view.innerHTML = `<div class="cabecalho-pagina"><div><h1>${UI.esc(this.nomeModulo(rota))}</h1></div></div>
+        <div class="cartao"><div class="vazio"><i class="bi bi-cone-striped"></i>
+        Este módulo entra na fase ${UI.esc(item.fase)} da implantação.<br>A estrutura no banco já está criada.</div></div>`;
+    }
+  },
+
+  aplicarTema(tema, salvarServidor = true) {
+    if (!['classico', 'noturno', 'bordo'].includes(tema)) tema = 'classico';
+    document.documentElement.dataset.tema = tema;
+    document.documentElement.dataset.bsTheme = tema === 'noturno' ? 'dark' : 'light';
+    localStorage.setItem('adv_tema', tema);
+    document.querySelectorAll('.bolinha-tema').forEach(b => b.classList.toggle('ativo', b.dataset.tema === tema));
+    if (salvarServidor && this.S) {
+      this.S.usuario.tema = tema;
+      Api.chamar('perfil.salvarTema', { tema }).catch(() => {});
+    }
+  },
+
+  ligarEventosFixos() {
+    window.addEventListener('hashchange', () => this.rotear());
+
+    document.querySelectorAll('.bolinha-tema').forEach(b => b.addEventListener('click', () => this.aplicarTema(b.dataset.tema)));
+
+    document.getElementById('btn-menu').addEventListener('click', () => document.getElementById('sidebar').classList.add('aberta'));
+    document.getElementById('sidebar-fundo').addEventListener('click', () => document.getElementById('sidebar').classList.remove('aberta'));
+
+    document.querySelectorAll('[data-ver-senha]').forEach(b => b.addEventListener('click', () => {
+      const i = document.getElementById(b.dataset.verSenha);
+      i.type = i.type === 'password' ? 'text' : 'password';
+      b.innerHTML = `<i class="bi ${i.type === 'password' ? 'bi-eye' : 'bi-eye-slash'}"></i>`;
+    }));
+
+    document.getElementById('busca-global').addEventListener('keydown', e => {
+      if (e.key === 'Enter') UI.toast('A busca global passa a funcionar junto com Clientes e Casos (fase 2).', 'info');
+    });
+
+    document.getElementById('form-login').addEventListener('submit', async e => {
+      e.preventDefault();
+      const erro = document.getElementById('login-erro');
+      erro.classList.add('d-none');
+      const email = document.getElementById('login-email').value.trim();
+      const senha = document.getElementById('login-senha').value;
+      if (!email || !senha) { erro.textContent = 'Informe e-mail e senha.'; erro.classList.remove('d-none'); return; }
+      await UI.ocupado(document.getElementById('btn-login'), async () => {
+        try {
+          const r = await Api.chamar('auth.login', { email, senha });
+          Api.salvarToken(r.token);
+          document.getElementById('login-senha').value = '';
+          if (r.primeiro_acesso) this.mostrarTela('senha');
+          else await this.carregar();
+        } catch (ex) {
+          erro.textContent = ex.message;
+          erro.classList.remove('d-none');
+        }
+      });
+    });
+
+    document.getElementById('form-senha-obrigatoria').addEventListener('submit', async e => {
+      e.preventDefault();
+      const erro = document.getElementById('senha-erro');
+      erro.classList.add('d-none');
+      const nova = document.getElementById('nova-senha-1').value;
+      const conf = document.getElementById('nova-senha-2').value;
+      await UI.ocupado(document.getElementById('btn-senha'), async () => {
+        try {
+          await Api.chamar('auth.trocarSenha', { nova_senha: nova, confirmacao: conf });
+          document.getElementById('nova-senha-1').value = '';
+          document.getElementById('nova-senha-2').value = '';
+          UI.toast('Senha definida.');
+          await this.carregar();
+        } catch (ex) {
+          erro.textContent = ex.message;
+          erro.classList.remove('d-none');
+        }
+      });
+    });
+  },
+
+  encerrarSessao(msg) {
+    Api.limparToken();
+    this.S = null;
+    this.mostrarTela('login');
+    if (msg) {
+      const erro = document.getElementById('login-erro');
+      erro.textContent = msg;
+      erro.classList.remove('d-none');
+    }
+  },
+
+  async sair() {
+    try { await Api.chamar('auth.logout'); } catch (e) { /* sessão já pode ter expirado */ }
+    this.encerrarSessao();
+    location.hash = '';
+  }
+};
+
+</script>
+<script>
+/* ======== js/modulos/painel.js ======== */
+/**
+ * Painel — na fase 1 mostra o status da implantação e atalhos.
+ * Os indicadores reais (casos, prazos, financeiro) entram nas fases 2 a 5.
+ */
+Modulos.painel = {
+  render(el, S) {
+    const hora = new Date().getHours();
+    const saud = hora < 12 ? 'Bom dia' : hora < 18 ? 'Boa tarde' : 'Boa noite';
+    const primeiro = UI.esc(String(S.usuario.nome).split(' ')[0]);
+    const escopos = { TODOS: 'visão de todo o escritório', AREAS: 'visão das suas áreas de atuação', PROPRIOS: 'visão dos casos em que você atua' };
+    const fases = [
+      ['Fase 1', 'Núcleo: login, usuários, cargos, permissões, configurações e temas', true],
+      ['Fase 2', 'Clientes, atendimentos, casos e andamentos', false],
+      ['Fase 3', 'Contratos, modelos de documento, procuração, assinatura e anexos', false],
+      ['Fase 4', 'Agenda e prazos, financeiro (parcelas e lançamentos)', false],
+      ['Fase 5', 'Painéis com indicadores e relatórios', false]
+    ];
+    const atalhos = [
+      ['usuarios', 'bi-person-badge', 'Usuários'], ['cargos', 'bi-shield-lock', 'Cargos e permissões'],
+      ['configuracoes', 'bi-sliders', 'Configurações'], ['auditoria', 'bi-clock-history', 'Auditoria']
+    ].filter(a => App.pode(a[0]));
+
+    el.innerHTML = `
+      <div class="cabecalho-pagina">
+        <div><h1>${saud}, ${primeiro}</h1><p>${UI.esc(S.cargo.nome)} · ${escopos[S.escopo] || ''}</p></div>
+      </div>
+      <div class="row g-3 mb-3">
+        <div class="col-6 col-lg-3"><div class="kpi"><div class="rotulo">Usuários ativos</div><div class="valor">${S.usuarios.length}</div></div></div>
+        <div class="col-6 col-lg-3"><div class="kpi"><div class="rotulo">Unidades</div><div class="valor">${S.unidades.length}</div></div></div>
+        <div class="col-6 col-lg-3"><div class="kpi"><div class="rotulo">Áreas de atuação</div><div class="valor">${S.areas.length}</div></div></div>
+        <div class="col-6 col-lg-3"><div class="kpi"><div class="rotulo">Cargos</div><div class="valor">${S.cargos.length}</div></div></div>
+      </div>
+      <div class="row g-3">
+        <div class="col-lg-7"><div class="cartao h-100">
+          <h2 class="h6 mb-3">Implantação do sistema</h2>
+          ${fases.map(f => `<div class="d-flex gap-2 align-items-start py-2 border-top">
+            <i class="bi ${f[2] ? 'bi-check-circle-fill text-success' : 'bi-circle texto-2'} mt-1"></i>
+            <div><strong>${f[0]}</strong> <span class="texto-2">— ${f[1]}</span></div></div>`).join('')}
+        </div></div>
+        <div class="col-lg-5"><div class="cartao h-100">
+          <h2 class="h6 mb-3">Atalhos</h2>
+          ${atalhos.length ? atalhos.map(a => `<a href="#/${a[0]}" class="btn btn-outline-secondary w-100 text-start mb-2"><i class="bi ${a[1]} me-2"></i>${a[2]}</a>`).join('')
+            : '<p class="texto-2 small mb-0">Os módulos do seu cargo aparecem no menu lateral conforme forem liberados.</p>'}
+          <a href="#/perfil" class="btn btn-outline-secondary w-100 text-start"><i class="bi bi-person-gear me-2"></i>Minha conta e tema</a>
+        </div></div>
+      </div>`;
+  }
+};
+
+</script>
+<script>
+/* ======== js/modulos/usuarios.js ======== */
+/**
+ * Usuários — cadastro de advogados e equipe, cargo, unidade, OAB e áreas de atuação.
+ */
+Modulos.usuarios = {
+  dados: [],
+
+  async render(el, S) {
+    el.innerHTML = `
+      <div class="cabecalho-pagina">
+        <div><h1>Usuários</h1><p>Advogados e equipe com acesso ao sistema</p></div>
+        ${App.pode('usuarios', 'criar') ? '<button class="btn btn-primary" data-novo><i class="bi bi-plus-lg me-1"></i>Novo usuário</button>' : ''}
+      </div>
+      <div class="cartao" id="usu-tabela"><div class="vazio"><div class="spinner-border"></div></div></div>`;
+
+    const btnNovo = el.querySelector('[data-novo]');
+    if (btnNovo) btnNovo.onclick = () => this.formulario(null, S);
+
+    await this.carregar(S);
+
+    el.querySelector('#usu-tabela').addEventListener('click', e => {
+      const b = e.target.closest('[data-acao]');
+      if (!b) return;
+      const u = this.dados.find(x => x.id_usuario === b.dataset.id);
+      if (b.dataset.acao === 'editar') this.formulario(u, S);
+      if (b.dataset.acao === 'senha') this.redefinirSenha(u);
+      if (b.dataset.acao === 'ativo') this.alternarAtivo(u, S);
+    });
+  },
+
+  async carregar(S) {
+    try {
+      this.dados = await Api.chamar('usuarios.listar');
+    } catch (e) { UI.erro(e); return; }
+
+    const areasNome = Object.fromEntries(S.areas.map(a => [a.id, a.nome]));
+    const unidNome = Object.fromEntries(S.unidades.map(u => [u.id, u.nome]));
+    this.dados.forEach(u => {
+      u._areas = u.areas.map(a => areasNome[a]).filter(Boolean).join(', ');
+      u._unidade = unidNome[u.id_unidade] || '-';
+    });
+
+    const podeEditar = App.pode('usuarios', 'editar');
+    const podeExcluir = App.pode('usuarios', 'excluir');
+
+    UI.tabela(document.getElementById('usu-tabela'), {
+      dados: this.dados,
+      placeholder: 'Pesquisar por nome, e-mail, OAB, CPF…',
+      busca: ['nome', 'email', 'oab_numero', 'cpf', 'cargo_nome', '_areas'],
+      filtros: [
+        { campo: 'id_cargo', titulo: 'Cargo', opcoes: S.cargos.map(c => ({ valor: c.id, rotulo: c.nome })) },
+        { campo: 'ativo', titulo: 'Situação', opcoes: [{ valor: 'SIM', rotulo: 'Ativos' }, { valor: 'NAO', rotulo: 'Inativos' }] }
+      ],
+      linhaClasse: r => r.ativo === 'NAO' ? 'linha-inativa' : '',
+      colunas: [
+        { titulo: 'Usuário', render: r => `<div class="fw-semibold">${UI.esc(r.nome)}</div><div class="small texto-2">${UI.esc(r.email)}</div>` },
+        { titulo: 'Cargo', render: r => `${UI.esc(r.cargo_nome)}${r.cargo_master === 'SIM' ? ' <span class="chip chip-alerta">master</span>' : ''}` },
+        { titulo: 'OAB', render: r => r.oab_numero ? UI.esc(`${r.oab_uf || ''} ${r.oab_numero}`) : '<span class="texto-2">-</span>' },
+        { titulo: 'Áreas', render: r => r._areas ? `<span class="small">${UI.esc(r._areas)}</span>` : '<span class="texto-2 small">nenhuma</span>' },
+        { titulo: 'Unidade', campo: '_unidade' },
+        { titulo: 'Situação', render: r => r.ativo === 'NAO' ? '<span class="chip chip-off">Inativo</span>'
+            : r.bloqueado === 'SIM' ? '<span class="chip chip-alerta">Bloqueado</span>'
+            : r.primeiro_acesso === 'SIM' ? '<span class="chip chip-alerta">Aguardando 1º acesso</span>' : '<span class="chip chip-ok">Ativo</span>' },
+        { titulo: 'Último acesso', render: r => `<span class="small">${UI.dataHora(r.ultimo_login)}</span>` },
+        { titulo: '', classe: 'text-end', render: r => `<div class="btn-group btn-group-sm">
+            ${podeEditar ? `<button class="btn btn-outline-secondary" data-acao="editar" data-id="${UI.esc(r.id_usuario)}" title="Editar"><i class="bi bi-pencil"></i></button>
+            <button class="btn btn-outline-secondary" data-acao="senha" data-id="${UI.esc(r.id_usuario)}" title="Redefinir senha"><i class="bi bi-key"></i></button>` : ''}
+            ${podeExcluir && r.id_usuario !== App.S.usuario.id_usuario ? `<button class="btn btn-outline-secondary" data-acao="ativo" data-id="${UI.esc(r.id_usuario)}" title="${r.ativo === 'NAO' ? 'Reativar' : 'Inativar'}"><i class="bi ${r.ativo === 'NAO' ? 'bi-arrow-counterclockwise' : 'bi-slash-circle'}"></i></button>` : ''}
+          </div>` }
+      ]
+    });
+  },
+
+  formulario(u, S) {
+    const v = u || {};
+    const ehEu = u && u.id_usuario === S.usuario.id_usuario;
+    const cargos = S.cargos.filter(c => c.master !== 'SIM' || S.master);
+    const ufs = 'AC AL AP AM BA CE DF ES GO MA MT MS MG PA PB PR PE PI RJ RN RS RO RR SC SP SE TO'.split(' ');
+    const m = UI.modal({
+      titulo: u ? 'Editar usuário' : 'Novo usuário',
+      tamanho: 'modal-lg',
+      corpo: `<form class="row g-3" novalidate>
+        <div class="col-md-7"><label class="form-label">Nome completo *</label><input class="form-control" data-campo="nome" value="${UI.esc(v.nome)}"></div>
+        <div class="col-md-5"><label class="form-label">E-mail (login) *</label><input type="email" class="form-control" data-campo="email" value="${UI.esc(v.email)}"></div>
+        <div class="col-md-6"><label class="form-label">Cargo *</label>
+          <select class="form-select" data-campo="id_cargo" ${ehEu ? 'disabled' : ''}>${UI.opcoes(cargos, v.id_cargo, { vazio: 'Selecione' })}</select>
+          ${ehEu ? '<div class="form-text">Você não pode mudar o seu próprio cargo.</div>' : ''}</div>
+        <div class="col-md-6"><label class="form-label">Unidade principal</label>
+          <select class="form-select" data-campo="id_unidade">${UI.opcoes(S.unidades, v.id_unidade, { vazio: 'Nenhuma' })}</select></div>
+        <div class="col-md-3"><label class="form-label">OAB nº</label><input class="form-control" data-campo="oab_numero" value="${UI.esc(v.oab_numero)}"></div>
+        <div class="col-md-2"><label class="form-label">UF</label><select class="form-select" data-campo="oab_uf">${UI.opcoes(ufs, v.oab_uf, { vazio: '-' })}</select></div>
+        <div class="col-md-4"><label class="form-label">CPF</label><input class="form-control" data-campo="cpf" data-mascara="cpf" value="${UI.esc(v.cpf)}"></div>
+        <div class="col-md-3"><label class="form-label">RG</label><input class="form-control" data-campo="rg" value="${UI.esc(v.rg)}"></div>
+        <div class="col-md-4"><label class="form-label">Nacionalidade</label><input class="form-control" data-campo="nacionalidade" value="${UI.esc(v.nacionalidade || 'brasileiro(a)')}"></div>
+        <div class="col-md-4"><label class="form-label">Estado civil</label><select class="form-select" data-campo="estado_civil">${UI.opcoes(S.listas.estado_civil || [], v.estado_civil, { vazio: '-' })}</select></div>
+        <div class="col-md-4"><label class="form-label">Telefone</label><input class="form-control" data-campo="telefone" data-mascara="telefone" value="${UI.esc(v.telefone)}"></div>
+        <div class="col-12"><label class="form-label">Endereço profissional</label><input class="form-control" data-campo="endereco_profissional" value="${UI.esc(v.endereco_profissional)}">
+          <div class="form-text">OAB, CPF, RG e endereço são usados na qualificação das procurações e contratos.</div></div>
+        <div class="col-12"><label class="form-label">Áreas de atuação</label>
+          <div class="d-flex flex-wrap gap-3">${S.areas.map(a => `<label class="form-check">
+            <input class="form-check-input" type="checkbox" data-area value="${UI.esc(a.id)}" ${(v.areas || []).includes(a.id) ? 'checked' : ''}>
+            <span class="form-check-label"><span class="ponto-cor" style="background:${UI.esc(a.cor)}"></span>${UI.esc(a.nome)}</span></label>`).join('')}</div>
+          <div class="form-text">Para cargos com escopo "por área", o usuário só enxerga os casos destas áreas.</div></div>
+      </form>`,
+      rodape: `<button class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancelar</button><button class="btn btn-primary" data-salvar>Salvar</button>`
+    });
+
+    Modulos.usuarios.ligarMascaras(m.el);
+
+    m.el.querySelector('[data-salvar]').onclick = async ev => {
+      const dados = UI.lerForm(m.el);
+      if (ehEu) dados.id_cargo = v.id_cargo;
+      dados.areas = [...m.el.querySelectorAll('[data-area]:checked')].map(i => i.value);
+      if (u) dados.id_usuario = u.id_usuario;
+      if (!dados.nome || !dados.email || !dados.id_cargo) return UI.toast('Preencha nome, e-mail e cargo.', 'aviso');
+      await UI.ocupado(ev.target, async () => {
+        try {
+          const r = await Api.chamar('usuarios.salvar', dados);
+          m.fechar();
+          UI.toast(u ? 'Usuário atualizado.' : 'Usuário criado.');
+          if (r.senha_temporaria) UI.mostrarSenha('Senha temporária', r.senha_temporaria, `Envie esta senha para ${dados.nome} por um canal seguro (pessoalmente ou WhatsApp).`);
+          await App.recarregarDados();
+          await this.carregar(App.S);
+        } catch (e) { UI.erro(e); }
+      });
+    };
+  },
+
+  async redefinirSenha(u) {
+    if (!await UI.confirmar(`Gerar uma nova senha temporária para ${u.nome}? A senha atual deixa de funcionar.`, { titulo: 'Redefinir senha', botao: 'Gerar nova senha' })) return;
+    try {
+      const r = await Api.chamar('usuarios.redefinirSenha', { id_usuario: u.id_usuario });
+      UI.mostrarSenha('Nova senha temporária', r.senha_temporaria, `Envie esta senha para ${u.nome} por um canal seguro.`);
+      await this.carregar(App.S);
+    } catch (e) { UI.erro(e); }
+  },
+
+  async alternarAtivo(u, S) {
+    const ativar = u.ativo === 'NAO';
+    const ok = await UI.confirmar(ativar ? `Reativar o acesso de ${u.nome}?` : `Inativar ${u.nome}? Ele perde o acesso na hora, mas o histórico é mantido.`,
+      { titulo: ativar ? 'Reativar usuário' : 'Inativar usuário', botao: ativar ? 'Reativar' : 'Inativar', perigo: !ativar });
+    if (!ok) return;
+    try {
+      await Api.chamar('usuarios.alternarAtivo', { id_usuario: u.id_usuario });
+      UI.toast(ativar ? 'Usuário reativado.' : 'Usuário inativado.');
+      await App.recarregarDados();
+      await this.carregar(App.S);
+    } catch (e) { UI.erro(e); }
+  },
+
+  ligarMascaras(el) {
+    el.querySelectorAll('[data-mascara="cpf"]').forEach(i => i.addEventListener('input', () => {
+      let v = i.value.replace(/\D/g, '').slice(0, 11);
+      v = v.replace(/(\d{3})(\d)/, '$1.$2').replace(/(\d{3})(\d)/, '$1.$2').replace(/(\d{3})(\d{1,2})$/, '$1-$2');
+      i.value = v;
+    }));
+    el.querySelectorAll('[data-mascara="telefone"]').forEach(i => i.addEventListener('input', () => {
+      let v = i.value.replace(/\D/g, '').slice(0, 11);
+      if (v.length > 10) v = v.replace(/^(\d\d)(\d{5})(\d{4}).*/, '($1) $2-$3');
+      else if (v.length > 6) v = v.replace(/^(\d\d)(\d{4})(\d{0,4}).*/, '($1) $2-$3');
+      else if (v.length > 2) v = v.replace(/^(\d\d)(\d{0,5})/, '($1) $2');
+      i.value = v;
+    }));
+  }
+};
+
+</script>
+<script>
+/* ======== js/modulos/cargos.js ======== */
+/**
+ * Cargos e permissões — escopo de dados + matriz módulo x ação.
+ */
+Modulos.cargos = {
+  dados: [],
+  ESCOPOS: {
+    TODOS: 'Todos os registros do escritório',
+    AREAS: 'Só das áreas de atuação do usuário',
+    PROPRIOS: 'Só onde o usuário é responsável ou apoio'
+  },
+  ACOES: [['ver', 'Ver'], ['criar', 'Criar'], ['editar', 'Editar'], ['excluir', 'Excluir'], ['exportar', 'Exportar']],
+
+  async render(el, S) {
+    el.innerHTML = `
+      <div class="cabecalho-pagina">
+        <div><h1>Cargos e permissões</h1><p>Defina o que cada cargo vê e faz em cada módulo</p></div>
+        ${App.pode('cargos', 'criar') ? '<button class="btn btn-primary" data-novo><i class="bi bi-plus-lg me-1"></i>Novo cargo</button>' : ''}
+      </div>
+      <div class="row g-3" id="cargos-lista"><div class="vazio"><div class="spinner-border"></div></div></div>`;
+    const b = el.querySelector('[data-novo]');
+    if (b) b.onclick = () => this.formulario(null, S);
+    el.querySelector('#cargos-lista').addEventListener('click', e => {
+      const btn = e.target.closest('[data-acao]');
+      if (!btn) return;
+      const c = this.dados.find(x => x.id_cargo === btn.dataset.id);
+      if (btn.dataset.acao === 'editar') this.formulario(c, S);
+      if (btn.dataset.acao === 'ativo') this.alternarAtivo(c);
+    });
+    await this.carregar();
+  },
+
+  async carregar() {
+    try { this.dados = await Api.chamar('cargos.listar'); } catch (e) { return UI.erro(e); }
+    const lista = document.getElementById('cargos-lista');
+    if (!lista) return;
+    lista.innerHTML = this.dados.map(c => {
+      const mods = App.S.modulos.filter(m => c.permissoes[m.id] && c.permissoes[m.id].ver).map(m => m.nome);
+      return `<div class="col-md-6 col-xl-4"><div class="cartao h-100 ${c.ativo === 'NAO' ? 'opacity-50' : ''}">
+        <div class="d-flex justify-content-between align-items-start mb-2">
+          <div><h2 class="h6 mb-0">${UI.esc(c.nome)}</h2><div class="small texto-2">${UI.esc(c.descricao || '')}</div></div>
+          ${c.master === 'SIM' ? '<span class="chip chip-alerta">master</span>' : c.ativo === 'NAO' ? '<span class="chip chip-off">inativo</span>' : ''}
+        </div>
+        <div class="small mb-1"><i class="bi bi-eye me-1"></i>${UI.esc(this.ESCOPOS[c.escopo_dados] || '-')}</div>
+        <div class="small mb-2"><i class="bi bi-people me-1"></i>${c.qtd_usuarios} usuário(s) ativo(s)</div>
+        <div class="small texto-2 mb-3">${c.master === 'SIM' ? 'Acesso total a todos os módulos.' : (mods.length ? 'Acessa: ' + UI.esc(mods.join(', ')) : 'Sem acesso a módulos.')}</div>
+        <div class="btn-group btn-group-sm">
+          ${App.pode('cargos', 'editar') ? `<button class="btn btn-outline-secondary" data-acao="editar" data-id="${UI.esc(c.id_cargo)}"><i class="bi bi-pencil me-1"></i>Editar</button>` : ''}
+          ${App.pode('cargos', 'excluir') && c.master !== 'SIM' ? `<button class="btn btn-outline-secondary" data-acao="ativo" data-id="${UI.esc(c.id_cargo)}">${c.ativo === 'NAO' ? 'Reativar' : 'Inativar'}</button>` : ''}
+        </div>
+      </div></div>`;
+    }).join('');
+  },
+
+  formulario(c, S) {
+    const v = c || { escopo_dados: 'PROPRIOS', permissoes: {} };
+    const master = v.master === 'SIM';
+    const grupos = [...new Set(S.modulos.map(m => m.grupo))];
+    const matriz = master ? `<div class="alert alert-secondary small mb-0">O cargo master tem acesso total a todos os módulos e não pode ser restringido. Isso evita que o escritório fique sem ninguém capaz de administrar o sistema.</div>` : `
+      <div class="table-responsive"><table class="table table-sm matriz-perm">
+        <thead><tr><th>Módulo</th>${this.ACOES.map(a => `<th>${a[1]}</th>`).join('')}<th>Tudo</th></tr></thead>
+        <tbody>${grupos.map(g => `<tr><td colspan="7" class="small texto-2 pt-3">${UI.esc(g)}</td></tr>` +
+          S.modulos.filter(m => m.grupo === g).map(m => `<tr data-modulo="${m.id}">
+            <td>${UI.esc(m.nome)}</td>
+            ${this.ACOES.map(a => `<td><input class="form-check-input" type="checkbox" data-acao-perm="${a[0]}" ${v.permissoes[m.id] && v.permissoes[m.id][a[0]] ? 'checked' : ''} aria-label="${a[1]} ${UI.esc(m.nome)}"></td>`).join('')}
+            <td><input class="form-check-input" type="checkbox" data-tudo aria-label="Tudo em ${UI.esc(m.nome)}"></td>
+          </tr>`).join('')).join('')}
+        </tbody></table></div>
+      <div class="form-text">Marcar criar, editar, excluir ou exportar libera automaticamente o "ver". "Excluir" no sistema significa inativar — nada é apagado.</div>`;
+
+    const m = UI.modal({
+      titulo: c ? 'Editar cargo' : 'Novo cargo',
+      tamanho: 'modal-lg',
+      corpo: `<div class="row g-3 mb-3">
+          <div class="col-md-5"><label class="form-label">Nome *</label><input class="form-control" data-campo="nome" value="${UI.esc(v.nome)}"></div>
+          <div class="col-md-7"><label class="form-label">Descrição</label><input class="form-control" data-campo="descricao" value="${UI.esc(v.descricao)}"></div>
+          ${master ? '' : `<div class="col-12"><label class="form-label">Quais registros este cargo enxerga?</label>
+            <select class="form-select" data-campo="escopo_dados">${Object.entries(this.ESCOPOS).map(([k, t]) => `<option value="${k}" ${v.escopo_dados === k ? 'selected' : ''}>${t}</option>`).join('')}</select>
+            <div class="form-text">Vale para clientes, casos, agenda e contratos (a partir da fase 2).</div></div>`}
+        </div>
+        <h3 class="h6">Permissões por módulo</h3>${matriz}`,
+      rodape: `<button class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancelar</button><button class="btn btn-primary" data-salvar>Salvar</button>`
+    });
+
+    const sincTudo = tr => { const t = tr.querySelector('[data-tudo]'); if (t) t.checked = [...tr.querySelectorAll('[data-acao-perm]')].every(i => i.checked); };
+    m.el.querySelectorAll('tr[data-modulo]').forEach(sincTudo);
+    m.el.querySelectorAll('[data-acao-perm]').forEach(i => i.addEventListener('change', () => sincTudo(i.closest('tr'))));
+    m.el.querySelectorAll('[data-tudo]').forEach(t => t.addEventListener('change', () => {
+      t.closest('tr').querySelectorAll('[data-acao-perm]').forEach(i => i.checked = t.checked);
+    }));
+    m.el.querySelectorAll('[data-acao-perm]').forEach(i => i.addEventListener('change', () => {
+      const tr = i.closest('tr');
+      if (i.checked && i.dataset.acaoPerm !== 'ver') tr.querySelector('[data-acao-perm="ver"]').checked = true;
+      if (!i.checked && i.dataset.acaoPerm === 'ver') tr.querySelectorAll('[data-acao-perm]').forEach(x => x.checked = false);
+    }));
+
+    m.el.querySelector('[data-salvar]').onclick = async ev => {
+      const dados = UI.lerForm(m.el);
+      if (c) dados.id_cargo = c.id_cargo;
+      if (!dados.nome) return UI.toast('Informe o nome do cargo.', 'aviso');
+      dados.permissoes = {};
+      m.el.querySelectorAll('tr[data-modulo]').forEach(tr => {
+        const p = {};
+        tr.querySelectorAll('[data-acao-perm]').forEach(i => p[i.dataset.acaoPerm] = i.checked);
+        dados.permissoes[tr.dataset.modulo] = p;
+      });
+      await UI.ocupado(ev.target, async () => {
+        try {
+          await Api.chamar('cargos.salvar', dados);
+          m.fechar();
+          UI.toast('Cargo salvo.');
+          await App.recarregarDados();
+          await this.carregar();
+        } catch (e) { UI.erro(e); }
+      });
+    };
+  },
+
+  async alternarAtivo(c) {
+    const ativar = c.ativo === 'NAO';
+    if (!await UI.confirmar(`${ativar ? 'Reativar' : 'Inativar'} o cargo ${c.nome}?`, { botao: ativar ? 'Reativar' : 'Inativar', perigo: !ativar })) return;
+    try {
+      await Api.chamar('cargos.alternarAtivo', { id_cargo: c.id_cargo });
+      UI.toast('Cargo atualizado.');
+      await App.recarregarDados();
+      await this.carregar();
+    } catch (e) { UI.erro(e); }
+  }
+};
+
+</script>
+<script>
+/* ======== js/modulos/configuracoes.js ======== */
+/**
+ * Configurações — escritório, unidades, áreas de atuação, listas e parâmetros de segurança.
+ */
+Modulos.configuracoes = {
+  D: null,
+  aba: 'escritorio',
+
+  async render(el) {
+    el.innerHTML = `
+      <div class="cabecalho-pagina"><div><h1>Configurações</h1><p>Cadastros básicos e parâmetros do sistema</p></div></div>
+      <ul class="nav nav-pills mb-3 gap-1" id="cfg-abas">
+        <li class="nav-item"><button class="nav-link" data-aba="escritorio"><i class="bi bi-building me-1"></i>Escritório</button></li>
+        <li class="nav-item"><button class="nav-link" data-aba="unidades"><i class="bi bi-geo-alt me-1"></i>Unidades</button></li>
+        <li class="nav-item"><button class="nav-link" data-aba="areas"><i class="bi bi-tags me-1"></i>Áreas de atuação</button></li>
+        <li class="nav-item"><button class="nav-link" data-aba="listas"><i class="bi bi-list-ul me-1"></i>Listas</button></li>
+        <li class="nav-item"><button class="nav-link" data-aba="sistema"><i class="bi bi-shield-check me-1"></i>Segurança</button></li>
+      </ul>
+      <div id="cfg-conteudo" class="cartao"><div class="vazio"><div class="spinner-border"></div></div></div>`;
+
+    el.querySelector('#cfg-abas').addEventListener('click', e => {
+      const b = e.target.closest('[data-aba]');
+      if (b) { this.aba = b.dataset.aba; this.desenhar(); }
+    });
+    await this.carregar();
+  },
+
+  async carregar() {
+    try { this.D = await Api.chamar('config.dados'); } catch (e) { return UI.erro(e); }
+    this.desenhar();
+  },
+
+  podeEditar() { return App.pode('configuracoes', 'editar'); },
+
+  desenhar() {
+    document.querySelectorAll('#cfg-abas [data-aba]').forEach(b => b.classList.toggle('active', b.dataset.aba === this.aba));
+    const el = document.getElementById('cfg-conteudo');
+    if (!el || !this.D) return;
+    ({ escritorio: () => this.abaEscritorio(el), unidades: () => this.abaUnidades(el), areas: () => this.abaAreas(el),
+       listas: () => this.abaListas(el), sistema: () => this.abaSistema(el) })[this.aba]();
+  },
+
+  async salvarConfig(el, botao) {
+    const dados = UI.lerForm(el);
+    await UI.ocupado(botao, async () => {
+      try {
+        this.D.config = await Api.chamar('config.salvar', dados);
+        UI.toast('Configurações salvas.');
+        await App.carregar(); // atualiza nome/logo do escritório na tela
+      } catch (e) { UI.erro(e); }
+    });
+  },
+
+  campo(rotulo, chave, col = 'col-md-6', ajuda = '') {
+    return `<div class="${col}"><label class="form-label">${rotulo}</label>
+      <input class="form-control" data-campo="${chave}" value="${UI.esc(this.D.config[chave])}" ${this.podeEditar() ? '' : 'disabled'}>
+      ${ajuda ? `<div class="form-text">${ajuda}</div>` : ''}</div>`;
+  },
+
+  abaEscritorio(el) {
+    el.innerHTML = `<div class="row g-3">
+      ${this.campo('Nome do escritório', 'escritorio_nome')}
+      ${this.campo('CNPJ', 'escritorio_cnpj', 'col-md-3')}
+      ${this.campo('Telefone', 'escritorio_telefone', 'col-md-3')}
+      ${this.campo('Endereço principal', 'escritorio_endereco', 'col-md-8')}
+      ${this.campo('E-mail', 'escritorio_email', 'col-md-4')}
+      ${this.campo('URL da logo', 'escritorio_logo_url', 'col-md-8', 'Imagem pública (PNG/JPG). Aparece no menu e nos documentos.')}
+      ${this.campo('Foro de eleição padrão', 'foro_padrao', 'col-md-4', 'Usado na cláusula de foro dos contratos.')}
+      ${this.podeEditar() ? '<div class="col-12 text-end"><button class="btn btn-primary" data-salvar>Salvar</button></div>' : ''}
+    </div>`;
+    const b = el.querySelector('[data-salvar]');
+    if (b) b.onclick = () => this.salvarConfig(el, b);
+  },
+
+  abaSistema(el) {
+    el.innerHTML = `<div class="row g-3">
+      ${this.campo('Horas até a sessão expirar', 'sessao_horas', 'col-md-4', 'Por inatividade. Máximo de 6 horas.')}
+      ${this.campo('Tentativas de login antes do bloqueio', 'max_tentativas_login', 'col-md-4')}
+      ${this.campo('Minutos de bloqueio', 'bloqueio_minutos', 'col-md-4')}
+      ${this.campo('Dias de antecedência para alerta de prazo', 'dias_alerta_prazo', 'col-md-4')}
+      <div class="col-md-4"><label class="form-label">Tema padrão para novos usuários</label>
+        <select class="form-select" data-campo="tema_padrao" ${this.podeEditar() ? '' : 'disabled'}>
+          ${UI.opcoes([{ id: 'classico', nome: 'Clássico' }, { id: 'noturno', nome: 'Noturno' }, { id: 'bordo', nome: 'Bordô' }], this.D.config.tema_padrao, { vazio: null })}
+        </select></div>
+      ${this.podeEditar() ? '<div class="col-12 text-end"><button class="btn btn-primary" data-salvar>Salvar</button></div>' : ''}
+    </div>`;
+    const b = el.querySelector('[data-salvar]');
+    if (b) b.onclick = () => this.salvarConfig(el, b);
+  },
+
+  /** Tabela genérica para Unidades / Áreas / Listas */
+  cadastroSimples(el, { tabela, idCampo, dados, colunas, busca, form, rotaSalvar, titulo, filtros, extraBarra }) {
+    el.innerHTML = `<div class="d-flex justify-content-between align-items-center mb-2">
+        <h2 class="h6 mb-0">${UI.esc(titulo)}</h2>
+        ${App.pode('configuracoes', 'criar') ? '<button class="btn btn-primary btn-sm" data-novo><i class="bi bi-plus-lg me-1"></i>Adicionar</button>' : ''}
+      </div><div data-tab></div>`;
+    const acoes = {
+      titulo: '', classe: 'text-end', render: r => `<div class="btn-group btn-group-sm">
+        ${this.podeEditar() ? `<button class="btn btn-outline-secondary" data-ed="${UI.esc(r[idCampo])}" title="Editar"><i class="bi bi-pencil"></i></button>` : ''}
+        ${App.pode('configuracoes', 'excluir') ? `<button class="btn btn-outline-secondary" data-at="${UI.esc(r[idCampo])}" title="${r.ativo === 'NAO' ? 'Reativar' : 'Inativar'}"><i class="bi ${r.ativo === 'NAO' ? 'bi-arrow-counterclockwise' : 'bi-slash-circle'}"></i></button>` : ''}
+      </div>`
+    };
+    UI.tabela(el.querySelector('[data-tab]'), {
+      dados, busca, filtros, extraBarra, porPagina: 20,
+      linhaClasse: r => r.ativo === 'NAO' ? 'linha-inativa' : '',
+      colunas: colunas.concat([{ titulo: 'Situação', render: r => r.ativo === 'NAO' ? '<span class="chip chip-off">Inativo</span>' : '<span class="chip chip-ok">Ativo</span>' }, acoes])
+    });
+
+    const abrir = reg => {
+      const m = UI.modal({
+        titulo: reg ? 'Editar' : 'Adicionar', corpo: `<div class="row g-3">${form(reg || {})}</div>`,
+        rodape: `<button class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancelar</button><button class="btn btn-primary" data-salvar>Salvar</button>`
+      });
+      m.el.querySelector('[data-salvar]').onclick = async ev => {
+        const d = UI.lerForm(m.el);
+        if (reg) d[idCampo] = reg[idCampo];
+        await UI.ocupado(ev.target, async () => {
+          try {
+            await Api.chamar(rotaSalvar, d);
+            m.fechar(); UI.toast('Salvo.');
+            await App.recarregarDados();
+            await this.carregar();
+          } catch (e) { UI.erro(e); }
+        });
+      };
+    };
+
+    const novo = el.querySelector('[data-novo]');
+    if (novo) novo.onclick = () => abrir(null);
+    el.querySelector('[data-tab]').addEventListener('click', async e => {
+      const ed = e.target.closest('[data-ed]');
+      const at = e.target.closest('[data-at]');
+      if (ed) abrir(dados.find(x => x[idCampo] === ed.dataset.ed));
+      if (at) {
+        const reg = dados.find(x => x[idCampo] === at.dataset.at);
+        if (!await UI.confirmar(reg.ativo === 'NAO' ? 'Reativar este item?' : 'Inativar este item? Ele deixa de aparecer nas opções, mas registros antigos continuam com ele.', { perigo: reg.ativo !== 'NAO' })) return;
+        try {
+          await Api.chamar('config.alternarAtivo', { tabela, id: reg[idCampo] });
+          await App.recarregarDados();
+          await this.carregar();
+        } catch (er) { UI.erro(er); }
+      }
+    });
+  },
+
+  abaUnidades(el) {
+    this.cadastroSimples(el, {
+      tabela: 'Unidades', idCampo: 'id_unidade', dados: this.D.unidades, titulo: 'Unidades do escritório',
+      rotaSalvar: 'config.salvarUnidade', busca: ['nome', 'cidade', 'endereco'],
+      colunas: [{ titulo: 'Nome', campo: 'nome' }, { titulo: 'Cidade/UF', render: r => UI.esc([r.cidade, r.uf].filter(Boolean).join(' - ')) },
+        { titulo: 'Endereço', campo: 'endereco' }, { titulo: 'Foro', campo: 'foro_padrao' }],
+      form: r => `
+        <div class="col-md-8"><label class="form-label">Nome *</label><input class="form-control" data-campo="nome" value="${UI.esc(r.nome)}"></div>
+        <div class="col-md-4"><label class="form-label">Telefone</label><input class="form-control" data-campo="telefone" value="${UI.esc(r.telefone)}"></div>
+        <div class="col-12"><label class="form-label">Endereço</label><input class="form-control" data-campo="endereco" value="${UI.esc(r.endereco)}"></div>
+        <div class="col-md-6"><label class="form-label">Cidade</label><input class="form-control" data-campo="cidade" value="${UI.esc(r.cidade)}"></div>
+        <div class="col-md-2"><label class="form-label">UF</label><input class="form-control" maxlength="2" data-campo="uf" value="${UI.esc(r.uf)}"></div>
+        <div class="col-md-4"><label class="form-label">Foro padrão</label><input class="form-control" data-campo="foro_padrao" value="${UI.esc(r.foro_padrao)}"></div>`
+    });
+  },
+
+  abaAreas(el) {
+    this.cadastroSimples(el, {
+      tabela: 'Areas_Atuacao', idCampo: 'id_area', dados: this.D.areas, titulo: 'Áreas de atuação',
+      rotaSalvar: 'config.salvarArea', busca: ['nome', 'descricao'],
+      colunas: [{ titulo: 'Área', render: r => `<span class="ponto-cor" style="background:${UI.esc(r.cor)}"></span>${UI.esc(r.nome)}` },
+        { titulo: 'Descrição', campo: 'descricao' }],
+      form: r => `
+        <div class="col-md-9"><label class="form-label">Nome *</label><input class="form-control" data-campo="nome" value="${UI.esc(r.nome)}"></div>
+        <div class="col-md-3"><label class="form-label">Cor</label><input type="color" class="form-control form-control-color w-100" data-campo="cor" value="${UI.esc(r.cor || '#14213d')}"></div>
+        <div class="col-12"><label class="form-label">Descrição</label><input class="form-control" data-campo="descricao" value="${UI.esc(r.descricao)}"></div>`
+    });
+  },
+
+  abaListas(el) {
+    const nomes = this.D.nomes_listas;
+    const dados = this.D.listas.map(l => Object.assign({ _nome_lista: nomes[l.lista] || l.lista }, l))
+      .sort((a, b) => a._nome_lista.localeCompare(b._nome_lista) || (+a.ordem - +b.ordem));
+    this.cadastroSimples(el, {
+      tabela: 'Listas', idCampo: 'id_lista', dados, titulo: 'Opções das listas de seleção',
+      rotaSalvar: 'config.salvarItemLista', busca: ['valor', '_nome_lista'],
+      filtros: [{ campo: 'lista', titulo: 'Lista', opcoes: Object.entries(nomes).map(([k, v]) => ({ valor: k, rotulo: v })) }],
+      colunas: [{ titulo: 'Lista', campo: '_nome_lista' }, { titulo: 'Valor', campo: 'valor' }, { titulo: 'Ordem', campo: 'ordem' }],
+      form: r => `
+        <div class="col-12"><label class="form-label">Lista *</label>
+          <select class="form-select" data-campo="lista" ${r.lista ? 'disabled' : ''}>${UI.opcoes(Object.entries(nomes).map(([k, v]) => ({ id: k, nome: v })), r.lista, { vazio: 'Selecione' })}</select></div>
+        <div class="col-md-9"><label class="form-label">Valor *</label><input class="form-control" data-campo="valor" value="${UI.esc(r.valor)}"></div>
+        <div class="col-md-3"><label class="form-label">Ordem</label><input type="number" class="form-control" data-campo="ordem" value="${UI.esc(r.ordem || '99')}"></div>`
+    });
+  }
+};
+
+</script>
+<script>
+/* ======== js/modulos/auditoria.js ======== */
+/**
+ * Auditoria — quem fez o quê e quando (últimos 500 registros).
+ */
+Modulos.auditoria = {
+  ACOES: {
+    CRIAR: 'Criou', EDITAR: 'Editou', INATIVAR: 'Inativou', REATIVAR: 'Reativou', LOGIN: 'Entrou',
+    LOGOUT: 'Saiu', LOGIN_FALHA: 'Errou a senha', TROCAR_SENHA: 'Trocou a senha', REDEFINIR_SENHA: 'Redefiniu senha',
+    REDEFINIR_SENHA_EDITOR: 'Senha redefinida pelo editor', PREFERENCIA: 'Mudou preferência'
+  },
+
+  async render(el, S) {
+    el.innerHTML = `<div class="cabecalho-pagina"><div><h1>Auditoria</h1><p>Registro de ações no sistema (mais recentes primeiro)</p></div></div>
+      <div class="cartao" id="aud-tabela"><div class="vazio"><div class="spinner-border"></div></div></div>`;
+    let dados;
+    try { dados = await Api.chamar('auditoria.listar', { limite: 500 }); } catch (e) { return UI.erro(e); }
+    dados.forEach((d, i) => { d._i = i; d._acao = this.ACOES[d.acao] || d.acao; });
+
+    const tabelas = [...new Set(dados.map(d => d.tabela).filter(Boolean))].sort();
+    const usuarios = [...new Map(dados.map(d => [d.id_usuario, d.usuario_nome])).entries()];
+
+    const cont = el.querySelector('#aud-tabela');
+    UI.tabela(cont, {
+      dados, porPagina: 25, placeholder: 'Pesquisar por registro, usuário, detalhe…',
+      busca: ['usuario_nome', 'id_registro', 'tabela', '_acao', 'detalhes'],
+      filtros: [
+        { campo: 'acao', titulo: 'Ação', opcoes: Object.entries(this.ACOES).map(([k, v]) => ({ valor: k, rotulo: v })) },
+        { campo: 'tabela', titulo: 'Tabela', opcoes: tabelas.map(t => ({ valor: t, rotulo: t })) },
+        { campo: 'id_usuario', titulo: 'Usuário', opcoes: usuarios.map(([id, nome]) => ({ valor: id, rotulo: nome })) }
+      ],
+      colunas: [
+        { titulo: 'Data/hora', render: r => `<span class="small">${UI.dataHora(r.data_hora)}</span>` },
+        { titulo: 'Usuário', campo: 'usuario_nome' },
+        { titulo: 'Ação', render: r => `<span class="chip">${UI.esc(r._acao)}</span>` },
+        { titulo: 'Tabela', campo: 'tabela' },
+        { titulo: 'Registro', render: r => `<code>${UI.esc(r.id_registro)}</code>` },
+        { titulo: '', classe: 'text-end', render: r => r.detalhes && r.detalhes !== '{}' ? `<button class="btn btn-sm btn-outline-secondary" data-det="${r._i}">Detalhes</button>` : '' }
+      ]
+    });
+
+    cont.addEventListener('click', e => {
+      const b = e.target.closest('[data-det]');
+      if (!b) return;
+      const r = dados[+b.dataset.det];
+      let txt = r.detalhes;
+      try { txt = JSON.stringify(JSON.parse(r.detalhes), null, 2); } catch (er) { /* mantém texto */ }
+      UI.modal({ titulo: `${UI.esc(r._acao)} · ${UI.esc(r.tabela)} ${UI.esc(r.id_registro)}`, tamanho: 'modal-lg', corpo: `<pre class="json">${UI.esc(txt)}</pre>` });
+    });
+  }
+};
+
+</script>
+<script>
+/* ======== js/modulos/perfil.js ======== */
+/**
+ * Minha conta — dados pessoais, tema e troca de senha.
+ */
+Modulos.perfil = {
+  render(el, S) {
+    const u = S.usuario;
+    const temas = [['classico', 'Clássico', 'Azul-marinho e dourado'], ['noturno', 'Noturno', 'Grafite e âmbar'], ['bordo', 'Bordô', 'Verde-escuro e bordô']];
+    el.innerHTML = `
+      <div class="cabecalho-pagina"><div><h1>Minha conta</h1><p>${UI.esc(u.email)} · ${UI.esc(S.cargo.nome)}</p></div></div>
+      <div class="row g-3">
+        <div class="col-lg-7"><div class="cartao" id="perfil-dados">
+          <h2 class="h6 mb-3">Meus dados</h2>
+          <div class="row g-3">
+            <div class="col-md-8"><label class="form-label">Nome</label><input class="form-control" data-campo="nome" value="${UI.esc(u.nome)}"></div>
+            <div class="col-md-4"><label class="form-label">Telefone</label><input class="form-control" data-campo="telefone" data-mascara="telefone" value="${UI.esc(u.telefone)}"></div>
+            <div class="col-md-4"><label class="form-label">OAB nº</label><input class="form-control" data-campo="oab_numero" value="${UI.esc(u.oab_numero)}"></div>
+            <div class="col-md-2"><label class="form-label">UF</label><input class="form-control" maxlength="2" data-campo="oab_uf" value="${UI.esc(u.oab_uf)}"></div>
+            <div class="col-md-6"><label class="form-label">CPF</label><input class="form-control" data-campo="cpf" data-mascara="cpf" value="${UI.esc(u.cpf)}"></div>
+            <div class="col-md-4"><label class="form-label">RG</label><input class="form-control" data-campo="rg" value="${UI.esc(u.rg)}"></div>
+            <div class="col-md-4"><label class="form-label">Nacionalidade</label><input class="form-control" data-campo="nacionalidade" value="${UI.esc(u.nacionalidade)}"></div>
+            <div class="col-md-4"><label class="form-label">Estado civil</label><select class="form-select" data-campo="estado_civil">${UI.opcoes(S.listas.estado_civil || [], u.estado_civil, { vazio: '-' })}</select></div>
+            <div class="col-12"><label class="form-label">Endereço profissional</label><input class="form-control" data-campo="endereco_profissional" value="${UI.esc(u.endereco_profissional)}"></div>
+            <div class="col-12 text-end"><button class="btn btn-primary" data-salvar-dados>Salvar dados</button></div>
+          </div>
+        </div></div>
+        <div class="col-lg-5">
+          <div class="cartao mb-3">
+            <h2 class="h6 mb-3">Tema</h2>
+            ${temas.map(t => `<label class="d-flex align-items-center gap-2 p-2 border rounded mb-2" style="cursor:pointer">
+              <input type="radio" name="tema" class="form-check-input mt-0" value="${t[0]}" ${document.documentElement.dataset.tema === t[0] ? 'checked' : ''}>
+              <span class="bolinha-tema" data-tema="${t[0]}"></span><span><strong>${t[1]}</strong> <span class="texto-2 small">${t[2]}</span></span></label>`).join('')}
+          </div>
+          <div class="cartao" id="perfil-senha">
+            <h2 class="h6 mb-3">Trocar senha</h2>
+            <div class="mb-2"><label class="form-label">Senha atual</label><input type="password" class="form-control" data-campo="senha_atual" autocomplete="current-password"></div>
+            <div class="mb-2"><label class="form-label">Nova senha</label><input type="password" class="form-control" data-campo="nova_senha" autocomplete="new-password"></div>
+            <div class="mb-3"><label class="form-label">Confirmar nova senha</label><input type="password" class="form-control" data-campo="confirmacao" autocomplete="new-password"></div>
+            <button class="btn btn-primary w-100" data-salvar-senha>Trocar senha</button>
+          </div>
+        </div>
+      </div>`;
+
+    Modulos.usuarios.ligarMascaras(el);
+
+    el.querySelectorAll('input[name="tema"]').forEach(r => r.addEventListener('change', () => App.aplicarTema(r.value)));
+
+    el.querySelector('[data-salvar-dados]').onclick = async ev => {
+      const d = UI.lerForm(el.querySelector('#perfil-dados'));
+      await UI.ocupado(ev.target, async () => {
+        try {
+          const novo = await Api.chamar('perfil.salvarDados', d);
+          Object.assign(App.S.usuario, novo);
+          document.getElementById('topo-nome').textContent = novo.nome;
+          document.getElementById('avatar-iniciais').textContent = UI.iniciais(novo.nome);
+          UI.toast('Dados salvos.');
+        } catch (e) { UI.erro(e); }
+      });
+    };
+
+    el.querySelector('[data-salvar-senha]').onclick = async ev => {
+      const box = el.querySelector('#perfil-senha');
+      const d = UI.lerForm(box);
+      await UI.ocupado(ev.target, async () => {
+        try {
+          await Api.chamar('auth.trocarSenha', d);
+          box.querySelectorAll('input').forEach(i => i.value = '');
+          UI.toast('Senha alterada.');
+        } catch (e) { UI.erro(e); }
+      });
+    };
+  }
+};
+
+</script>
+<script>App.iniciar();</script>
 </body>
 </html>
