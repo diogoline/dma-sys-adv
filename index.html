@@ -341,7 +341,21 @@ const Api = {
   salvarToken(t) { sessionStorage.setItem(this.CHAVE_TOKEN, t); },
   limparToken() { sessionStorage.removeItem(this.CHAVE_TOKEN); },
 
+  _cache: {},
+  LEITURAS: /\.(listar|ficha|textosPadrao|modelos|dados)$|^(app\.inicial|painel\.resumo|busca\.global)$/,
+
+  /** Leitura com cache em memória por alguns segundos (para listas de seleção em formulários) */
+  async chamarCache(acao, dados = {}, segundos = 60) {
+    const k = acao + JSON.stringify(dados);
+    const c = this._cache[k];
+    if (c && Date.now() - c.t < segundos * 1000) return c.v;
+    const v = await this.chamar(acao, dados);
+    this._cache[k] = { t: Date.now(), v };
+    return v;
+  },
+
   async chamar(acao, dados = {}) {
+    if (!this.LEITURAS.test(acao)) this._cache = {}; // gravou algo: descarta leituras guardadas
     APP_CONFIG.API_URL = String(APP_CONFIG.API_URL || '').trim();
     if (!/^https:\/\/script\.google\.com\/.+\/exec$/.test(APP_CONFIG.API_URL)) {
       throw new Error('URL da API inválida: "' + APP_CONFIG.API_URL + '". Ela deve começar com https://script.google.com/ e terminar com /exec.');
@@ -591,6 +605,7 @@ const UI = {
    *        porPagina, vazio, linhaClasse(r), extraBarra }
    */
   tabela(container, cfg) {
+    if (!container) return { atualizar() {}, el: null }; // a tela já foi trocada
     const estado = { termo: '', filtros: {}, pagina: 1 };
     const porPagina = cfg.porPagina || 15;
 
@@ -817,11 +832,14 @@ const App = {
     const view = document.getElementById('view');
     const mod = window.Modulos[rota];
     view.innerHTML = '';
+    const pagina = document.createElement('div');
+    view.appendChild(pagina);
     if (mod) {
-      Promise.resolve(mod.render(view, this.S, param)).catch(e => UI.erro(e));
+      // Se o usuário trocar de tela antes da resposta chegar, a tela antiga é descartada sem erro
+      Promise.resolve().then(() => mod.render(pagina, this.S, param)).catch(e => { if (pagina.isConnected) UI.erro(e); });
     } else {
       const item = MENU.find(i => i.id === rota) || { fase: '?' };
-      view.innerHTML = `<div class="cabecalho-pagina"><div><h1>${UI.esc(this.nomeModulo(rota))}</h1></div></div>
+      pagina.innerHTML = `<div class="cabecalho-pagina"><div><h1>${UI.esc(this.nomeModulo(rota))}</h1></div></div>
         <div class="cartao"><div class="vazio"><i class="bi bi-cone-striped"></i>
         Este módulo entra na fase ${UI.esc(item.fase)} da implantação.<br>A estrutura no banco já está criada.</div></div>`;
     }
@@ -947,7 +965,9 @@ Modulos.painel = {
     const vencidos = (R.retornos || []).filter(r => r.data_retorno <= hoje).length;
     const maxArea = Math.max(1, ...R.por_area.map(a => a.qtd));
 
-    document.getElementById('painel-conteudo').innerHTML = `
+    const alvo = el.querySelector('#painel-conteudo');
+    if (!alvo) return; // usuário já saiu desta tela
+    alvo.innerHTML = `
       <div class="row g-3 mb-3">
         ${kpi('Casos ativos', R.casos_ativos, '#/casos')}
         ${kpi('Clientes', R.clientes, '#/clientes')}
@@ -1481,7 +1501,7 @@ Modulos.contratos = {
     let casos = [];
     let caso = preset.caso || null;
     if (!k && !caso) {
-      try { casos = (await Api.chamar('casos.listar')).casos.filter(c => c.ativo !== 'NAO' && c.situacao === 'ATIVO'); } catch (e) { return UI.erro(e); }
+      try { casos = (await Api.chamarCache('casos.listar', {}, 60)).casos.filter(c => c.ativo !== 'NAO' && c.situacao === 'ATIVO'); } catch (e) { return UI.erro(e); }
     }
     if (k && !caso) { try { caso = (await Api.chamar('casos.ficha', { id_caso: k.id_caso })).caso; } catch (e) { return UI.erro(e); } }
     const padroes = await this.carregarPadroes();
@@ -1735,7 +1755,7 @@ Modulos.clientes = {
 
   /** Lista usada também por outros módulos (seleção de cliente) */
   async carregarLista() {
-    this.dados = await Api.chamar('clientes.listar');
+    this.dados = await Api.chamarCache('clientes.listar', {}, 60);
     return this.dados;
   },
 
@@ -1756,7 +1776,7 @@ Modulos.clientes = {
     const novo = el.querySelector('[data-novo]');
     if (novo) novo.onclick = () => this.formulario(null, S, c => { location.hash = '#/clientes/' + c.id_cliente; });
 
-    try { await this.carregarLista(); } catch (e) { return UI.erro(e); }
+    try { this.dados = await Api.chamar('clientes.listar'); } catch (e) { return UI.erro(e); } // lista da tela: sempre atualizada
 
     const exp = el.querySelector('[data-exportar]');
     if (exp) exp.onclick = () => UI.exportarCSV('clientes', [
@@ -2209,7 +2229,7 @@ Modulos.casos = {
     preset = preset || {};
     const v = Object.assign({ id_responsavel: S.usuario.id_usuario, id_unidade: S.usuario.id_unidade, natureza: 'Judicial' }, preset, k || {});
     if (!this.sugestoes.parte_contraria) {
-      try { const r = await Api.chamar('casos.listar'); this.dados = r.casos; this.sugestoes = r.sugestoes; } catch (e) { /* segue sem sugestões */ }
+      try { const r = await Api.chamarCache('casos.listar', {}, 60); this.sugestoes = r.sugestoes; } catch (e) { /* segue sem sugestões */ }
     }
     let clientes = [];
     const clienteFixo = !!(k || preset.id_cliente);
@@ -2409,6 +2429,7 @@ Modulos.usuarios = {
   dados: [],
 
   async render(el, S) {
+    this.el = el;
     el.innerHTML = `
       <div class="cabecalho-pagina">
         <div><h1>Usuários</h1><p>Advogados e equipe com acesso ao sistema</p></div>
@@ -2446,7 +2467,7 @@ Modulos.usuarios = {
     const podeEditar = App.pode('usuarios', 'editar');
     const podeExcluir = App.pode('usuarios', 'excluir');
 
-    UI.tabela(document.getElementById('usu-tabela'), {
+    UI.tabela(this.el && this.el.querySelector('#usu-tabela'), {
       dados: this.dados,
       placeholder: 'Pesquisar por nome, e-mail, OAB, CPF…',
       busca: ['nome', 'email', 'oab_numero', 'cpf', 'cargo_nome', '_areas'],
@@ -2585,6 +2606,7 @@ Modulos.cargos = {
   ACOES: [['ver', 'Ver'], ['criar', 'Criar'], ['editar', 'Editar'], ['excluir', 'Excluir'], ['exportar', 'Exportar']],
 
   async render(el, S) {
+    this.el = el;
     el.innerHTML = `
       <div class="cabecalho-pagina">
         <div><h1>Cargos e permissões</h1><p>Defina o que cada cargo vê e faz em cada módulo</p></div>
@@ -2605,7 +2627,7 @@ Modulos.cargos = {
 
   async carregar() {
     try { this.dados = await Api.chamar('cargos.listar'); } catch (e) { return UI.erro(e); }
-    const lista = document.getElementById('cargos-lista');
+    const lista = this.el && this.el.querySelector('#cargos-lista');
     if (!lista) return;
     lista.innerHTML = this.dados.map(c => {
       const mods = App.S.modulos.filter(m => c.permissoes[m.id] && c.permissoes[m.id].ver).map(m => m.nome);
@@ -2712,6 +2734,7 @@ Modulos.configuracoes = {
   aba: 'escritorio',
 
   async render(el) {
+    this.el = el;
     el.innerHTML = `
       <div class="cabecalho-pagina"><div><h1>Configurações</h1><p>Cadastros básicos e parâmetros do sistema</p></div></div>
       <ul class="nav nav-pills mb-3 gap-1" id="cfg-abas">
@@ -2739,8 +2762,9 @@ Modulos.configuracoes = {
   podeEditar() { return App.pode('configuracoes', 'editar'); },
 
   desenhar() {
-    document.querySelectorAll('#cfg-abas [data-aba]').forEach(b => b.classList.toggle('active', b.dataset.aba === this.aba));
-    const el = document.getElementById('cfg-conteudo');
+    if (!this.el) return;
+    this.el.querySelectorAll('#cfg-abas [data-aba]').forEach(b => b.classList.toggle('active', b.dataset.aba === this.aba));
+    const el = this.el.querySelector('#cfg-conteudo');
     if (!el || !this.D) return;
     ({ escritorio: () => this.abaEscritorio(el), unidades: () => this.abaUnidades(el), areas: () => this.abaAreas(el),
        listas: () => this.abaListas(el), sistema: () => this.abaSistema(el), modelos: () => this.abaModelos(el) })[this.aba]();
