@@ -193,6 +193,8 @@ a.link-limpo:hover { text-decoration: underline; }
   .conteudo { padding: 16px; }
 }
 .faltando { color: #c0392b; font-weight: 600; }
+/* Textos longos sempre justificados (fichas, andamentos e campos de texto) */
+.campo-info .valor, .linha-tempo .texto, textarea.form-control, .texto-justificado { text-align: justify; }
 
 </style>
 </head>
@@ -1002,9 +1004,12 @@ const DocGen = {
     .folha { max-width: 17cm; margin: 0 auto; padding: 1cm 0; }
     h1 { font-size: 12pt; text-align: center; font-weight: bold; margin: 0 0 24pt; }
     h2 { font-size: 12pt; font-weight: bold; margin: 16pt 0 6pt; }
+    p, div, li, td { text-align: justify; }
     p { margin: 0 0 10pt; }
     .recuo { text-indent: 2.5em; }
-    .centro { text-align: center; }
+    .centro, h1, .assinatura, .cabecalho { text-align: center !important; }
+    table.moldura { width: 100%; border-collapse: collapse; }
+    table.moldura > thead > tr > td, table.moldura > tbody > tr > td { padding: 0; vertical-align: top; }
     .caixa { border: 1px solid #000; padding: 2pt 5pt; margin: 14pt 0; }
     .titulo-caixa { font-weight: bold; }
     .cabecalho { text-align: center; border-bottom: 1.5px solid #999; padding-bottom: 10pt; margin-bottom: 22pt; }
@@ -1186,10 +1191,9 @@ const DocGen = {
     const advs = D.advogados || [];
     const juntar = l => l.length <= 1 ? (l[0] || '') : l.slice(0, -1).join('; ') + ' e ' + l[l.length - 1];
     const ass = (nome, extra) => `<div class="assinatura"><div class="linha"></div><b>${E(nome)}</b>${extra ? '<br><b>' + E(extra) + '</b>' : ''}</div>`;
-    const logo = D.escritorio.logo_url ? `<img src="${E(D.escritorio.logo_url)}" alt="">` : `<div class="nome-esc">${E(String(D.escritorio.nome).toUpperCase())}</div>`;
     const cidade = D.unidade && D.unidade.cidade ? `${D.unidade.cidade}${D.unidade.uf ? '/' + D.unidade.uf : ''}` : '';
     return {
-      'escritorio.logo': logo, 'escritorio.nome': E(D.escritorio.nome),
+      'escritorio.logo': '', 'escritorio.nome': E(D.escritorio.nome),
       'cliente.qualificacao': DocGen.qualificacaoCliente(D.cliente), 'cliente.nome': E(c.nome_razao),
       'cliente.nome_maiusculo': E(String(c.nome_razao || '').toUpperCase()), 'cliente.cpf_cnpj': c.cpf_cnpj ? E(c.cpf_cnpj) : DocGen.falta('CPF/CNPJ'),
       'cliente.endereco': E(DocGen.endereco(c)),
@@ -1213,18 +1217,38 @@ const DocGen = {
     const m = DocGen.mapa(D);
     const trocar = (s, final) => s.replace(/\{\{\s*([\w.]+)\s*\}\}/g, (x, chave) =>
       m[chave] !== undefined ? m[chave] : (final ? DocGen.falta(chave) : x));
-    return trocar(trocar(modeloHtml, false), true); // 2 passadas: campos dentro dos poderes também são trocados
+    return trocar(trocar(modeloHtml, false), true) // 2 passadas: campos dentro dos poderes também são trocados
+      .replace(/<div class="cabecalho">\s*<\/div>\s*/g, ''); // modelos antigos com {{escritorio.logo}}: o cabeçalho agora é automático
   },
 
-  paginaCompleta(corpo, titulo) {
+  /** Cabeçalho automático: logo centralizada + linha (repete em todas as páginas na impressão) */
+  cabecalho(esc) {
+    esc = esc || {};
+    const E = UI.esc;
+    return `<div class="cabecalho">${esc.logo_url ? `<img src="${E(esc.logo_url)}" alt="">` : `<div class="nome-esc">${E(String(esc.nome || '').toUpperCase())}</div>`}</div>`;
+  },
+
+  paginaCompleta(corpo, titulo, escritorio, paraWord) {
+    const cab = DocGen.cabecalho(escritorio);
+    const conteudo = paraWord
+      ? cab + corpo
+      : `<table class="moldura"><thead><tr><td>${cab}</td></tr></thead><tbody><tr><td>${corpo}</td></tr></tbody></table>`;
     return `<!DOCTYPE html><html lang="pt-BR"><head><meta charset="utf-8"><title>${UI.esc(titulo)}</title><style>${DocGen.CSS}</style></head>
-      <body><div class="folha">${corpo}</div></body></html>`;
+      <body><div class="folha">${conteudo}</div></body></html>`;
+  },
+
+  /** O Word ignora parte do CSS: grava o alinhamento direto em cada parágrafo */
+  paraWord(pagina) {
+    return pagina.replace(/<(p|div)(\s+class="([^"]*)")?>/g, (m, tag, attr, cls) => {
+      const centro = /centro|assinatura|cabecalho/.test(cls || '');
+      return `<${tag}${attr || ''} style="text-align:${centro ? 'center' : 'justify'}">`;
+    });
   },
 
   /** Abre a prévia com botões de imprimir/PDF e baixar para Word */
-  abrirPrevia(corpoHtml, titulo, nomeArquivo) {
+  abrirPrevia(corpoHtml, titulo, nomeArquivo, escritorio) {
     const faltas = (corpoHtml.match(/class="faltando"/g) || []).length;
-    const pagina = DocGen.paginaCompleta(corpoHtml, titulo);
+    const pagina = DocGen.paginaCompleta(corpoHtml, titulo, escritorio);
     const m = UI.modal({
       titulo: UI.esc(titulo), tamanho: 'modal-xl',
       corpo: `${faltas ? `<div class="alert alert-warning small py-2"><i class="bi bi-exclamation-triangle me-1"></i>${faltas} informação(ões) faltando, marcadas em <b class="text-danger">vermelho</b>. Complete o cadastro antes de imprimir.</div>` : ''}
@@ -1236,7 +1260,7 @@ const DocGen = {
     fr.srcdoc = pagina;
     m.el.querySelector('[data-imprimir]').onclick = () => { fr.contentWindow.focus(); fr.contentWindow.print(); };
     m.el.querySelector('[data-word]').onclick = () => {
-      const blob = new Blob(['﻿' + pagina], { type: 'application/msword' });
+      const blob = new Blob(['\ufeff' + DocGen.paraWord(DocGen.paginaCompleta(corpoHtml, titulo, escritorio, true))], { type: 'application/msword' });
       const a = document.createElement('a');
       a.href = URL.createObjectURL(blob);
       a.download = (nomeArquivo || 'documento') + '.doc';
@@ -1645,7 +1669,7 @@ Modulos.contratos = {
         try {
           const D = await Api.chamar('contratos.dadosDocumento', { id_contrato: k.id_contrato, id_modelo: b.dataset.modelo });
           const nome = `${D.modelo.nome} - ${(cli.nome_razao || '').split(' ')[0]} - ${k.id_contrato}`;
-          DocGen.abrirPrevia(DocGen.render(D.modelo.conteudo_html, D), D.modelo.nome, nome.replace(/[\\/:*?"<>|]/g, ''));
+          DocGen.abrirPrevia(DocGen.render(D.modelo.conteudo_html, D), D.modelo.nome, nome.replace(/[\\/:*?"<>|]/g, ''), D.escritorio);
         } catch (e) { UI.erro(e); }
       });
     });
@@ -2946,7 +2970,8 @@ Modulos.configuracoes = {
     });
     m.el.querySelector('[data-previa]').onclick = () => {
       const html = cat.value === 'DOCUMENTO' ? ta.value : `<p>${DocGen.texto(ta.value)}</p>`;
-      DocGen.abrirPrevia(DocGen.render(html, DocGen.exemplo()), 'Prévia do modelo (dados fictícios)', 'previa');
+      const ex = DocGen.exemplo();
+      DocGen.abrirPrevia(DocGen.render(html, ex), 'Prévia do modelo (dados fictícios)', 'previa', ex.escritorio);
     };
     m.el.querySelector('[data-salvar]').onclick = async ev => {
       const d = UI.lerForm(m.el);
