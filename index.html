@@ -192,6 +192,7 @@ a.link-limpo:hover { text-decoration: underline; }
   .principal { margin-left: 0; }
   .conteudo { padding: 16px; }
 }
+.faltando { color: #c0392b; font-weight: 600; }
 
 </style>
 </head>
@@ -663,7 +664,7 @@ const UI = {
  * Cada módulo se registra em window.Modulos = { id: { render(el, S) } }.
  */
 window.Modulos = window.Modulos || {};
-const FASE_ATUAL = 2; // módulos com fase <= FASE_ATUAL estão prontos
+const FASE_ATUAL = 3; // módulos com fase <= FASE_ATUAL estão prontos
 
 const MENU = [
   { id: 'painel',        icone: 'bi-speedometer2',      fase: 1 },
@@ -976,6 +977,726 @@ Modulos.painel = {
 
 </script>
 <script>
+/* ======== js/modulos/docgen.js ======== */
+/**
+ * DocGen — monta documentos (procuração, contrato, declaração) a partir dos modelos.
+ * Campos {{...}} são trocados pelos dados do cliente, caso, contrato e advogados.
+ * Campo sem dado cadastrado aparece em VERMELHO no documento, para ninguém imprimir incompleto.
+ */
+const DocGen = {
+  CAMPOS: [
+    ['escritorio.logo', 'Logo do escritório'], ['escritorio.nome', 'Nome do escritório'],
+    ['cliente.qualificacao', 'Qualificação completa do cliente'], ['cliente.nome', 'Nome do cliente'],
+    ['cliente.nome_maiusculo', 'Nome do cliente em maiúsculas'], ['cliente.cpf_cnpj', 'CPF/CNPJ'], ['cliente.endereco', 'Endereço do cliente'],
+    ['advogados.qualificacao', 'Qualificação dos advogados'], ['advogados.assinaturas', 'Assinaturas dos advogados'],
+    ['caso.titulo', 'Título do caso'], ['caso.tipo_acao', 'Tipo de ação'], ['caso.num_cnj', 'Nº CNJ'], ['caso.nb', 'NB do benefício'],
+    ['caso.num_protocolo', 'Protocolo'], ['caso.parte_contraria', 'Parte contrária'],
+    ['contrato.objeto', 'Objeto do contrato'], ['contrato.honorarios', 'Texto dos honorários'],
+    ['contrato.poderes_gerais', 'Poderes gerais'], ['contrato.poderes_especiais', 'Poderes especiais'],
+    ['foro', 'Foro'], ['cidade', 'Cidade/UF'], ['data_extenso', 'Data por extenso'],
+    ['assinatura.cliente', 'Assinatura do cliente'], ['assinatura.cliente_maiusculo', 'Assinatura do cliente (maiúsculas)']
+  ],
+
+  CSS: `@page { size: A4; margin: 2cm 2.2cm; }
+    body { font-family: Arial, Helvetica, sans-serif; font-size: 12pt; line-height: 1.5; color: #000; text-align: justify; margin: 0; }
+    .folha { max-width: 17cm; margin: 0 auto; padding: 1cm 0; }
+    h1 { font-size: 12pt; text-align: center; font-weight: bold; margin: 0 0 24pt; }
+    h2 { font-size: 12pt; font-weight: bold; margin: 16pt 0 6pt; }
+    p { margin: 0 0 10pt; }
+    .recuo { text-indent: 2.5em; }
+    .centro { text-align: center; }
+    .caixa { border: 1px solid #000; padding: 2pt 5pt; margin: 14pt 0; }
+    .titulo-caixa { font-weight: bold; }
+    .cabecalho { text-align: center; border-bottom: 1.5px solid #999; padding-bottom: 10pt; margin-bottom: 22pt; }
+    .cabecalho img { max-height: 70px; max-width: 300px; }
+    .cabecalho .nome-esc { font-size: 18pt; letter-spacing: .08em; }
+    .assinatura { width: 60%; margin: 40pt auto 14pt; text-align: center; page-break-inside: avoid; }
+    .assinatura .linha { border-top: 1px solid #000; margin-bottom: 4pt; }
+    .faltando { color: #c00; font-weight: bold; }
+    @media print { .folha { padding: 0; } }`,
+
+  // ---------- números por extenso ----------
+  _ext3(n) {
+    const u = ['', 'um', 'dois', 'três', 'quatro', 'cinco', 'seis', 'sete', 'oito', 'nove', 'dez', 'onze', 'doze', 'treze', 'quatorze', 'quinze', 'dezesseis', 'dezessete', 'dezoito', 'dezenove'];
+    const d = ['', '', 'vinte', 'trinta', 'quarenta', 'cinquenta', 'sessenta', 'setenta', 'oitenta', 'noventa'];
+    const c = ['', 'cento', 'duzentos', 'trezentos', 'quatrocentos', 'quinhentos', 'seiscentos', 'setecentos', 'oitocentos', 'novecentos'];
+    if (n === 100) return 'cem';
+    const p = [];
+    if (n >= 100) p.push(c[Math.floor(n / 100)]);
+    const r = n % 100;
+    if (r >= 20) { p.push(d[Math.floor(r / 10)] + (r % 10 ? ' e ' + u[r % 10] : '')); } else if (r > 0) p.push(u[r]);
+    return p.join(' e ');
+  },
+
+  extenso(n) {
+    n = Math.floor(Math.abs(n));
+    if (n === 0) return 'zero';
+    const grupos = [[1e6, 'milhão', 'milhões'], [1e3, 'mil', 'mil'], [1, '', '']];
+    const partes = [];
+    let resto = n;
+    grupos.forEach(([div, s, pl]) => {
+      const q = Math.floor(resto / div);
+      resto = resto % div;
+      if (!q) return;
+      if (div === 1e3 && q === 1) partes.push({ txt: 'mil', v: q * div });
+      else partes.push({ txt: DocGen._ext3(q) + (s ? ' ' + (q > 1 ? pl : s) : ''), v: q * div });
+    });
+    return partes.map((p, i) => {
+      if (i === 0) return p.txt;
+      const v = p.v;
+      return ((v < 100 || v % 100 === 0) ? ' e ' : ', ') + p.txt;
+    }).join('');
+  },
+
+  reaisExtenso(valor) {
+    const v = Math.round(Number(valor) * 100) / 100;
+    const inteiro = Math.floor(v);
+    const cent = Math.round((v - inteiro) * 100);
+    let t = '';
+    if (inteiro) t = DocGen.extenso(inteiro) + (inteiro === 1 ? ' real' : (inteiro % 1e6 === 0 ? ' de reais' : ' reais'));
+    if (cent) t += (t ? ' e ' : '') + DocGen.extenso(cent) + (cent === 1 ? ' centavo' : ' centavos');
+    return t || 'zero reais';
+  },
+
+  moeda(v) { return Number(v || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' }).replace(/ /g, ' '); },
+
+  /** "1.234,56" ou "300" -> número */
+  num(v) {
+    let s = String(v === undefined || v === null ? '' : v).replace(/[R$\s%]/g, '');
+    if (!s) return 0;
+    if (s.indexOf(',') > -1) s = s.replace(/\./g, '').replace(',', '.');
+    const n = parseFloat(s);
+    return isNaN(n) ? 0 : Math.round(n * 100) / 100;
+  },
+
+  /** Mesma regra do servidor (Contratos.montarParcelas) — só para pré-visualização */
+  previaParcelas(k) {
+    const lista = [];
+    const entrada = DocGen.num(k.valor_entrada), total = DocGen.num(k.valor_fixo);
+    const n = Math.max(0, parseInt(k.n_parcelas || '0', 10) || 0);
+    const base = k.data_contrato || UI.hojeISO();
+    if (entrada > 0) lista.push({ numero: 'Entrada', vencimento: base, valor: entrada });
+    if (total > 0) {
+      const qtd = n || 1;
+      const valor = Math.floor(total / qtd * 100) / 100;
+      const resto = Math.round((total - valor * qtd) * 100) / 100;
+      const b = base.split('-').map(Number);
+      const ini = k.data_primeira_parcela ? k.data_primeira_parcela.split('-').map(Number) : [b[0], b[1] + 1, parseInt(k.dia_vencimento || b[2], 10) || b[2]];
+      for (let i = 0; i < qtd; i++) {
+        const dt = new Date(ini[0], ini[1] - 1 + i, 1);
+        dt.setDate(Math.min(ini[2], new Date(dt.getFullYear(), dt.getMonth() + 1, 0).getDate()));
+        lista.push({ numero: `${i + 1}/${qtd}`, vencimento: `${dt.getFullYear()}-${String(dt.getMonth() + 1).padStart(2, '0')}-${String(dt.getDate()).padStart(2, '0')}`, valor: i === qtd - 1 ? valor + resto : valor });
+      }
+    }
+    return lista;
+  },
+
+  /** Texto sugerido para a cláusula de honorários */
+  textoHonorarios(k) {
+    const entrada = DocGen.num(k.valor_entrada), total = DocGen.num(k.valor_fixo), exito = DocGen.num(k.perc_exito);
+    const n = Math.max(0, parseInt(k.n_parcelas || '0', 10) || 0);
+    const dia = k.dia_vencimento;
+    const partes = [];
+    if (entrada > 0) partes.push(`**${DocGen.moeda(entrada)} (${DocGen.reaisExtenso(entrada)}) a título de honorários iniciais**`);
+    if (total > 0) {
+      if (/mensal/i.test(k.tipo_honorario || '')) {
+        const parc = n ? total / n : total;
+        partes.push(`**${DocGen.moeda(parc)} (${DocGen.reaisExtenso(parc)}) mensais**${n ? ` durante ${n} (${DocGen.extenso(n)}) meses` : ''}${dia ? `, com vencimento todo dia ${dia}` : ''}`);
+      } else if (n > 1) {
+        const exato = Math.round(total / n * 100) / 100 * n === total;
+        partes.push(`**${DocGen.moeda(total)} (${DocGen.reaisExtenso(total)})**, divididos em ${n} (${DocGen.extenso(n)}) parcelas mensais` +
+          (exato ? ` de ${DocGen.moeda(total / n)} (${DocGen.reaisExtenso(total / n)})` : '') + (dia ? `, com vencimento todo dia ${dia}` : ''));
+      } else {
+        partes.push(`**${DocGen.moeda(total)} (${DocGen.reaisExtenso(total)})**`);
+      }
+    }
+    let t = partes.join(' e ');
+    if (exito > 0) {
+      const pe = Number.isInteger(exito) ? DocGen.extenso(exito) : String(exito).replace('.', ',');
+      t += (t ? ', bem como ' : '') + `**${String(exito).replace('.', ',')}% (${pe} por cento) sobre o valor total da causa ou do proveito econômico obtido**, ainda que por meio de acordo, transação judicial ou extrajudicial, sentença ou qualquer outra forma de resolução do litígio`;
+    }
+    return t;
+  },
+
+  // ---------- qualificação ----------
+  g(genero, m, f) { return genero === 'Feminino' ? f : (genero === 'Masculino' || m === f) ? m : `${m}(a)`; },
+  generoTexto(txt, genero) {
+    if (!txt) return '';
+    if (genero === 'Feminino') return txt.replace(/o\(a\)/gi, 'a').replace(/\(a\)/gi, 'a');
+    if (genero === 'Masculino') return txt.replace(/\(a\)/gi, '');
+    return txt;
+  },
+  falta(rotulo) { return `<span class="faltando">[${UI.esc(rotulo)}]</span>`; },
+  cep(v) { const d = String(v || '').replace(/\D/g, ''); return d.length === 8 ? `${d.slice(0, 2)}.${d.slice(2, 5)}-${d.slice(5)}` : (v || ''); },
+
+  endereco(c) {
+    const l1 = [c.logradouro, c.numero].filter(Boolean).join(', ');
+    return [l1, c.complemento, c.bairro, c.cidade ? c.cidade + (c.uf ? '/' + c.uf : '') : ''].filter(Boolean).join(', ');
+  },
+
+  qualificacaoCliente(c) {
+    if (!c) return DocGen.falta('CLIENTE');
+    const E = UI.esc, gen = c.genero;
+    const end = DocGen.endereco(c);
+    if (c.tipo === 'PJ') {
+      return `<b>${E(String(c.nome_razao).toUpperCase())}</b>, pessoa jurídica de direito privado, inscrita no CNPJ sob o n° ${c.cpf_cnpj ? E(c.cpf_cnpj) : DocGen.falta('CNPJ')}, ` +
+        `com sede em ${end ? E(end) : DocGen.falta('ENDEREÇO')}${c.cep ? ', CEP: ' + E(DocGen.cep(c.cep)) : ''}.`;
+    }
+    const seg = [`<b>${E(String(c.nome_razao).toUpperCase())}</b>`];
+    if (c.nacionalidade) seg.push(E(DocGen.generoTexto(c.nacionalidade, gen)));
+    if (c.estado_civil) seg.push(E(DocGen.generoTexto(c.estado_civil, gen).toLowerCase()));
+    if (c.profissao) seg.push(E(c.profissao));
+    const cpf = c.cpf_cnpj ? E(c.cpf_cnpj) : DocGen.falta('CPF');
+    const rgD = String(c.rg_ie || '').replace(/\D/g, ''), cpfD = String(c.cpf_cnpj || '').replace(/\D/g, '');
+    if (rgD && rgD !== cpfD) seg.push(`${DocGen.g(gen, 'portador', 'portadora')} do RG n° ${E(c.rg_ie)}${c.orgao_emissor ? ' ' + E(c.orgao_emissor) : ''}, ${DocGen.g(gen, 'inscrito', 'inscrita')} no CPF n° ${cpf}`);
+    else seg.push(`${DocGen.g(gen, 'inscrito', 'inscrita')} no Registro Geral/CPF n° ${cpf}`);
+    seg.push(`com domicílio e residência em ${end ? E(end) : DocGen.falta('ENDEREÇO')}${c.cep ? ', CEP: ' + E(DocGen.cep(c.cep)) : ''}`);
+    return seg.join(', ') + '.';
+  },
+
+  qualificacaoAdvogado(a) {
+    const E = UI.esc, gen = a.genero;
+    const seg = [`<b>${E(String(a.nome).toUpperCase())}</b>`];
+    if (a.nacionalidade) seg.push(E(DocGen.generoTexto(a.nacionalidade, gen)));
+    if (a.estado_civil) seg.push(E(DocGen.generoTexto(a.estado_civil, gen).toLowerCase()));
+    seg.push(DocGen.g(gen, 'advogado', 'advogada'));
+    if (a.rg) seg.push(`${DocGen.g(gen, 'portador', 'portadora')} do RG n° ${E(a.rg)}`);
+    seg.push(`${DocGen.g(gen, 'inscrito', 'inscrita')} no CPF n° ${a.cpf ? E(a.cpf) : DocGen.falta('CPF DO ADVOGADO')}`);
+    seg.push(`regularmente ${DocGen.g(gen, 'inscrito', 'inscrita')} na OAB/${a.oab_uf ? E(a.oab_uf) : DocGen.falta('UF')} sob o n° ${a.oab_numero ? E(a.oab_numero) : DocGen.falta('Nº OAB')}`);
+    if (a.email) seg.push(`${DocGen.g(gen, 'titular', 'titular')} do e-mail ${E(a.email)}`);
+    seg.push(`com endereço profissional em ${a.endereco ? E(a.endereco) : DocGen.falta('ENDEREÇO PROFISSIONAL')}`);
+    return seg.join(', ');
+  },
+
+  texto(t) {
+    return UI.esc(t || '').replace(/\*\*(.+?)\*\*/g, '<b>$1</b>').replace(/\n/g, '<br>')
+      .replace(/\[(PREENCHER[^\]]*)\]/gi, '<span class="faltando">[$1]</span>');
+  },
+
+  dataExtenso(iso) {
+    const m = String(iso || '').match(/^(\d{4})-(\d{2})-(\d{2})/);
+    const d = m ? new Date(+m[1], +m[2] - 1, +m[3]) : new Date();
+    const meses = ['janeiro', 'fevereiro', 'março', 'abril', 'maio', 'junho', 'julho', 'agosto', 'setembro', 'outubro', 'novembro', 'dezembro'];
+    return `${String(d.getDate()).padStart(2, '0')} de ${meses[d.getMonth()]} de ${d.getFullYear()}`;
+  },
+
+  /** Mapa campo -> HTML, a partir do retorno de contratos.dadosDocumento */
+  mapa(D) {
+    const c = D.cliente || {}, k = D.contrato || {}, caso = D.caso || {}, E = UI.esc;
+    const advs = D.advogados || [];
+    const juntar = l => l.length <= 1 ? (l[0] || '') : l.slice(0, -1).join('; ') + ' e ' + l[l.length - 1];
+    const ass = (nome, extra) => `<div class="assinatura"><div class="linha"></div><b>${E(nome)}</b>${extra ? '<br><b>' + E(extra) + '</b>' : ''}</div>`;
+    const logo = D.escritorio.logo_url ? `<img src="${E(D.escritorio.logo_url)}" alt="">` : `<div class="nome-esc">${E(String(D.escritorio.nome).toUpperCase())}</div>`;
+    const cidade = D.unidade && D.unidade.cidade ? `${D.unidade.cidade}${D.unidade.uf ? '/' + D.unidade.uf : ''}` : '';
+    return {
+      'escritorio.logo': logo, 'escritorio.nome': E(D.escritorio.nome),
+      'cliente.qualificacao': DocGen.qualificacaoCliente(D.cliente), 'cliente.nome': E(c.nome_razao),
+      'cliente.nome_maiusculo': E(String(c.nome_razao || '').toUpperCase()), 'cliente.cpf_cnpj': c.cpf_cnpj ? E(c.cpf_cnpj) : DocGen.falta('CPF/CNPJ'),
+      'cliente.endereco': E(DocGen.endereco(c)),
+      'advogados.qualificacao': advs.length ? juntar(advs.map(DocGen.qualificacaoAdvogado)) + '.' : DocGen.falta('ESCOLHA OS ADVOGADOS NO CONTRATO'),
+      'advogados.assinaturas': advs.map(a => ass(a.nome, a.oab_numero ? `OAB/${a.oab_uf || ''} ${a.oab_numero}` : '')).join(''),
+      'caso.titulo': E(caso.titulo), 'caso.tipo_acao': E(caso.tipo_acao), 'caso.num_cnj': caso.num_cnj ? E(caso.num_cnj) : DocGen.falta('Nº CNJ'),
+      'caso.nb': caso.nb_beneficio ? E(caso.nb_beneficio) : DocGen.falta('NB'), 'caso.num_protocolo': E(caso.num_protocolo),
+      'caso.parte_contraria': caso.parte_contraria ? E(caso.parte_contraria) : DocGen.falta('PARTE CONTRÁRIA'),
+      'contrato.objeto': k.objeto ? DocGen.texto(k.objeto) : DocGen.falta('OBJETO'),
+      'contrato.honorarios': k.honorarios_texto ? DocGen.texto(k.honorarios_texto) : DocGen.falta('HONORÁRIOS'),
+      'contrato.poderes_gerais': k.poderes_gerais ? DocGen.texto(k.poderes_gerais) : DocGen.falta('PODERES GERAIS'),
+      'contrato.poderes_especiais': k.poderes_especiais ? DocGen.texto(k.poderes_especiais) : DocGen.falta('PODERES ESPECIAIS'),
+      'foro': D.escritorio.foro ? E(D.escritorio.foro) : DocGen.falta('FORO'),
+      'cidade': cidade ? E(cidade) : DocGen.falta('CIDADE'),
+      'data_extenso': DocGen.dataExtenso(k.data_contrato),
+      'assinatura.cliente': ass(c.nome_razao || ''), 'assinatura.cliente_maiusculo': ass(String(c.nome_razao || '').toUpperCase())
+    };
+  },
+
+  render(modeloHtml, D) {
+    const m = DocGen.mapa(D);
+    const trocar = (s, final) => s.replace(/\{\{\s*([\w.]+)\s*\}\}/g, (x, chave) =>
+      m[chave] !== undefined ? m[chave] : (final ? DocGen.falta(chave) : x));
+    return trocar(trocar(modeloHtml, false), true); // 2 passadas: campos dentro dos poderes também são trocados
+  },
+
+  paginaCompleta(corpo, titulo) {
+    return `<!DOCTYPE html><html lang="pt-BR"><head><meta charset="utf-8"><title>${UI.esc(titulo)}</title><style>${DocGen.CSS}</style></head>
+      <body><div class="folha">${corpo}</div></body></html>`;
+  },
+
+  /** Abre a prévia com botões de imprimir/PDF e baixar para Word */
+  abrirPrevia(corpoHtml, titulo, nomeArquivo) {
+    const faltas = (corpoHtml.match(/class="faltando"/g) || []).length;
+    const pagina = DocGen.paginaCompleta(corpoHtml, titulo);
+    const m = UI.modal({
+      titulo: UI.esc(titulo), tamanho: 'modal-xl',
+      corpo: `${faltas ? `<div class="alert alert-warning small py-2"><i class="bi bi-exclamation-triangle me-1"></i>${faltas} informação(ões) faltando, marcadas em <b class="text-danger">vermelho</b>. Complete o cadastro antes de imprimir.</div>` : ''}
+        <iframe class="w-100 border rounded bg-white" style="height:70vh" sandbox="allow-same-origin allow-modals" title="Prévia do documento"></iframe>`,
+      rodape: `<button class="btn btn-outline-secondary" data-word><i class="bi bi-file-earmark-word me-1"></i>Baixar para Word</button>
+               <button class="btn btn-primary" data-imprimir><i class="bi bi-printer me-1"></i>Imprimir / salvar PDF</button>`
+    });
+    const fr = m.el.querySelector('iframe');
+    fr.srcdoc = pagina;
+    m.el.querySelector('[data-imprimir]').onclick = () => { fr.contentWindow.focus(); fr.contentWindow.print(); };
+    m.el.querySelector('[data-word]').onclick = () => {
+      const blob = new Blob(['﻿' + pagina], { type: 'application/msword' });
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(blob);
+      a.download = (nomeArquivo || 'documento') + '.doc';
+      a.click();
+      setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+    };
+  },
+
+  /** Dados fictícios para pré-visualizar modelos no editor */
+  exemplo() {
+    return {
+      escritorio: { nome: (App.S && App.S.escritorio.nome) || 'Escritório', logo_url: (App.S && App.S.escritorio.logo_url) || '', foro: 'Casa Nova-BA' },
+      unidade: { cidade: 'Casa Nova', uf: 'BA' },
+      cliente: { tipo: 'PF', nome_razao: 'Maria Exemplo da Silva', genero: 'Feminino', nacionalidade: 'brasileiro(a)', estado_civil: 'Casado(a)', profissao: 'agricultora',
+        cpf_cnpj: '000.000.000-00', logradouro: 'Rua Exemplo', numero: '10', bairro: 'Centro', cidade: 'Casa Nova', uf: 'BA', cep: '47300000' },
+      caso: { titulo: 'Caso de exemplo', tipo_acao: 'Indenização por danos', parte_contraria: 'Empresa Exemplo S.A.', num_cnj: '0000000-00.2026.8.05.0052' },
+      contrato: { objeto: 'propor **ação de exemplo**', honorarios_texto: DocGen.textoHonorarios({ valor_entrada: '300', perc_exito: '30' }),
+        poderes_gerais: 'Poderes gerais de exemplo perante {{caso.parte_contraria}}.', poderes_especiais: 'Poderes especiais de exemplo.', data_contrato: UI.hojeISO() },
+      advogados: [{ nome: 'Advogado Exemplo', genero: 'Masculino', nacionalidade: 'brasileiro', estado_civil: 'solteiro', rg: '0000000', cpf: '000.000.000-00', oab_numero: '00000', oab_uf: 'BA', email: 'advogado@exemplo.com', endereco: 'Rua Exemplo, 70, Centro, Casa Nova/BA' }]
+    };
+  }
+};
+
+</script>
+<script>
+/* ======== js/modulos/documentos.js ======== */
+/**
+ * Documentos — anexos no Google Drive (privados; o download passa pelo sistema).
+ * Página: #/documentos   ·   Componente: Modulos.documentos.painel(el, filtro)
+ */
+Modulos.documentos = {
+  MAX_MB: 10,
+  MIMES: ['application/pdf', 'image/jpeg', 'image/png', 'image/webp'],
+
+  icone(mime) { return /pdf/.test(mime) ? 'bi-file-earmark-pdf text-danger' : /image/.test(mime) ? 'bi-file-earmark-image text-primary' : 'bi-file-earmark'; },
+
+  tamanho(kb) { kb = Number(kb || 0); return kb >= 1024 ? (kb / 1024).toFixed(1).replace('.', ',') + ' MB' : kb + ' KB'; },
+
+  async baixar(id, botao) {
+    await UI.ocupado(botao, async () => {
+      try {
+        const r = await Api.chamar('documentos.baixar', { id_documento: id });
+        const bin = atob(r.base64);
+        const bytes = new Uint8Array(bin.length);
+        for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+        const a = document.createElement('a');
+        a.href = URL.createObjectURL(new Blob([bytes], { type: r.mime }));
+        a.download = r.nome;
+        a.click();
+        setTimeout(() => URL.revokeObjectURL(a.href), 2000);
+      } catch (e) { UI.erro(e); }
+    });
+  },
+
+  lerArquivo(arquivo) {
+    return new Promise((ok, erro) => {
+      const fr = new FileReader();
+      fr.onload = () => ok(fr.result);
+      fr.onerror = () => erro(new Error('Não foi possível ler o arquivo.'));
+      fr.readAsDataURL(arquivo);
+    });
+  },
+
+  /** Lista + envio de arquivos para um cliente, caso ou contrato */
+  async painel(el, filtro, opcoes = {}) {
+    el.innerHTML = '<div class="vazio py-3"><div class="spinner-border spinner-border-sm"></div></div>';
+    let docs;
+    try { docs = await Api.chamar('documentos.listar', filtro); } catch (e) { el.innerHTML = `<div class="small text-danger">${UI.esc(e.message)}</div>`; return; }
+    const podeEnviar = App.pode('documentos', 'criar');
+    const podeExcluir = App.pode('documentos', 'excluir');
+
+    el.innerHTML = `
+      ${podeEnviar ? `<div class="row g-2 align-items-end mb-3" data-envio>
+        <div class="col-sm-5">${UI.campo({ rotulo: 'Tipo', campo: 'tipo', tipo: 'select', col: '', opcoes: App.lista('tipo_documento'), vazio: null, valor: opcoes.tipoPadrao })}</div>
+        <div class="col-sm-7"><label class="form-label">Arquivo (PDF, JPG ou PNG até ${this.MAX_MB} MB)</label>
+          <input type="file" class="form-control" accept=".pdf,image/jpeg,image/png,image/webp" data-arquivo></div>
+        <div class="col-12 text-end"><button class="btn btn-primary" data-enviar><i class="bi bi-cloud-upload me-1"></i>Enviar</button></div>
+      </div>` : ''}
+      ${docs.length ? `<div class="list-group list-group-flush">${docs.map(d => `
+        <div class="list-group-item d-flex align-items-center gap-2 px-0" style="background:transparent;color:inherit;border-color:var(--adv-borda)">
+          <i class="bi ${this.icone(d.mime)} fs-5"></i>
+          <div class="flex-grow-1" style="min-width:0">
+            <div class="text-truncate fw-semibold">${UI.esc(d.nome)}</div>
+            <div class="small texto-2">${UI.esc(d.tipo)} · ${UI.dataHora(d.criado_em)} · ${this.tamanho(d.tamanho_kb)} · ${UI.esc(App.nomeUsuario(d.criado_por))}
+              ${opcoes.mostrarCaso && d.caso_titulo ? ' · ' + UI.esc(d.caso_titulo) : ''}</div>
+          </div>
+          <button class="btn btn-sm btn-outline-secondary" data-baixar="${UI.esc(d.id_documento)}" title="Baixar"><i class="bi bi-download"></i></button>
+          ${podeExcluir ? `<button class="btn btn-sm btn-outline-secondary" data-remover="${UI.esc(d.id_documento)}" title="Remover da lista"><i class="bi bi-trash"></i></button>` : ''}
+        </div>`).join('')}</div>`
+      : '<div class="texto-2 small">Nenhum documento anexado.</div>'}`;
+
+    el.querySelectorAll('[data-baixar]').forEach(b => b.onclick = () => this.baixar(b.dataset.baixar, b));
+    el.querySelectorAll('[data-remover]').forEach(b => b.onclick = async () => {
+      if (!await UI.confirmar('Remover este documento da lista? O arquivo continua guardado no Drive do escritório.', { perigo: true, botao: 'Remover' })) return;
+      try { await Api.chamar('documentos.inativar', { id_documento: b.dataset.remover }); this.painel(el, filtro, opcoes); if (opcoes.aoMudar) opcoes.aoMudar(); }
+      catch (e) { UI.erro(e); }
+    });
+
+    const bEnv = el.querySelector('[data-enviar]');
+    if (bEnv) bEnv.onclick = async () => {
+      const input = el.querySelector('[data-arquivo]');
+      const arq = input.files && input.files[0];
+      if (!arq) return UI.toast('Escolha um arquivo.', 'aviso');
+      if (!this.MIMES.includes(arq.type)) return UI.toast('Envie PDF, JPG, PNG ou WEBP.', 'aviso');
+      if (arq.size > this.MAX_MB * 1024 * 1024) return UI.toast(`Arquivo com mais de ${this.MAX_MB} MB. Reduza e tente de novo.`, 'aviso');
+      const tipo = el.querySelector('[data-envio] [data-campo="tipo"]').value;
+      await UI.ocupado(bEnv, async () => {
+        try {
+          const base64 = await this.lerArquivo(arq);
+          await Api.chamar('documentos.enviar', Object.assign({ tipo, nome: arq.name, mime: arq.type, base64 }, filtro));
+          UI.toast('Documento enviado.');
+          this.painel(el, filtro, opcoes);
+          if (opcoes.aoMudar) opcoes.aoMudar();
+        } catch (e) { UI.erro(e); }
+      });
+    };
+  },
+
+  /** Página com todos os documentos que o usuário pode ver */
+  async render(el, S) {
+    el.innerHTML = `<div class="cabecalho-pagina"><div><h1>Documentos</h1><p>Arquivos anexados aos clientes e casos (guardados no Drive do escritório)</p></div></div>
+      <div class="cartao" id="doc-tabela"><div class="vazio"><div class="spinner-border"></div></div></div>`;
+    let docs;
+    try { docs = await Api.chamar('documentos.listar', {}); } catch (e) { return UI.erro(e); }
+    const cont = el.querySelector('#doc-tabela');
+    UI.tabela(cont, {
+      dados: docs, porPagina: 20, placeholder: 'Pesquisar por nome do arquivo, cliente, caso…',
+      busca: ['nome', 'tipo', 'cliente_nome', 'caso_titulo', 'id_caso', 'id_cliente'],
+      filtros: [{ campo: 'tipo', titulo: 'Tipo', opcoes: App.lista('tipo_documento').map(v => ({ valor: v, rotulo: v })) }],
+      vazio: 'Nenhum documento. Anexe arquivos pela ficha do cliente, do caso ou do contrato.',
+      colunas: [
+        { titulo: 'Arquivo', render: r => `<i class="bi ${this.icone(r.mime)} me-1"></i><span class="fw-semibold">${UI.esc(r.nome)}</span><div class="small texto-2">${UI.esc(r.tipo)} · ${this.tamanho(r.tamanho_kb)}</div>` },
+        { titulo: 'Cliente', render: r => r.id_cliente ? `<a class="link-limpo" href="#/clientes/${UI.esc(r.id_cliente)}">${UI.esc(r.cliente_nome)}</a>` : '-' },
+        { titulo: 'Caso', render: r => r.id_caso ? `<a class="link-limpo small" href="#/casos/${UI.esc(r.id_caso)}">${UI.esc(r.caso_titulo || r.id_caso)}</a>` : '<span class="texto-2 small">só do cliente</span>' },
+        { titulo: 'Enviado', render: r => `<span class="small">${UI.dataHora(r.criado_em)}<br>${UI.esc(App.nomeUsuario(r.criado_por))}</span>` },
+        { titulo: '', classe: 'text-end', render: r => `<button class="btn btn-sm btn-outline-secondary" data-baixar="${UI.esc(r.id_documento)}"><i class="bi bi-download"></i></button>` }
+      ]
+    });
+    cont.addEventListener('click', e => { const b = e.target.closest('[data-baixar]'); if (b) this.baixar(b.dataset.baixar, b); });
+  }
+};
+
+</script>
+<script>
+/* ======== js/modulos/contratos.js ======== */
+/**
+ * Contratos — honorários, parcelas, poderes, geração de documentos e assinatura.
+ * Rotas: #/contratos  e  #/contratos/CTR-000001
+ */
+Modulos.contratos = {
+  dados: [],
+  padroes: null,
+
+  render(el, S, param) { return param ? this.ficha(el, S, param) : this.lista(el, S); },
+
+  chip(s) {
+    const cls = { 'Assinado': 'chip-ok', 'Aguardando assinatura': 'chip-alerta', 'Cancelado': 'chip-off', 'Encerrado': '' }[s] || '';
+    return `<span class="chip ${cls}">${UI.esc(s || '-')}</span>`;
+  },
+
+  resumoHonorarios(k) {
+    const p = [];
+    if (DocGen.num(k.valor_entrada)) p.push('entrada ' + DocGen.moeda(DocGen.num(k.valor_entrada)));
+    if (DocGen.num(k.valor_fixo)) p.push(DocGen.moeda(DocGen.num(k.valor_fixo)) + (Number(k.n_parcelas) > 1 ? ` em ${k.n_parcelas}x` : ''));
+    if (DocGen.num(k.perc_exito)) p.push(String(DocGen.num(k.perc_exito)).replace('.', ',') + '% êxito');
+    return p.join(' + ') || '-';
+  },
+
+  async lista(el, S) {
+    el.innerHTML = `
+      <div class="cabecalho-pagina">
+        <div><h1>Contratos</h1><p>Honorários, procurações e assinaturas</p></div>
+        <div class="d-flex gap-2">
+          ${App.pode('contratos', 'exportar') ? '<button class="btn btn-outline-secondary" data-exportar><i class="bi bi-download me-1"></i>Exportar</button>' : ''}
+          ${App.pode('contratos', 'criar') ? '<button class="btn btn-primary" data-novo><i class="bi bi-plus-lg me-1"></i>Novo contrato</button>' : ''}
+        </div>
+      </div>
+      <div class="cartao" id="ctr-tabela"><div class="vazio"><div class="spinner-border"></div></div></div>`;
+    const novo = el.querySelector('[data-novo]');
+    if (novo) novo.onclick = () => this.formulario(null, S, {}, k => { location.hash = '#/contratos/' + k.id_contrato; });
+    try { this.dados = await Api.chamar('contratos.listar'); } catch (e) { return UI.erro(e); }
+
+    const exp = el.querySelector('[data-exportar]');
+    if (exp) exp.onclick = () => UI.exportarCSV('contratos', [
+      { titulo: 'ID', campo: 'id_contrato' }, { titulo: 'Status', campo: 'status' }, { titulo: 'Cliente', campo: 'cliente_nome' },
+      { titulo: 'Caso', campo: 'caso_titulo' }, { titulo: 'Data', campo: 'data_contrato' }, { titulo: 'Tipo', campo: 'tipo_honorario' },
+      { titulo: 'Entrada', campo: 'valor_entrada' }, { titulo: 'Parcelado', campo: 'valor_fixo' }, { titulo: 'Nº parcelas', campo: 'n_parcelas' },
+      { titulo: '% êxito', campo: 'perc_exito' }, { titulo: 'Total parcelas', valor: r => r.total_parcelas.toFixed(2) }, { titulo: 'Total pago', valor: r => r.total_pago.toFixed(2) },
+      { titulo: 'Assinatura', campo: 'data_assinatura' }
+    ], this.dados);
+
+    UI.tabela(el.querySelector('#ctr-tabela'), {
+      dados: this.dados, placeholder: 'Pesquisar por cliente, caso, número do contrato…',
+      busca: ['id_contrato', 'cliente_nome', 'caso_titulo', 'objeto'],
+      filtros: [
+        { campo: 'status', titulo: 'Status', opcoes: App.lista('status_contrato').map(v => ({ valor: v, rotulo: v })) },
+        { campo: 'id_area', titulo: 'Área', opcoes: S.areas.map(a => ({ valor: a.id, rotulo: a.nome })) },
+        { campo: 'id_responsavel', titulo: 'Responsável', opcoes: S.usuarios.map(u => ({ valor: u.id, rotulo: u.nome })) }
+      ],
+      colunas: [
+        { titulo: 'Contrato', render: r => `<a class="link-limpo fw-semibold" href="#/contratos/${UI.esc(r.id_contrato)}">${UI.esc(r.id_contrato)}</a><div class="small texto-2">${UI.data(r.data_contrato)}</div>` },
+        { titulo: 'Cliente / caso', render: r => `${UI.esc(r.cliente_nome)}<div class="small texto-2">${UI.esc(r.caso_titulo)}</div>` },
+        { titulo: 'Honorários', render: r => `<span class="small">${UI.esc(this.resumoHonorarios(r))}</span>` },
+        { titulo: 'Recebido', render: r => r.total_parcelas ? `<span class="small">${DocGen.moeda(r.total_pago)} de ${DocGen.moeda(r.total_parcelas)}</span>` : '<span class="texto-2 small">só êxito</span>' },
+        { titulo: 'Status', render: r => this.chip(r.status) }
+      ]
+    });
+  },
+
+  async carregarPadroes() {
+    if (!this.padroes) { try { this.padroes = await Api.chamar('contratos.textosPadrao'); } catch (e) { this.padroes = []; } }
+    return this.padroes;
+  },
+
+  /** preset: { id_caso, caso (objeto do caso) } */
+  async formulario(k, S, preset, aoSalvar) {
+    preset = preset || {};
+    let casos = [];
+    let caso = preset.caso || null;
+    if (!k && !caso) {
+      try { casos = (await Api.chamar('casos.listar')).casos.filter(c => c.ativo !== 'NAO' && c.situacao === 'ATIVO'); } catch (e) { return UI.erro(e); }
+    }
+    if (k && !caso) { try { caso = (await Api.chamar('casos.ficha', { id_caso: k.id_caso })).caso; } catch (e) { return UI.erro(e); } }
+    const padroes = await this.carregarPadroes();
+    const advs = S.usuarios.filter(u => u.oab);
+    const v = Object.assign({ data_contrato: UI.hojeISO(), tipo_honorario: 'Fixo + êxito', dia_vencimento: '10' }, k || {});
+    if (!k && caso) {
+      v.objeto = 'propor ' + String(caso.tipo_acao || caso.titulo || '').toLowerCase();
+      v.advogados = [caso.id_responsavel, caso.id_apoio].filter(id => advs.some(a => a.id === id)).join(',');
+    }
+    const marcados = String(v.advogados || '').split(',').filter(Boolean);
+    const opcaoCaso = c => `${c.titulo} — ${c.cliente_nome} [${c.id_caso}]`;
+
+    const blocoPadrao = campo => {
+      const l = padroes.filter(p => p.campo_destino === campo);
+      return l.length ? `<div class="dropdown d-inline"><button type="button" class="btn btn-link btn-sm p-0" data-bs-toggle="dropdown"><i class="bi bi-magic me-1"></i>Usar texto padrão</button>
+        <ul class="dropdown-menu">${l.map(p => `<li><button type="button" class="dropdown-item" data-padrao="${UI.esc(p.id)}" data-destino="${campo}">${UI.esc(p.nome)}${p.id_area ? ' <span class="texto-2 small">(' + UI.esc(App.nomeArea(p.id_area)) + ')</span>' : ''}</button></li>`).join('')}</ul></div>` : '';
+    };
+
+    const m = UI.modal({
+      titulo: k ? `Editar contrato ${UI.esc(k.id_contrato)}` : 'Novo contrato', tamanho: 'modal-xl',
+      corpo: `<form class="row g-3" novalidate>
+        ${UI.secao('Caso e partes')}
+        ${caso ? `<div class="col-md-8"><label class="form-label">Caso</label><input class="form-control" value="${UI.esc((caso.titulo || '') + ' — ' + (caso.cliente_nome || caso.id_cliente))}" disabled></div>`
+          : UI.campo({ rotulo: 'Caso', campo: '_caso', col: 'col-md-8', obrig: true, lista: casos.map(opcaoCaso), attrs: 'placeholder="Digite o cliente ou o caso e escolha na lista"' })}
+        ${UI.campo({ rotulo: 'Data do contrato', campo: 'data_contrato', valor: v.data_contrato, tipo: 'date', col: 'col-md-4' })}
+        <div class="col-12"><label class="form-label">Advogados contratados / outorgados *</label>
+          ${advs.length ? `<div class="d-flex flex-wrap gap-3">${advs.map(a => `<label class="form-check"><input class="form-check-input" type="checkbox" data-adv value="${UI.esc(a.id)}" ${marcados.includes(a.id) ? 'checked' : ''}>
+            <span class="form-check-label">${UI.esc(a.nome)} <span class="texto-2 small">${UI.esc(a.oab)}</span></span></label>`).join('')}</div>`
+          : '<div class="alert alert-warning small py-2 mb-0">Nenhum usuário com OAB cadastrada. Preencha a OAB em Usuários (ou em Minha conta).</div>'}
+          <div class="form-text">A qualificação (RG, CPF, OAB, endereço) vem do cadastro de cada advogado.</div></div>
+        ${UI.campo({ rotulo: 'Objeto — complete a frase: "…para a defesa dos interesses da CONTRATANTE, a fim de…"', campo: 'objeto', valor: v.objeto, tipo: 'textarea', col: 'col-12', linhas: 2, obrig: true })}
+
+        ${UI.secao('Honorários')}
+        ${UI.campo({ rotulo: 'Tipo', campo: 'tipo_honorario', valor: v.tipo_honorario, tipo: 'select', col: 'col-md-3', opcoes: App.lista('tipo_honorario'), vazio: null })}
+        ${UI.campo({ rotulo: 'Entrada (R$)', campo: 'valor_entrada', valor: DocGen.num(v.valor_entrada) ? String(v.valor_entrada).replace('.', ',') : '', col: 'col-md-2', attrs: 'inputmode="decimal" placeholder="0,00"' })}
+        ${UI.campo({ rotulo: 'Valor parcelado (R$)', campo: 'valor_fixo', valor: DocGen.num(v.valor_fixo) ? String(v.valor_fixo).replace('.', ',') : '', col: 'col-md-2', attrs: 'inputmode="decimal" placeholder="0,00"', ajuda: 'Além da entrada' })}
+        ${UI.campo({ rotulo: 'Nº de parcelas', campo: 'n_parcelas', valor: v.n_parcelas, tipo: 'number', col: 'col-md-1', attrs: 'min="0" max="120"' })}
+        ${UI.campo({ rotulo: 'Dia de vencimento', campo: 'dia_vencimento', valor: v.dia_vencimento, tipo: 'number', col: 'col-md-2', attrs: 'min="1" max="31"' })}
+        ${UI.campo({ rotulo: '% de êxito', campo: 'perc_exito', valor: DocGen.num(v.perc_exito) ? String(DocGen.num(v.perc_exito)).replace('.', ',') : '', col: 'col-md-2', attrs: 'inputmode="decimal" placeholder="30"' })}
+        ${UI.campo({ rotulo: '1ª parcela em (opcional)', campo: 'data_primeira_parcela', valor: v.data_primeira_parcela, tipo: 'date', col: 'col-md-3', ajuda: 'Vazio = mês seguinte ao contrato' })}
+        <div class="col-md-9"><label class="form-label">Parcelas que serão geradas</label><div class="small" data-previa-parcelas></div></div>
+        <div class="col-12"><div class="d-flex justify-content-between align-items-end"><label class="form-label mb-1">Texto da cláusula de honorários *</label>
+          <button type="button" class="btn btn-link btn-sm p-0" data-gerar-texto><i class="bi bi-arrow-repeat me-1"></i>Gerar a partir dos valores</button></div>
+          <textarea class="form-control" rows="3" data-campo="honorarios_texto">${UI.esc(v.honorarios_texto)}</textarea>
+          <div class="form-text">Entra na Cláusula 5ª: "O CONTRATANTE … pagará <i>[este texto]</i>." Use **asteriscos duplos** para negrito.</div></div>
+
+        ${UI.secao('Procuração')}
+        <div class="col-12"><div class="d-flex justify-content-between align-items-end"><label class="form-label mb-1">Poderes gerais</label>${blocoPadrao('poderes_gerais')}</div>
+          <textarea class="form-control" rows="5" data-campo="poderes_gerais">${UI.esc(v.poderes_gerais)}</textarea></div>
+        <div class="col-12"><div class="d-flex justify-content-between align-items-end"><label class="form-label mb-1">Poderes especiais</label>${blocoPadrao('poderes_especiais')}</div>
+          <textarea class="form-control" rows="5" data-campo="poderes_especiais">${UI.esc(v.poderes_especiais)}</textarea>
+          <div class="form-text">Trechos como [PREENCHER] devem ser trocados pelos dados do caso. {{caso.parte_contraria}} é preenchido automaticamente.</div></div>
+        ${UI.campo({ rotulo: 'Observações internas', campo: 'obs', valor: v.obs, tipo: 'textarea', col: 'col-12', linhas: 2 })}
+      </form>`,
+      rodape: `<button class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancelar</button><button class="btn btn-primary" data-salvar>Salvar</button>`
+    });
+
+    const $ = c => m.el.querySelector(`[data-campo="${c}"]`);
+    const texto = $('honorarios_texto');
+    let textoManual = !!v.honorarios_texto;
+    texto.addEventListener('input', () => { textoManual = true; });
+    const atualizarPrevia = () => {
+      const f = UI.lerForm(m.el);
+      const ps = DocGen.previaParcelas(f);
+      m.el.querySelector('[data-previa-parcelas]').innerHTML = ps.length
+        ? ps.map(p => `<span class="chip me-1 mb-1">${p.numero} · ${UI.data(p.vencimento)} · ${DocGen.moeda(p.valor)}</span>`).join('')
+        : '<span class="texto-2">Nenhuma (só êxito).</span>';
+      if (!textoManual) texto.value = DocGen.textoHonorarios(f);
+    };
+    ['tipo_honorario', 'valor_entrada', 'valor_fixo', 'n_parcelas', 'dia_vencimento', 'perc_exito', 'data_primeira_parcela', 'data_contrato']
+      .forEach(c => $(c).addEventListener('input', atualizarPrevia));
+    m.el.querySelector('[data-gerar-texto]').onclick = () => { textoManual = false; atualizarPrevia(); };
+    atualizarPrevia();
+
+    m.el.querySelectorAll('[data-padrao]').forEach(b => b.onclick = async () => {
+      const p = padroes.find(x => x.id === b.dataset.padrao);
+      const alvo = $(b.dataset.destino);
+      if (alvo.value.trim() && !await UI.confirmar('Substituir o texto atual pelo texto padrão?', { botao: 'Substituir' })) return;
+      alvo.value = p.texto;
+    });
+
+    m.el.querySelector('[data-salvar]').onclick = async ev => {
+      const d = UI.lerForm(m.el);
+      if (k) d.id_contrato = k.id_contrato;
+      d.id_caso = caso ? caso.id_caso : ((d._caso || '').match(/\[(CAS-\d+)\]\s*$/) || [])[1];
+      delete d._caso;
+      d.advogados = [...m.el.querySelectorAll('[data-adv]:checked')].map(i => i.value).join(',');
+      if (!d.id_caso) return UI.toast('Escolha o caso na lista de sugestões.', 'aviso');
+      if (!d.advogados) return UI.toast('Marque pelo menos um advogado.', 'aviso');
+      if (!d.objeto) return UI.toast('Preencha o objeto do contrato.', 'aviso');
+      await UI.ocupado(ev.target, async () => {
+        try {
+          const salvo = await Api.chamar('contratos.salvar', d);
+          m.fechar(); UI.toast(k ? 'Contrato atualizado.' : 'Contrato criado.');
+          if (aoSalvar) aoSalvar(salvo);
+        } catch (e) { UI.erro(e); }
+      });
+    };
+  },
+
+  async ficha(el, S, id) {
+    el.innerHTML = '<div class="vazio"><div class="spinner-border"></div></div>';
+    let F;
+    try { F = await Api.chamar('contratos.ficha', { id_contrato: id }); }
+    catch (e) { el.innerHTML = `<div class="cartao"><div class="vazio"><i class="bi bi-lock"></i>${UI.esc(e.message)}</div></div>`; return; }
+    const k = F.contrato, caso = F.caso || {}, cli = F.cliente || {};
+    caso.cliente_nome = cli.nome_razao;
+    const editavel = ['Rascunho', 'Aguardando assinatura'].includes(k.status);
+    const podeEditar = App.pode('contratos', 'editar');
+    const podePagar = App.pode('financeiro', 'editar');
+    const advs = String(k.advogados || '').split(',').filter(Boolean).map(id => App.nomeUsuario(id));
+    const totalP = F.parcelas.filter(p => p.status !== 'Cancelada').reduce((s, p) => s + DocGen.num(p.valor), 0);
+    const pago = F.parcelas.reduce((s, p) => s + DocGen.num(p.valor_pago), 0);
+    const hoje = UI.hojeISO();
+    const comParte = t => DocGen.texto(String(t || '').replace(/\{\{\s*caso\.parte_contraria\s*\}\}/g, caso.parte_contraria || '[parte contrária]'));
+
+    const botoes = [];
+    if (podeEditar && editavel) botoes.push('<button class="btn btn-outline-secondary" data-acao="editar"><i class="bi bi-pencil me-1"></i>Editar</button>');
+    if (podeEditar && k.status === 'Rascunho') botoes.push('<button class="btn btn-outline-primary" data-status="Aguardando assinatura">Enviar para assinatura</button>');
+    if (podeEditar && k.status === 'Aguardando assinatura') botoes.push('<button class="btn btn-outline-secondary" data-status="Rascunho">Voltar para rascunho</button>', '<button class="btn btn-primary" data-acao="assinar"><i class="bi bi-check2-circle me-1"></i>Marcar como assinado</button>');
+    if (podeEditar && k.status === 'Assinado') botoes.push('<button class="btn btn-outline-secondary" data-status="Encerrado">Encerrar</button>');
+    if (podeEditar && k.status !== 'Cancelado' && k.status !== 'Encerrado') botoes.push('<button class="btn btn-outline-danger" data-status="Cancelado">Cancelar</button>');
+
+    el.innerHTML = `
+      <div class="cabecalho-pagina">
+        <div>
+          <div class="small"><a href="#/contratos" class="link-limpo texto-2"><i class="bi bi-arrow-left"></i> Contratos</a></div>
+          <h1>Contrato ${UI.esc(k.id_contrato)} ${this.chip(k.status)}</h1>
+          <p><a class="link-limpo" href="#/clientes/${UI.esc(k.id_cliente)}">${UI.esc(cli.nome_razao || k.id_cliente)}</a> ·
+             <a class="link-limpo" href="#/casos/${UI.esc(k.id_caso)}">${UI.esc(caso.titulo || k.id_caso)}</a> · ${UI.data(k.data_contrato)}</p>
+        </div>
+        <div class="d-flex gap-2 flex-wrap">${botoes.join('')}</div>
+      </div>
+      ${k.status === 'Assinado' ? `<div class="alert alert-success small py-2"><i class="bi bi-patch-check me-1"></i>Assinado em ${UI.data(k.data_assinatura)}${k.tipo_assinatura ? ' · ' + UI.esc(k.tipo_assinatura) : ''}${k.id_doc_assinado ? ' · <button class="btn btn-link btn-sm p-0 align-baseline" data-baixar-assinado>baixar via assinada</button>' : ''}</div>` : ''}
+      <div class="row g-3">
+        <div class="col-lg-6"><div class="cartao h-100">
+          <h2 class="h6 mb-3">Honorários</h2>
+          <div class="campo-info mb-2"><div class="rotulo">Tipo · resumo</div><div class="valor">${UI.esc(k.tipo_honorario || '-')} · ${UI.esc(this.resumoHonorarios(k))}</div></div>
+          <div class="campo-info mb-3"><div class="rotulo">Cláusula 5ª</div><div class="valor small">${DocGen.texto(k.honorarios_texto) || '-'}</div></div>
+          <div class="d-flex justify-content-between small mb-1"><strong>Parcelas</strong><span class="texto-2">recebido ${DocGen.moeda(pago)} de ${DocGen.moeda(totalP)}</span></div>
+          ${F.parcelas.length ? `<table class="table table-sm align-middle mb-0"><tbody>${F.parcelas.map(p => {
+            const venc = p.status === 'Em aberto' && p.vencimento < hoje;
+            return `<tr><td class="small">${p.numero === '0' ? 'Entrada' : p.numero + 'ª'}</td>
+              <td class="small ${venc ? 'text-danger fw-semibold' : ''}">${UI.data(p.vencimento)}</td>
+              <td class="small">${DocGen.moeda(DocGen.num(p.valor))}</td>
+              <td>${p.status === 'Paga' ? `<span class="chip chip-ok">paga ${UI.data(p.data_pagamento)}</span>` : p.status === 'Cancelada' ? '<span class="chip chip-off">cancelada</span>' : `<span class="chip ${venc ? 'chip-off' : ''}">${UI.esc(p.status)}</span>`}</td>
+              <td class="text-end">${podePagar && !['Paga', 'Cancelada'].includes(p.status) ? `<button class="btn btn-sm btn-outline-success" data-pagar="${UI.esc(p.id_parcela)}">Registrar pagamento</button>` : ''}</td></tr>`;
+          }).join('')}</tbody></table>` : '<div class="texto-2 small">Sem parcelas fixas (somente êxito).</div>'}
+        </div></div>
+        <div class="col-lg-6"><div class="cartao mb-3">
+          <h2 class="h6 mb-2">Gerar documentos</h2>
+          <div class="d-flex flex-wrap gap-2">${F.modelos.map(mo => `<button class="btn btn-outline-secondary btn-sm" data-modelo="${UI.esc(mo.id)}"><i class="bi bi-file-earmark-text me-1"></i>${UI.esc(mo.nome)}</button>`).join('') || '<span class="texto-2 small">Nenhum modelo ativo.</span>'}</div>
+          <div class="form-text">Abre a prévia para imprimir, salvar em PDF ou baixar para o Word. Depois de assinado, anexe a via assinada abaixo.</div>
+        </div>
+        <div class="cartao">
+          <h2 class="h6 mb-2">Documentos do contrato</h2>
+          <div data-docs></div>
+        </div></div>
+        <div class="col-12"><div class="cartao">
+          <h2 class="h6 mb-2">Objeto e poderes</h2>
+          <div class="campo-info mb-2"><div class="rotulo">Advogados</div><div class="valor">${UI.esc(advs.join(', ') || '-')}</div></div>
+          <div class="campo-info mb-2"><div class="rotulo">Objeto</div><div class="valor">${DocGen.texto(k.objeto) || '-'}</div></div>
+          <div class="campo-info mb-2"><div class="rotulo">Poderes gerais</div><div class="valor small">${comParte(k.poderes_gerais) || '<span class="texto-2">não preenchido</span>'}</div></div>
+          <div class="campo-info"><div class="rotulo">Poderes especiais</div><div class="valor small">${comParte(k.poderes_especiais) || '<span class="texto-2">não preenchido</span>'}</div></div>
+          ${k.obs ? `<div class="campo-info mt-2"><div class="rotulo">Observações</div><div class="valor small" style="white-space:pre-wrap">${UI.esc(k.obs)}</div></div>` : ''}
+        </div></div>
+      </div>`;
+
+    const recarregar = () => this.ficha(el, S, id);
+    Modulos.documentos.painel(el.querySelector('[data-docs]'), { id_contrato: k.id_contrato }, { tipoPadrao: 'Contrato de honorários' });
+
+    el.querySelectorAll('[data-acao="editar"]').forEach(b => b.onclick = () => this.formulario(k, S, { caso }, recarregar));
+    el.querySelectorAll('[data-status]').forEach(b => b.onclick = async () => {
+      const st = b.dataset.status;
+      const aviso = st === 'Cancelado' ? 'Cancelar o contrato? As parcelas em aberto serão canceladas.' : `Mudar o status para "${st}"?`;
+      if (!await UI.confirmar(aviso, { perigo: st === 'Cancelado', botao: 'Confirmar' })) return;
+      try { await Api.chamar('contratos.alterarStatus', { id_contrato: k.id_contrato, status: st }); UI.toast('Status atualizado.'); recarregar(); } catch (e) { UI.erro(e); }
+    });
+    el.querySelectorAll('[data-acao="assinar"]').forEach(b => b.onclick = () => this.modalAssinatura(k, recarregar));
+    el.querySelectorAll('[data-pagar]').forEach(b => b.onclick = () => this.modalPagamento(F.parcelas.find(p => p.id_parcela === b.dataset.pagar), recarregar));
+    const ba = el.querySelector('[data-baixar-assinado]');
+    if (ba) ba.onclick = () => Modulos.documentos.baixar(k.id_doc_assinado, ba);
+    el.querySelectorAll('[data-modelo]').forEach(b => b.onclick = async () => {
+      await UI.ocupado(b, async () => {
+        try {
+          const D = await Api.chamar('contratos.dadosDocumento', { id_contrato: k.id_contrato, id_modelo: b.dataset.modelo });
+          const nome = `${D.modelo.nome} - ${(cli.nome_razao || '').split(' ')[0]} - ${k.id_contrato}`;
+          DocGen.abrirPrevia(DocGen.render(D.modelo.conteudo_html, D), D.modelo.nome, nome.replace(/[\\/:*?"<>|]/g, ''));
+        } catch (e) { UI.erro(e); }
+      });
+    });
+  },
+
+  async modalAssinatura(k, aoSalvar) {
+    let docs = [];
+    try { docs = await Api.chamar('documentos.listar', { id_contrato: k.id_contrato }); } catch (e) { /* segue */ }
+    const m = UI.modal({
+      titulo: 'Marcar contrato como assinado',
+      corpo: `<div class="row g-3">
+        ${UI.campo({ rotulo: 'Data da assinatura', campo: 'data_assinatura', valor: UI.hojeISO(), tipo: 'date', col: 'col-md-6', obrig: true })}
+        ${UI.campo({ rotulo: 'Forma de assinatura', campo: 'tipo_assinatura', tipo: 'select', col: 'col-md-6', vazio: null,
+          opcoes: ['Física (papel)', 'Gov.br (assinatura avançada)', 'Certificado digital ICP-Brasil', 'Outra'] })}
+        ${UI.campo({ rotulo: 'Via assinada (anexo)', campo: 'id_doc_assinado', tipo: 'select', col: 'col-12', vazio: docs.length ? 'Selecione' : 'Nenhum anexo ainda',
+          opcoes: docs.map(d => ({ id: d.id_documento, nome: `${d.nome} (${d.tipo})` })),
+          ajuda: 'Recomendado: anexe o PDF ou a foto do contrato assinado antes, em "Documentos do contrato".' })}
+      </div>`,
+      rodape: `<button class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancelar</button><button class="btn btn-primary" data-ok>Confirmar assinatura</button>`
+    });
+    m.el.querySelector('[data-ok]').onclick = async ev => {
+      const d = Object.assign(UI.lerForm(m.el), { id_contrato: k.id_contrato, status: 'Assinado' });
+      if (!d.data_assinatura) return UI.toast('Informe a data.', 'aviso');
+      if (!d.id_doc_assinado && !await UI.confirmar('Confirmar sem anexar a via assinada? Você pode anexar depois, mas fica sem o vínculo.', { botao: 'Confirmar mesmo assim' })) return;
+      await UI.ocupado(ev.target, async () => {
+        try { await Api.chamar('contratos.alterarStatus', d); m.fechar(); UI.toast('Contrato assinado.'); aoSalvar(); } catch (e) { UI.erro(e); }
+      });
+    };
+  },
+
+  modalPagamento(p, aoSalvar) {
+    const m = UI.modal({
+      titulo: `Registrar pagamento — ${p.numero === '0' ? 'entrada' : 'parcela ' + p.numero}`,
+      corpo: `<div class="row g-3">
+        ${UI.campo({ rotulo: 'Valor pago (R$)', campo: 'valor_pago', valor: String(DocGen.num(p.valor).toFixed(2)).replace('.', ','), col: 'col-md-4', attrs: 'inputmode="decimal"' })}
+        ${UI.campo({ rotulo: 'Data do pagamento', campo: 'data_pagamento', valor: UI.hojeISO(), tipo: 'date', col: 'col-md-4' })}
+        ${UI.campo({ rotulo: 'Forma', campo: 'forma_pagamento', tipo: 'select', col: 'col-md-4', opcoes: App.lista('forma_pagamento'), vazio: '-' })}
+      </div>`,
+      rodape: `<button class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancelar</button><button class="btn btn-success" data-ok>Registrar</button>`
+    });
+    m.el.querySelector('[data-ok]').onclick = async ev => {
+      const d = Object.assign(UI.lerForm(m.el), { id_parcela: p.id_parcela });
+      await UI.ocupado(ev.target, async () => {
+        try { await Api.chamar('contratos.registrarPagamento', d); m.fechar(); UI.toast('Pagamento registrado.'); aoSalvar(); } catch (e) { UI.erro(e); }
+      });
+    };
+  }
+};
+
+</script>
+<script>
 /* ======== js/modulos/clientes.js ======== */
 /**
  * Clientes — lista, cadastro (PF/PJ) e ficha com casos e atendimentos.
@@ -1064,6 +1785,7 @@ Modulos.clientes = {
         ${UI.campo({ rotulo: 'Nome fantasia', campo: 'nome_fantasia', valor: v.nome_fantasia, col: 'col-md-6 so-pj' })}
         ${UI.campo({ rotulo: 'RG / inscrição estadual', campo: 'rg_ie', valor: v.rg_ie, col: 'col-md-3' })}
         ${UI.campo({ rotulo: 'Órgão emissor', campo: 'orgao_emissor', valor: v.orgao_emissor, col: 'col-md-2 so-pf' })}
+        ${UI.campo({ rotulo: 'Gênero', campo: 'genero', valor: v.genero, tipo: 'select', col: 'col-md-2 so-pf', opcoes: ['Feminino', 'Masculino'], vazio: '-', ajuda: 'Ajusta o texto dos documentos.' })}
         ${UI.campo({ rotulo: 'Data de nascimento', campo: 'data_nascimento', valor: v.data_nascimento, tipo: 'date', col: 'col-md-3 so-pf' })}
         ${UI.campo({ rotulo: 'Nacionalidade', campo: 'nacionalidade', valor: v.nacionalidade, col: 'col-md-2 so-pf' })}
         ${UI.campo({ rotulo: 'Estado civil', campo: 'estado_civil', valor: v.estado_civil, tipo: 'select', col: 'col-md-2 so-pf', opcoes: App.lista('estado_civil'), vazio: '-' })}
@@ -1159,6 +1881,7 @@ Modulos.clientes = {
         <li class="nav-item"><button class="nav-link active" data-aba-btn="dados">Dados</button></li>
         <li class="nav-item"><button class="nav-link" data-aba-btn="casos">Casos (${F.casos.length})</button></li>
         ${App.pode('atendimentos') ? `<li class="nav-item"><button class="nav-link" data-aba-btn="atend">Atendimentos (${F.atendimentos.length})</button></li>` : ''}
+        ${App.pode('documentos') ? '<li class="nav-item"><button class="nav-link" data-aba-btn="docs">Documentos</button></li>' : ''}
       </ul>
       <div class="cartao" data-aba-painel="dados"><div class="row g-3">
         ${c.tipo === 'PJ' ? info('Nome fantasia', UI.esc(c.nome_fantasia)) + info('Inscrição estadual', UI.esc(c.rg_ie)) :
@@ -1173,9 +1896,13 @@ Modulos.clientes = {
         ${c.obs ? info('Observações', `<span style="white-space:pre-wrap">${UI.esc(c.obs)}</span>`, 'col-12') : ''}
       </div></div>
       <div class="cartao d-none" data-aba-painel="casos">${this.htmlCasos(F.casos)}</div>
-      <div class="cartao d-none" data-aba-painel="atend">${this.htmlAtendimentos(F.atendimentos)}</div>`;
+      <div class="cartao d-none" data-aba-painel="atend">${this.htmlAtendimentos(F.atendimentos)}</div>
+      <div class="cartao d-none" data-aba-painel="docs"><div class="small texto-2 mb-2">Documentos pessoais do cliente e de todos os casos dele que você pode ver.</div><div data-docs-cli></div></div>`;
 
-    UI.abas(el);
+    let docsCarregados = false;
+    UI.abas(el, aba => {
+      if (aba === 'docs' && !docsCarregados) { docsCarregados = true; Modulos.documentos.painel(el.querySelector('[data-docs-cli]'), { id_cliente: c.id_cliente }, { mostrarCaso: true, tipoPadrao: 'Documento pessoal' }); }
+    });
     const recarregar = () => this.ficha(el, S, id);
     const b1 = el.querySelector('[data-editar]');
     if (b1) b1.onclick = () => this.formulario(c, S, recarregar);
@@ -1600,9 +2327,30 @@ Modulos.casos = {
               <div class="texto">${UI.esc(a.descricao)}</div></div>`).join('')
             : '<div class="texto-2 small">Nenhum andamento registrado.</div>'}</div>
         </div></div>
+        ${App.pode('contratos') ? `<div class="col-lg-5"><div class="cartao h-100">
+          <div class="d-flex justify-content-between align-items-center mb-2"><h2 class="h6 mb-0">Contratos</h2>
+            ${App.pode('contratos', 'criar') && k.ativo !== 'NAO' ? '<button class="btn btn-sm btn-primary" data-novo-contrato><i class="bi bi-plus-lg me-1"></i>Novo contrato</button>' : ''}</div>
+          <div data-contratos><div class="texto-2 small">Carregando…</div></div>
+        </div></div>` : ''}
+        ${App.pode('documentos') ? `<div class="${App.pode('contratos') ? 'col-lg-7' : 'col-12'}"><div class="cartao h-100">
+          <h2 class="h6 mb-2">Documentos do caso</h2><div data-docs-caso></div>
+        </div></div>` : ''}
       </div>`;
 
     const recarregar = () => this.ficha(el, S, id);
+    const boxCtr = el.querySelector('[data-contratos]');
+    if (boxCtr) {
+      Api.chamar('contratos.listar', { id_caso: k.id_caso }).then(lista => {
+        boxCtr.innerHTML = lista.length ? lista.map(c => `<div class="d-flex justify-content-between align-items-center py-2 border-top">
+            <div><a class="link-limpo fw-semibold" href="#/contratos/${UI.esc(c.id_contrato)}">${UI.esc(c.id_contrato)}</a>
+            <div class="small texto-2">${UI.data(c.data_contrato)} · ${UI.esc(Modulos.contratos.resumoHonorarios(c))}</div></div>${Modulos.contratos.chip(c.status)}</div>`).join('')
+          : '<div class="texto-2 small">Nenhum contrato para este caso.</div>';
+      }).catch(e => { boxCtr.innerHTML = `<div class="small text-danger">${UI.esc(e.message)}</div>`; });
+    }
+    const bnc = el.querySelector('[data-novo-contrato]');
+    if (bnc) bnc.onclick = () => Modulos.contratos.formulario(null, S, { caso: Object.assign({}, k, { cliente_nome: c.nome_razao }) }, ctr => { location.hash = '#/contratos/' + ctr.id_contrato; });
+    const boxDoc = el.querySelector('[data-docs-caso]');
+    if (boxDoc) Modulos.documentos.painel(boxDoc, { id_caso: k.id_caso });
     const be = el.querySelector('[data-editar]');
     if (be) be.onclick = () => this.formulario(k, S, {}, recarregar);
     const ba = el.querySelector('[data-ativo]');
@@ -1725,6 +2473,8 @@ Modulos.usuarios = {
         <div class="col-md-4"><label class="form-label">Nacionalidade</label><input class="form-control" data-campo="nacionalidade" value="${UI.esc(v.nacionalidade || 'brasileiro(a)')}"></div>
         <div class="col-md-4"><label class="form-label">Estado civil</label><select class="form-select" data-campo="estado_civil">${UI.opcoes(S.listas.estado_civil || [], v.estado_civil, { vazio: '-' })}</select></div>
         <div class="col-md-4"><label class="form-label">Telefone</label><input class="form-control" data-campo="telefone" data-mascara="telefone" value="${UI.esc(v.telefone)}"></div>
+        ${UI.campo({ rotulo: 'Gênero (para os documentos)', campo: 'genero', valor: v.genero, tipo: 'select', col: 'col-md-4', opcoes: ['Feminino', 'Masculino'], vazio: '-' })}
+        ${UI.campo({ rotulo: 'E-mail profissional (sai nos documentos)', campo: 'email_profissional', valor: v.email_profissional, tipo: 'email', col: 'col-md-8' })}
         <div class="col-12"><label class="form-label">Endereço profissional</label><input class="form-control" data-campo="endereco_profissional" value="${UI.esc(v.endereco_profissional)}">
           <div class="form-text">OAB, CPF, RG e endereço são usados na qualificação das procurações e contratos.</div></div>
         <div class="col-12"><label class="form-label">Áreas de atuação</label>
@@ -1945,6 +2695,7 @@ Modulos.configuracoes = {
         <li class="nav-item"><button class="nav-link" data-aba="unidades"><i class="bi bi-geo-alt me-1"></i>Unidades</button></li>
         <li class="nav-item"><button class="nav-link" data-aba="areas"><i class="bi bi-tags me-1"></i>Áreas de atuação</button></li>
         <li class="nav-item"><button class="nav-link" data-aba="listas"><i class="bi bi-list-ul me-1"></i>Listas</button></li>
+        <li class="nav-item"><button class="nav-link" data-aba="modelos"><i class="bi bi-file-earmark-richtext me-1"></i>Modelos de documento</button></li>
         <li class="nav-item"><button class="nav-link" data-aba="sistema"><i class="bi bi-shield-check me-1"></i>Segurança</button></li>
       </ul>
       <div id="cfg-conteudo" class="cartao"><div class="vazio"><div class="spinner-border"></div></div></div>`;
@@ -1968,7 +2719,7 @@ Modulos.configuracoes = {
     const el = document.getElementById('cfg-conteudo');
     if (!el || !this.D) return;
     ({ escritorio: () => this.abaEscritorio(el), unidades: () => this.abaUnidades(el), areas: () => this.abaAreas(el),
-       listas: () => this.abaListas(el), sistema: () => this.abaSistema(el) })[this.aba]();
+       listas: () => this.abaListas(el), sistema: () => this.abaSistema(el), modelos: () => this.abaModelos(el) })[this.aba]();
   },
 
   async salvarConfig(el, botao) {
@@ -2118,6 +2869,93 @@ Modulos.configuracoes = {
         <div class="col-md-9"><label class="form-label">Valor *</label><input class="form-control" data-campo="valor" value="${UI.esc(r.valor)}"></div>
         <div class="col-md-3"><label class="form-label">Ordem</label><input type="number" class="form-control" data-campo="ordem" value="${UI.esc(r.ordem || '99')}"></div>`
     });
+  },
+  async abaModelos(el) {
+    el.innerHTML = '<div class="vazio"><div class="spinner-border"></div></div>';
+    let modelos;
+    try { modelos = await Api.chamar('config.modelos'); } catch (e) { return UI.erro(e); }
+    modelos.forEach(m => { m._cat = m.categoria === 'TEXTO_PADRAO' ? 'Texto padrão' : 'Documento'; });
+    const destinos = { poderes_gerais: 'Poderes gerais', poderes_especiais: 'Poderes especiais', objeto: 'Objeto' };
+    el.innerHTML = `<div class="d-flex justify-content-between align-items-center mb-2">
+        <div><h2 class="h6 mb-0">Modelos de documento e textos padrão</h2>
+        <div class="small texto-2">Documentos geram procuração, contrato etc. Textos padrão preenchem os poderes no formulário do contrato.</div></div>
+        ${App.pode('configuracoes', 'criar') ? '<button class="btn btn-primary btn-sm" data-novo><i class="bi bi-plus-lg me-1"></i>Novo modelo</button>' : ''}
+      </div><div data-tab></div>`;
+    UI.tabela(el.querySelector('[data-tab]'), {
+      dados: modelos, busca: ['nome', 'tipo'], porPagina: 20,
+      filtros: [{ campo: '_cat', titulo: 'Categoria', opcoes: [{ valor: 'Documento', rotulo: 'Documentos' }, { valor: 'Texto padrão', rotulo: 'Textos padrão' }] }],
+      linhaClasse: r => r.ativo === 'NAO' ? 'linha-inativa' : '',
+      colunas: [
+        { titulo: 'Nome', render: r => `<span class="fw-semibold">${UI.esc(r.nome)}</span>` },
+        { titulo: 'Categoria', render: r => `<span class="chip">${r._cat}</span>${r.campo_destino ? ' <span class="small texto-2">→ ' + destinos[r.campo_destino] + '</span>' : ''}` },
+        { titulo: 'Área', render: r => r.id_area ? App.areaHtml(r.id_area) : '<span class="texto-2 small">todas</span>' },
+        { titulo: 'Ordem', campo: 'ordem' },
+        { titulo: 'Situação', render: r => r.ativo === 'NAO' ? '<span class="chip chip-off">Inativo</span>' : '<span class="chip chip-ok">Ativo</span>' },
+        { titulo: '', classe: 'text-end', render: r => `<div class="btn-group btn-group-sm">
+          ${this.podeEditar() ? `<button class="btn btn-outline-secondary" data-ed="${UI.esc(r.id_modelo)}"><i class="bi bi-pencil"></i></button>` : ''}
+          ${App.pode('configuracoes', 'excluir') ? `<button class="btn btn-outline-secondary" data-at="${UI.esc(r.id_modelo)}"><i class="bi ${r.ativo === 'NAO' ? 'bi-arrow-counterclockwise' : 'bi-slash-circle'}"></i></button>` : ''}</div>` }
+      ]
+    });
+    const novo = el.querySelector('[data-novo]');
+    if (novo) novo.onclick = () => this.editorModelo(null, () => this.abaModelos(el));
+    el.querySelector('[data-tab]').addEventListener('click', async e => {
+      const ed = e.target.closest('[data-ed]'), at = e.target.closest('[data-at]');
+      if (ed) this.editorModelo(modelos.find(m => m.id_modelo === ed.dataset.ed), () => this.abaModelos(el));
+      if (at) {
+        try { await Api.chamar('config.alternarAtivo', { tabela: 'Modelos_Documento', id: at.dataset.at }); Modulos.contratos.padroes = null; this.abaModelos(el); } catch (er) { UI.erro(er); }
+      }
+    });
+  },
+
+  editorModelo(mo, aoSalvar) {
+    const v = mo || { categoria: 'DOCUMENTO', ordem: '99' };
+    const m = UI.modal({
+      titulo: mo ? 'Editar modelo' : 'Novo modelo', tamanho: 'modal-xl',
+      corpo: `<div class="row g-3">
+        ${UI.campo({ rotulo: 'Nome', campo: 'nome', valor: v.nome, col: 'col-md-5', obrig: true })}
+        ${UI.campo({ rotulo: 'Categoria', campo: 'categoria', valor: v.categoria, tipo: 'select', col: 'col-md-3', vazio: null, opcoes: [{ id: 'DOCUMENTO', nome: 'Documento' }, { id: 'TEXTO_PADRAO', nome: 'Texto padrão' }] })}
+        ${UI.campo({ rotulo: 'Área (opcional)', campo: 'id_area', valor: v.id_area, tipo: 'select', col: 'col-md-3', opcoes: App.S.areas, vazio: 'Todas' })}
+        ${UI.campo({ rotulo: 'Ordem', campo: 'ordem', valor: v.ordem, tipo: 'number', col: 'col-md-1' })}
+        ${UI.campo({ rotulo: 'Usar no campo', campo: 'campo_destino', valor: v.campo_destino, tipo: 'select', col: 'col-md-4 so-texto', vazio: 'Selecione',
+          opcoes: [{ id: 'poderes_gerais', nome: 'Poderes gerais' }, { id: 'poderes_especiais', nome: 'Poderes especiais' }, { id: 'objeto', nome: 'Objeto' }] })}
+        ${UI.campo({ rotulo: 'Tipo de documento', campo: 'tipo', valor: v.tipo, col: 'col-md-4 so-doc', lista: App.lista('tipo_documento') })}
+        <div class="col-lg-7">
+          <label class="form-label">Conteúdo <span class="texto-2 small so-doc">(HTML simples: &lt;p&gt;, &lt;b&gt;, &lt;h1&gt;, &lt;h2&gt;; classes: caixa, titulo-caixa, centro, recuo)</span></label>
+          <textarea class="form-control font-monospace" rows="20" style="font-size:12px" data-campo="conteudo_html">${UI.esc(v.conteudo_html)}</textarea>
+        </div>
+        <div class="col-lg-5">
+          <label class="form-label">Campos automáticos <span class="texto-2 small">(clique para inserir)</span></label>
+          <div class="d-flex flex-wrap gap-1 mb-3">${DocGen.CAMPOS.map(([c, r]) => `<button type="button" class="btn btn-sm btn-outline-secondary py-0" data-campo-ins="${c}" title="${UI.esc(r)}">{{${c}}}</button>`).join('')}</div>
+          <button type="button" class="btn btn-outline-primary btn-sm" data-previa><i class="bi bi-eye me-1"></i>Pré-visualizar com dados de exemplo</button>
+        </div>
+      </div>`,
+      rodape: `<button class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancelar</button><button class="btn btn-primary" data-salvar>Salvar modelo</button>`
+    });
+    const ta = m.el.querySelector('[data-campo="conteudo_html"]');
+    const cat = m.el.querySelector('[data-campo="categoria"]');
+    const ajustar = () => {
+      const doc = cat.value === 'DOCUMENTO';
+      m.el.querySelectorAll('.so-doc').forEach(x => x.classList.toggle('d-none', !doc));
+      m.el.querySelectorAll('.so-texto').forEach(x => x.classList.toggle('d-none', doc));
+    };
+    cat.addEventListener('change', ajustar); ajustar();
+    m.el.querySelectorAll('[data-campo-ins]').forEach(b => b.onclick = () => {
+      const t = `{{${b.dataset.campoIns}}}`, i = ta.selectionStart || ta.value.length;
+      ta.value = ta.value.slice(0, i) + t + ta.value.slice(ta.selectionEnd || i);
+      ta.focus(); ta.selectionStart = ta.selectionEnd = i + t.length;
+    });
+    m.el.querySelector('[data-previa]').onclick = () => {
+      const html = cat.value === 'DOCUMENTO' ? ta.value : `<p>${DocGen.texto(ta.value)}</p>`;
+      DocGen.abrirPrevia(DocGen.render(html, DocGen.exemplo()), 'Prévia do modelo (dados fictícios)', 'previa');
+    };
+    m.el.querySelector('[data-salvar]').onclick = async ev => {
+      const d = UI.lerForm(m.el);
+      if (mo) d.id_modelo = mo.id_modelo;
+      if (d.categoria === 'DOCUMENTO') d.campo_destino = '';
+      await UI.ocupado(ev.target, async () => {
+        try { await Api.chamar('config.salvarModelo', d); m.fechar(); UI.toast('Modelo salvo.'); Modulos.contratos.padroes = null; aoSalvar(); } catch (e) { UI.erro(e); }
+      });
+    };
   }
 };
 
@@ -2197,6 +3035,8 @@ Modulos.perfil = {
             <div class="col-md-6"><label class="form-label">CPF</label><input class="form-control" data-campo="cpf" data-mascara="cpf" value="${UI.esc(u.cpf)}"></div>
             <div class="col-md-4"><label class="form-label">RG</label><input class="form-control" data-campo="rg" value="${UI.esc(u.rg)}"></div>
             <div class="col-md-4"><label class="form-label">Nacionalidade</label><input class="form-control" data-campo="nacionalidade" value="${UI.esc(u.nacionalidade)}"></div>
+            ${UI.campo({ rotulo: 'Gênero (para os documentos)', campo: 'genero', valor: u.genero, tipo: 'select', col: 'col-md-4', opcoes: ['Feminino', 'Masculino'], vazio: '-' })}
+            ${UI.campo({ rotulo: 'E-mail profissional', campo: 'email_profissional', valor: u.email_profissional, tipo: 'email', col: 'col-md-8' })}
             <div class="col-md-4"><label class="form-label">Estado civil</label><select class="form-select" data-campo="estado_civil">${UI.opcoes(S.listas.estado_civil || [], u.estado_civil, { vazio: '-' })}</select></div>
             <div class="col-12"><label class="form-label">Endereço profissional</label><input class="form-control" data-campo="endereco_profissional" value="${UI.esc(u.endereco_profissional)}"></div>
             <div class="col-12 text-end"><button class="btn btn-primary" data-salvar-dados>Salvar dados</button></div>
