@@ -319,8 +319,9 @@ const Api = {
   limparToken() { sessionStorage.removeItem(this.CHAVE_TOKEN); },
 
   async chamar(acao, dados = {}) {
-    if (!APP_CONFIG.API_URL || APP_CONFIG.API_URL.indexOf('http') !== 0) {
-      throw new Error('A URL da API não foi configurada em js/config.js.');
+    APP_CONFIG.API_URL = String(APP_CONFIG.API_URL || '').trim();
+    if (!/^https:\/\/script\.google\.com\/.+\/exec$/.test(APP_CONFIG.API_URL)) {
+      throw new Error('URL da API inválida: "' + APP_CONFIG.API_URL + '". Ela deve começar com https://script.google.com/ e terminar com /exec.');
     }
     let resp;
     try {
