@@ -227,6 +227,41 @@ body.api-ocupada::before { opacity: 1; animation: barra-api 1.6s ease-in-out inf
   body::before { display: none !important; }
 }
 
+/* ---------- Rodapé, suporte e material de apoio ---------- */
+.rodape { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 6px 16px;
+  padding: 10px 24px; padding-right: 140px; border-top: 1px solid var(--adv-borda); background: var(--adv-card);
+  color: var(--adv-texto-2); font-size: 12px; }
+.rodape a { color: var(--adv-texto-2); text-decoration: none; }
+.rodape a:hover { color: var(--adv-texto); text-decoration: underline; }
+.rodape-links { display: flex; gap: 16px; flex-wrap: wrap; }
+.rodape-login { margin-top: 18px; text-align: center; font-size: 12px; color: var(--adv-texto-2); }
+.rodape-login a { color: var(--adv-texto-2); }
+
+.botao-whatsapp { position: fixed; right: 18px; bottom: 16px; z-index: 1040; display: flex; align-items: center; gap: 8px;
+  height: 46px; padding: 0 16px 0 14px; border-radius: 23px; background: #1f8f4e; color: #fff !important;
+  text-decoration: none; font-weight: 600; font-size: 14px; box-shadow: 0 4px 14px rgba(0,0,0,.22); transition: transform .15s, background .15s; }
+.botao-whatsapp i { font-size: 22px; }
+.botao-whatsapp:hover { background: #18733e; transform: translateY(-2px); }
+.botao-whatsapp:focus-visible { outline: 3px solid var(--adv-destaque); outline-offset: 2px; }
+.toasts-acima { bottom: 64px !important; }
+@media (max-width: 767.98px) {
+  .botao-whatsapp { width: 48px; padding: 0; justify-content: center; }
+  .botao-whatsapp span { display: none; }
+  .rodape { padding: 10px 16px; padding-right: 76px; }
+}
+
+.ajuda-texto { line-height: 1.6; }
+.ajuda-texto ul, .ajuda-texto ol { padding-left: 1.2rem; margin-bottom: .5rem; }
+.ajuda-texto li { margin-bottom: 6px; }
+.ajuda-texto dt { margin-top: 10px; }
+.ajuda-texto dd { color: var(--adv-texto-2); margin-left: 0; }
+.ajuda-secao { scroll-margin-top: 72px; }
+
+@media print {
+  .nao-imprimir, .botao-whatsapp { display: none !important; }
+  .ajuda-secao { break-inside: avoid; }
+}
+
 </style>
 </head>
 <body>
@@ -254,6 +289,7 @@ body.api-ocupada::before { opacity: 1; animation: barra-api 1.6s ease-in-out inf
       <div class="alert alert-danger small py-2 d-none" id="login-erro"></div>
       <button type="submit" class="btn btn-primary w-100" id="btn-login">Entrar</button>
     </form>
+    <div class="rodape-login">Desenvolvido por <b>DMA SYS</b> · <a href="#" data-suporte target="_blank" rel="noopener">Problemas para entrar? Fale com o suporte</a></div>
   </div>
 </section>
 
@@ -330,10 +366,18 @@ body.api-ocupada::before { opacity: 1; animation: barra-api 1.6s ease-in-out inf
     </header>
 
     <main id="view" class="conteudo"></main>
+    <footer class="rodape nao-imprimir">
+      <span><b>DMA SYS ADV</b> <span id="rodape-versao"></span> · Desenvolvido por <b>DMA SYS</b> · © 2026</span>
+      <span class="rodape-links">
+        <a href="#/ajuda"><i class="bi bi-life-preserver me-1"></i>Material de apoio</a>
+        <a href="#" data-suporte target="_blank" rel="noopener"><i class="bi bi-whatsapp me-1"></i>Suporte (11) 97011-6092</a>
+      </span>
+    </footer>
   </div>
 </div>
 
-<div class="toast-container position-fixed bottom-0 end-0 p-3" id="toasts"></div>
+<a href="#" class="botao-whatsapp nao-imprimir" data-suporte target="_blank" rel="noopener" title="Suporte pelo WhatsApp" aria-label="Falar com o suporte pelo WhatsApp"><i class="bi bi-whatsapp"></i><span>Suporte</span></a>
+<div class="toast-container position-fixed bottom-0 end-0 p-3 toasts-acima" id="toasts"></div>
 <div id="modais"></div>
 
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js" integrity="sha384-YvpcrYf0tY3lHB60NNkmXc5s9fDVZLESaAA55NDzOxhy9GkcIdslK1eN7N6jIeHz" crossorigin="anonymous"></script>
@@ -786,6 +830,13 @@ const MENU = [
   { id: 'auditoria',     icone: 'bi-clock-history',     fase: 1 }
 ];
 
+/** Suporte e créditos (fixos: são do fornecedor do sistema, não do escritório) */
+const SUPORTE = {
+  marca: 'DMA SYS',
+  whatsapp: '5511970116092',        // formato internacional, só números
+  whatsappTexto: '(11) 97011-6092'
+};
+
 const App = {
   S: null, // estado global carregado do servidor (app.inicial)
 
@@ -804,6 +855,7 @@ const App = {
   },
 
   mostrarTela(nome) {
+    setTimeout(() => this.atualizarSuporte(), 0);
     ['login', 'senha', 'carregando', 'app'].forEach(t =>
       document.getElementById('tela-' + t).classList.toggle('d-none', t !== nome));
     if (nome === 'login') setTimeout(() => document.getElementById('login-email').focus(), 50);
@@ -915,15 +967,39 @@ const App = {
       .forEach(i => eng.push(`<li><a class="dropdown-item" href="#/${i.id}"><i class="bi ${i.icone} me-2"></i>${UI.esc(this.nomeModulo(i.id))}</a></li>`));
     if (eng.length) eng.push('<li><hr class="dropdown-divider"></li>');
     eng.push('<li><a class="dropdown-item" href="#/perfil"><i class="bi bi-person-gear me-2"></i>Minha conta e tema</a></li>');
+    eng.push('<li><hr class="dropdown-divider"></li>');
+    eng.push('<li><a class="dropdown-item" href="#/ajuda"><i class="bi bi-life-preserver me-2"></i>Material de apoio</a></li>');
+    eng.push(`<li><a class="dropdown-item" href="${this.linkSuporte()}" target="_blank" rel="noopener"><i class="bi bi-whatsapp me-2"></i>Falar com o suporte</a></li>`);
     document.getElementById('menu-engrenagem').innerHTML = eng.join('');
   },
 
+  /** Link do WhatsApp com mensagem pronta (sem dados de clientes) */
+  linkSuporte() {
+    const tela = (location.hash.replace(/^#\//, '') || 'login').split('/')[0];
+    const partes = ['Olá! Preciso de suporte no DMA SYS ADV.'];
+    if (this.S) {
+      partes.push('Escritório: ' + ((this.S.escritorio && this.S.escritorio.nome) || '-'));
+      partes.push('Usuário: ' + (this.S.usuario ? this.S.usuario.nome : '-'));
+    }
+    partes.push('Tela: ' + tela);
+    partes.push('Versão: ' + ((this.S && this.S.app && this.S.app.versao) || '-'));
+    partes.push('', 'Descreva o problema:');
+    return 'https://wa.me/' + SUPORTE.whatsapp + '?text=' + encodeURIComponent(partes.join('\n'));
+  },
+
+  atualizarSuporte() {
+    document.querySelectorAll('[data-suporte]').forEach(a => { a.href = this.linkSuporte(); });
+    const v = document.getElementById('rodape-versao');
+    if (v && this.S && this.S.app) v.textContent = 'v' + this.S.app.versao;
+  },
+
   rotear() {
+    this.atualizarSuporte();
     if (!this.S) return;
     const partes = (location.hash.replace(/^#\//, '') || 'painel').split('?')[0].split('/');
     let rota = partes[0] || 'painel';
     const param = decodeURIComponent(partes[1] || '');
-    const especiais = ['perfil'];
+    const especiais = ['perfil', 'ajuda'];
     if (!especiais.includes(rota) && !this.pode(rota)) rota = 'painel';
 
     document.querySelectorAll('[data-rota]').forEach(a => a.classList.toggle('ativo', a.dataset.rota === rota));
@@ -4228,6 +4304,182 @@ Modulos.perfil = {
         } catch (e) { UI.erro(e); }
       });
     };
+  }
+};
+
+</script>
+<script>
+/* ======== js/modulos/ajuda.js ======== */
+/**
+ * Material de apoio — guia de uso dentro do sistema.
+ * Rota: #/ajuda (todos os usuários). Cada seção mostra só o que o cargo do usuário pode usar.
+ * Para editar o conteúdo, altere a lista SECOES abaixo (HTML simples).
+ */
+Modulos.ajuda = {
+  SECOES: [
+    {
+      id: 'inicio', icone: 'bi-rocket-takeoff', titulo: 'Primeiros passos', modulo: null, html: `
+      <ul>
+        <li><b>Entrar:</b> use seu e-mail e a senha que recebeu. No primeiro acesso o sistema pede para você criar uma senha pessoal.</li>
+        <li><b>Senha:</b> mínimo de 10 caracteres, com 3 destes tipos: minúscula, maiúscula, número e símbolo. Não use seu nome nem seu e-mail. Uma frase curta é fácil de lembrar e segura.</li>
+        <li><b>Menu:</b> à esquerda ficam as telas do dia a dia. Você só vê as telas que o seu cargo permite.</li>
+        <li><b>Busca rápida:</b> a barra no topo procura cliente, CPF, número do processo e número do benefício (NB) em qualquer tela.</li>
+        <li><b>Tema:</b> as três bolinhas no topo trocam as cores (clássico, noturno e bordô).</li>
+        <li><b>Engrenagem:</b> administração (para quem tem permissão), sua conta e este material de apoio.</li>
+        <li><b>Sessão:</b> depois de algumas horas sem uso o sistema pede o login de novo. Em computador compartilhado, clique no seu nome e em <b>Sair</b> ao terminar.</li>
+      </ul>`
+    },
+    {
+      id: 'atendimentos', icone: 'bi-headset', titulo: 'Atendimentos (primeiro contato / triagem)', modulo: 'atendimentos', html: `
+      <p>É onde entra todo contato novo, mesmo que ainda não seja cliente.</p>
+      <ol>
+        <li>Clique em <b>Novo atendimento</b> e preencha nome, telefone, assunto, área e o advogado responsável.</li>
+        <li>Escreva no relato o que a pessoa contou. Esse texto passa para o caso se ele for aberto.</li>
+        <li>Marque o <b>resultado</b> (por exemplo: retornar contato, sem viabilidade).</li>
+        <li>Se o advogado decidir aceitar a causa, ele clica em <b>Virar caso</b>: o sistema cria (ou aproveita) o cliente e abre o caso já com o histórico.</li>
+      </ol>
+      <p class="texto-2">Antes de cadastrar, use a busca do topo para ver se a pessoa já é cliente.</p>`
+    },
+    {
+      id: 'clientes', icone: 'bi-people', titulo: 'Clientes', modulo: 'clientes', html: `
+      <ul>
+        <li><b>Novo cliente:</b> o sistema confere se o CPF/CNPJ é válido e se já existe outro cadastro com o mesmo número.</li>
+        <li>Preencha gênero, estado civil, profissão e endereço completos: esses dados vão automaticamente para procurações e contratos. Dado faltando aparece <span class="text-danger">em vermelho</span> no documento.</li>
+        <li><b>LGPD:</b> registre a data em que o cliente autorizou o uso dos dados.</li>
+        <li>Na ficha do cliente ficam os casos, contratos e documentos dele. Pela ficha você pode abrir um <b>Novo caso</b>.</li>
+      </ul>`
+    },
+    {
+      id: 'casos', icone: 'bi-briefcase', titulo: 'Casos e processos', modulo: 'casos', html: `
+      <ul>
+        <li>Um caso pode ser <b>judicial</b> (com número CNJ, que o sistema valida) ou <b>administrativo</b> (INSS).</li>
+        <li>Nos casos do INSS preencha espécie do benefício, <b>DER</b> (data de entrada do requerimento) e, quando sair, a <b>DIB</b>. O relatório de administrativos usa a DER para mostrar o que está parado há mais tempo.</li>
+        <li><b>Status e fase:</b> toda mudança fica registrada sozinha no histórico do caso.</li>
+        <li><b>Registrar andamento:</b> anote movimentações, ligações e decisões. É o histórico que qualquer colega consulta para responder o cliente.</li>
+        <li>Ao encerrar, escolha <b>Encerrado - êxito</b> ou <b>sem êxito</b>: isso alimenta a taxa de êxito nos relatórios.</li>
+      </ul>`
+    },
+    {
+      id: 'agenda', icone: 'bi-calendar-event', titulo: 'Agenda e prazos', modulo: 'agenda', html: `
+      <ul>
+        <li><b>Novo compromisso:</b> audiências, perícias, reuniões e prazos. Ligue ao caso sempre que possível.</li>
+        <li>Alterne entre <b>Lista</b> e <b>Calendário</b>. No calendário, <b>Novo neste dia</b> já preenche a data.</li>
+        <li><b>Calcular prazo:</b> informe a data de início e a quantidade de dias. Em dias úteis o sistema exclui o dia do início, fins de semana, feriados nacionais, feriados cadastrados e o recesso de 20/12 a 20/01.</li>
+        <li class="text-danger"><b>A calculadora é um auxílio. A conferência do prazo é sempre do advogado.</b></li>
+        <li>Marque o prazo como <b>concluído</b> quando cumprir: isso entra na pontualidade dos relatórios.</li>
+        <li>Quem tiver alertas ligados recebe por e-mail, todo dia, os prazos dos próximos dias.</li>
+      </ul>`
+    },
+    {
+      id: 'contratos', icone: 'bi-file-earmark-text', titulo: 'Contratos e documentos do cliente', modulo: 'contratos', html: `
+      <ol>
+        <li>Na ficha do caso, clique em <b>Novo contrato</b>. Informe entrada, valor fixo, número de parcelas e percentual de êxito.</li>
+        <li><b>Gerar a partir dos valores</b> escreve a cláusula de honorários; <b>Usar texto padrão</b> preenche os poderes da procuração.</li>
+        <li><b>Gerar documentos:</b> procuração, contrato, declaração de hipossuficiência. Saem com a logo e o texto justificado, prontos para imprimir, salvar em PDF ou abrir no Word.</li>
+        <li>Depois de assinado, anexe a via assinada e clique em <b>Marcar como assinado</b>. Contrato assinado não pode mais ser editado.</li>
+        <li>Com parcela paga, os valores ficam travados. Ajustes passam a ser feitos no Financeiro.</li>
+      </ol>`
+    },
+    {
+      id: 'documentos', icone: 'bi-folder2-open', titulo: 'Anexos (RG, laudos, comprovantes)', modulo: 'documentos', html: `
+      <ul>
+        <li>Aceita <b>PDF, JPG, PNG e WEBP</b> de até <b>10 MB</b>. Fotos de celular grandes: tire em qualidade menor ou converta para PDF.</li>
+        <li>Os arquivos ficam numa pasta <b>privada</b> do escritório. Só abrem pelo sistema, para quem tem permissão.</li>
+        <li>Remover um anexo tira da lista, mas o arquivo continua guardado no Drive do escritório.</li>
+      </ul>`
+    },
+    {
+      id: 'financeiro', icone: 'bi-cash-coin', titulo: 'Financeiro', modulo: 'financeiro', html: `
+      <ul>
+        <li><b>Resumo:</b> recebido, a receber e inadimplência do mês. <b>Extrato do mês</b>: entradas e saídas.</li>
+        <li><b>Parcelas:</b> <b>Registrar pagamento</b> informando data e forma. Errou? Use o estorno. Depois de pago, gere o <b>Recibo</b>.</li>
+        <li><b>Lançamentos avulsos:</b> despesas e receitas que não são parcela (aluguel, custas, cópias). Marque <b>reembolsável</b> quando o cliente for devolver o valor e, depois, <b>Reembolsado</b>.</li>
+        <li><b>Lançar honorários de êxito:</b> no contrato, quando o benefício ou a ação sair.</li>
+        <li><b>Divisão de honorários:</b> definida no contrato ou pela regra da área (Configurações). Conta apenas o que foi efetivamente recebido.</li>
+      </ul>`
+    },
+    {
+      id: 'relatorios', icone: 'bi-bar-chart', titulo: 'Relatórios', modulo: 'relatorios', html: `
+      <ul>
+        <li>Escolha o período (mês, trimestre, semestre, ano ou datas livres) e, se quiser, unidade, área e advogado.</li>
+        <li><b>Visão geral:</b> casos, êxito, atendimentos que viraram caso, origem dos clientes e pontualidade nos prazos.</li>
+        <li><b>Produtividade:</b> números por advogado. <b>Financeiro</b>: só para quem tem acesso. <b>Administrativos (INSS)</b>: processos parados há mais tempo.</li>
+        <li>Cada gráfico tem <b>Ver tabela</b> e <b>Exportar</b>. O botão <b>Imprimir / PDF</b> gera a versão para reunião.</li>
+        <li>Os números dependem do que é lançado: caso encerrado sem marcar êxito, ou prazo cumprido sem marcar concluído, distorcem os indicadores.</li>
+      </ul>`
+    },
+    {
+      id: 'admin', icone: 'bi-shield-lock', titulo: 'Administração (master)', modulo: 'usuarios', html: `
+      <ul>
+        <li><b>Usuários:</b> crie cada pessoa com o seu cargo. A senha temporária deve ser entregue pessoalmente ou por WhatsApp. Esqueceu a senha? Use <b>Redefinir senha</b>.</li>
+        <li><b>Cargos:</b> definem o que cada função vê e faz (ver, criar, editar, excluir, exportar) e o alcance dos dados: <b>todos</b>, <b>só das minhas áreas</b> ou <b>só onde sou responsável</b>.</li>
+        <li><b>Configurações:</b> dados e logo do escritório, unidades, áreas, listas, modelos de documento, feriados locais, alertas, divisão de honorários e segurança.</li>
+        <li><b>Segurança:</b> ative a cópia de segurança semanal e faça uma cópia antes de mudanças grandes.</li>
+        <li><b>Auditoria:</b> mostra quem alterou o quê e quando, com o valor anterior.</li>
+        <li><b>Nunca edite a planilha diretamente</b>: a edição manual não passa pelas validações nem fica na auditoria.</li>
+      </ul>`
+    },
+    {
+      id: 'faq', icone: 'bi-question-circle', titulo: 'Perguntas frequentes', modulo: null, html: `
+      <dl>
+        <dt>Esqueci minha senha.</dt><dd>Peça ao advogado master para redefinir. Você receberá uma senha temporária e criará uma nova no primeiro acesso.</dd>
+        <dt>Não encontro um menu que um colega tem.</dt><dd>As telas dependem do cargo. Se precisar, peça ao master para ajustar a permissão.</dd>
+        <dt>Apareceu "sessão expirada".</dt><dd>É proteção por inatividade. Entre de novo; nada do que foi salvo se perde.</dd>
+        <dt>Apareceu "muitas requisições".</dt><dd>Aguarde 1 minuto e tente de novo.</dd>
+        <dt>Uma informação não aparece atualizada.</dt><dd>Recarregue a página (F5). Se persistir, fale com o suporte.</dd>
+        <dt>Posso usar no celular?</dt><dd>Sim, pelo navegador. Para documentos e relatórios o computador é mais confortável.</dd>
+      </dl>`
+    },
+    {
+      id: 'suporte', icone: 'bi-whatsapp', titulo: 'Suporte', modulo: null, html: `
+      <p>Dúvidas, erros ou sugestões: clique no botão verde do WhatsApp no canto inferior direito da tela.
+      A mensagem já sai com a versão do sistema e a tela em que você está. Se possível, envie um print do erro.</p>
+      <p class="texto-2">Não envie senhas nem dados de clientes (CPF, laudos) pelo WhatsApp.</p>`
+    }
+  ],
+
+  render(el, S, param) {
+    const visiveis = this.SECOES.filter(s => !s.modulo || App.pode(s.modulo));
+    el.innerHTML = `
+      <div class="cabecalho-pagina">
+        <div><h1>Material de apoio</h1><p>Como usar o DMA SYS ADV no dia a dia</p></div>
+        <div class="d-flex gap-2 nao-imprimir">
+          <button class="btn btn-outline-secondary" data-imprimir><i class="bi bi-printer me-1"></i>Imprimir / PDF</button>
+        </div>
+      </div>
+      <div class="cartao mb-3 nao-imprimir">
+        <div class="input-group">
+          <span class="input-group-text"><i class="bi bi-search"></i></span>
+          <input type="search" class="form-control" data-filtro placeholder="Procurar no material (ex.: prazo, recibo, senha)">
+        </div>
+        <div class="d-flex flex-wrap gap-2 mt-3">
+          ${visiveis.map(s => `<a class="btn btn-sm btn-outline-secondary" href="#/ajuda/${s.id}" data-ir="${s.id}"><i class="bi ${s.icone} me-1"></i>${UI.esc(s.titulo.split(' (')[0])}</a>`).join('')}
+        </div>
+      </div>
+      <div data-secoes>
+        ${visiveis.map(s => `<section class="cartao mb-3 ajuda-secao" id="ajuda-${s.id}" data-texto="${UI.esc((s.titulo + ' ' + s.html.replace(/<[^>]+>/g, ' ')).toLowerCase())}">
+          <h2 class="h5 mb-3"><i class="bi ${s.icone} me-2"></i>${UI.esc(s.titulo)}</h2>
+          <div class="ajuda-texto">${s.html}</div>
+        </section>`).join('')}
+        <div class="cartao vazio d-none" data-nada><i class="bi bi-search"></i>Nada encontrado. Tente outra palavra ou fale com o suporte.</div>
+      </div>`;
+
+    el.querySelector('[data-imprimir]').onclick = () => window.print();
+    const filtro = el.querySelector('[data-filtro]');
+    filtro.oninput = () => {
+      const t = filtro.value.trim().toLowerCase();
+      let n = 0;
+      el.querySelectorAll('.ajuda-secao').forEach(s => { const ok = !t || s.dataset.texto.includes(t); s.classList.toggle('d-none', !ok); if (ok) n++; });
+      el.querySelector('[data-nada]').classList.toggle('d-none', n > 0);
+    };
+    // atalhos: rolam até a seção sem trocar de rota
+    el.querySelectorAll('[data-ir]').forEach(a => a.onclick = e => { e.preventDefault(); this.rolar(el, a.dataset.ir); });
+    if (param) setTimeout(() => this.rolar(el, param), 50);
+  },
+
+  rolar(el, id) {
+    const s = el.querySelector('#ajuda-' + id);
+    if (s) s.scrollIntoView({ behavior: 'smooth', block: 'start' });
   }
 };
 
