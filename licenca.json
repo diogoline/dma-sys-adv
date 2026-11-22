@@ -1,0 +1,14 @@
+{
+  "ativo": true,
+  "somente_master": true,
+  "dia_aviso": 5,
+  "dia_alerta": 8,
+  "dia_vencimento": 10,
+  "valor": 0,
+  "pix_chave": "+5511970116092",
+  "pix_tipo": "celular",
+  "pix_exibir": "(11) 97011-6092",
+  "favorecido": "DMA SYS",
+  "cidade": "SAO PAULO",
+  "pago_ate": "2026-11"
+}
