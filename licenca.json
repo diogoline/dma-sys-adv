@@ -3,7 +3,7 @@
   "somente_master": true,
   "dia_aviso": 5,
   "dia_alerta": 8,
-  "dia_vencimento": 23,
+  "dia_vencimento": 22,
   "valor": 50,
   "pix_chave": "+5511970116092",
   "pix_tipo": "celular",
