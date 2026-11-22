@@ -287,6 +287,9 @@ body.api-ocupada::before { opacity: 1; animation: barra-api 1.6s ease-in-out inf
 @keyframes faixa-pulso { 0%, 100% { box-shadow: inset 0 0 0 0 rgba(180,35,24,0); } 50% { box-shadow: inset 0 0 0 2px rgba(180,35,24,.45); } }
 @keyframes sino { 0%, 80%, 100% { transform: rotate(0); } 84% { transform: rotate(14deg); } 88% { transform: rotate(-12deg); } 92% { transform: rotate(8deg); } 96% { transform: rotate(-4deg); } }
 @media (prefers-reduced-motion: reduce) { .faixa-licenca, .faixa-licenca .faixa-icone { animation: none !important; } }
+.termos-texto h3 { font-size: 15px; font-weight: 600; margin: 18px 0 8px; }
+.termos-texto li { margin-bottom: 4px; }
+.termos-texto { font-size: 14px; line-height: 1.55; }
 
 </style>
 </head>
@@ -315,7 +318,8 @@ body.api-ocupada::before { opacity: 1; animation: barra-api 1.6s ease-in-out inf
       <div class="alert alert-danger small py-2 d-none" id="login-erro"></div>
       <button type="submit" class="btn btn-primary w-100" id="btn-login">Entrar</button>
     </form>
-    <div class="rodape-login">Desenvolvido por <b>DMA SYS</b> · <a href="#" data-suporte target="_blank" rel="noopener">Problemas para entrar? Fale com o suporte</a></div>
+    <div class="rodape-login">Ao entrar, você concorda com o <a href="#" data-termos>Termo de uso e de responsabilidades</a>.<br>
+      Desenvolvido por <b>DMA SYS</b> · <a href="#" data-suporte target="_blank" rel="noopener">Problemas para entrar? Fale com o suporte</a></div>
   </div>
 </section>
 
@@ -396,6 +400,7 @@ body.api-ocupada::before { opacity: 1; animation: barra-api 1.6s ease-in-out inf
       <span><b>DMA SYS ADV</b> <span id="rodape-versao"></span> · Desenvolvido por <b>DMA SYS</b> · © 2026</span>
       <span class="rodape-links">
         <a href="#/ajuda"><i class="bi bi-life-preserver me-1"></i>Material de apoio</a>
+        <a href="#" data-termos><i class="bi bi-file-earmark-check me-1"></i>Termo de uso</a>
         <a href="#" data-suporte target="_blank" rel="noopener"><i class="bi bi-whatsapp me-1"></i>Suporte (11) 97011-6092</a>
       </span>
     </footer>
@@ -907,7 +912,7 @@ const App = {
     this.montarMenu();
     this.mostrarTela('app');
     this.rotear();
-    Licenca.verificar();
+    Termos.exigirAceite().then(ok => { if (ok) Licenca.verificar(); });
     setTimeout(() => this.preCarregar(), 300);
   },
 
@@ -1015,6 +1020,10 @@ const App = {
   },
 
   atualizarSuporte() {
+    if (!this._termosLigado) {
+      this._termosLigado = true;
+      document.addEventListener('click', e => { const a = e.target.closest('[data-termos]'); if (a) { e.preventDefault(); Termos.abrir(); } });
+    }
     document.querySelectorAll('[data-suporte]').forEach(a => { a.href = this.linkSuporte(); });
     const v = document.getElementById('rodape-versao');
     if (v && this.S && this.S.app) v.textContent = 'v' + this.S.app.versao;
@@ -1329,6 +1338,127 @@ const Licenca = {
       for (let j = 0; j < 8; j++) crc = (crc & 0x8000) ? ((crc << 1) ^ 0x1021) & 0xFFFF : (crc << 1) & 0xFFFF;
     }
     return crc.toString(16).toUpperCase().padStart(4, '0');
+  }
+};
+
+</script>
+<script>
+/* ======== js/termos.js ======== */
+/**
+ * Termo de uso e de responsabilidades (escritório = dados; DMA SYS = sistema).
+ * O texto fica aqui, sob controle do fornecedor. Ao mudar algo relevante, aumente VERSAO:
+ * o master do escritório terá de aceitar de novo no próximo acesso.
+ * O aceite é gravado na planilha (Config.termos_aceite_*) e na auditoria.
+ */
+const Termos = {
+  VERSAO: '1.0',
+  DATA: '22/11/2026',
+
+  texto(nomeEscritorio) {
+    const esc = UI.esc(nomeEscritorio || 'o escritório contratante');
+    return `
+    <div class="termos-texto">
+      <p class="texto-2 small mb-3">Versão ${this.VERSAO}, de ${this.DATA}. Este termo complementa o contrato entre as partes; se houver diferença, vale o contrato.</p>
+
+      <h3>1. Quem é quem</h3>
+      <ul>
+        <li><b>Fornecedor:</b> DMA SYS, responsável pelo desenvolvimento, manutenção e suporte do sistema DMA SYS ADV.</li>
+        <li><b>Escritório:</b> ${esc}, que contrata e usa o sistema por meio dos seus usuários.</li>
+      </ul>
+
+      <h3>2. Os dados são de responsabilidade do Escritório</h3>
+      <p>Para a Lei Geral de Proteção de Dados (Lei 13.709/2018), o Escritório é o <b>controlador</b> de todos os dados registrados no sistema
+      (clientes, partes, processos, documentos, informações de saúde e financeiras). Cabe exclusivamente ao Escritório:</p>
+      <ol type="a">
+        <li>decidir quais dados coletar, para qual finalidade, e ter base legal para tratá-los;</li>
+        <li>a veracidade, a exatidão e a atualização das informações cadastradas e dos documentos anexados;</li>
+        <li>informar os titulares e atender aos seus pedidos (acesso, correção, exclusão);</li>
+        <li>escolher quem terá acesso, criar e desativar usuários e definir cargos e permissões;</li>
+        <li>o uso feito pelos seus usuários, a guarda das senhas e tudo o que for impresso, exportado ou baixado do sistema;</li>
+        <li>conferir os documentos gerados (procurações, contratos, recibos) antes de usá-los;</li>
+        <li>conferir os prazos processuais: a calculadora de prazos é apenas um auxílio;</li>
+        <li>as decisões jurídicas, comerciais e financeiras tomadas com base nas informações do sistema.</li>
+      </ol>
+
+      <h3>3. O sistema é de responsabilidade do Fornecedor</h3>
+      <p>O Fornecedor atua como <b>operador</b>: trata os dados apenas para fazer o sistema funcionar e prestar suporte, conforme as instruções do Escritório. Cabe ao Fornecedor:</p>
+      <ol type="a">
+        <li>manter o sistema funcionando e corrigir falhas do programa em prazo razoável;</li>
+        <li>manter medidas técnicas de segurança no sistema: acesso por cargo, senhas protegidas, registro de alterações e cópias de segurança;</li>
+        <li>guardar sigilo e não usar, vender ou compartilhar os dados para nenhuma outra finalidade;</li>
+        <li>acessar dados somente quando necessário para suporte ou correção, de preferência a pedido ou com autorização do Escritório;</li>
+        <li>avisar o Escritório sobre incidente de segurança de que tiver conhecimento;</li>
+        <li>ao fim da contratação, entregar os dados ao Escritório e excluir as cópias sob sua guarda, salvo obrigação legal.</li>
+      </ol>
+
+      <h3>4. Limites</h3>
+      <ol type="a">
+        <li>O sistema funciona sobre serviços de terceiros (Google e GitHub). Instabilidades, limites de uso ou mudanças nesses serviços fogem ao controle do Fornecedor, que atuará para reduzir os impactos.</li>
+        <li>As cópias de segurança são semanais; alterações feitas após a última cópia podem não ser recuperáveis.</li>
+        <li>O Fornecedor não responde por acessos feitos com as senhas dos usuários do Escritório, por dados lançados de forma incorreta nem por uso do sistema em desacordo com este termo.</li>
+        <li>Nada neste termo afasta as responsabilidades que a lei atribui a cada parte.</li>
+      </ol>
+
+      <h3>5. Regras para os usuários</h3>
+      <ul>
+        <li>Usar senha pessoal e não compartilhá-la; sair do sistema em computadores compartilhados.</li>
+        <li>Acessar apenas o necessário para a sua função e manter sigilo sobre as informações.</li>
+        <li>Não enviar senhas nem dados de clientes pelo canal de suporte.</li>
+      </ul>
+
+      <h3>6. Suporte e mensalidade</h3>
+      <p>O suporte é feito pelo WhatsApp indicado no sistema. A mensalidade é lembrada dentro do sistema; o acesso aos dados não é bloqueado por atraso, salvo o que estiver previsto em contrato.</p>
+
+      <h3>7. Aceite</h3>
+      <p class="mb-0">O aceite é feito pelo usuário master em nome do Escritório e fica registrado no sistema (data, hora e usuário). Mudanças relevantes geram nova versão e exigem novo aceite.</p>
+    </div>`;
+  },
+
+  /** Leitura (link no login, rodapé e material de apoio) */
+  abrir() {
+    const nome = App.S && App.S.escritorio ? App.S.escritorio.nome : '';
+    UI.modal({
+      titulo: '<i class="bi bi-file-earmark-check me-2"></i>Termo de uso e de responsabilidades',
+      corpo: this.texto(nome) + (App.S && App.S.termos_aceite ? `<div class="alert alert-success small mt-3 mb-0"><i class="bi bi-check2-circle me-1"></i>Aceito: ${UI.esc(App.S.termos_aceite)}</div>` : ''),
+      rodape: '<button class="btn btn-outline-secondary" onclick="window.print()"><i class="bi bi-printer me-1"></i>Imprimir</button><button class="btn btn-primary" data-bs-dismiss="modal">Fechar</button>',
+      tamanho: 'modal-lg'
+    });
+  },
+
+  /** Após o login: o master precisa aceitar a versão atual antes de usar. Retorna Promise que resolve quando liberado. */
+  exigirAceite() {
+    const S = App.S;
+    if (!S || !S.master || S.termos_versao === this.VERSAO) return Promise.resolve(true);
+    return new Promise(resolve => {
+      const el = document.createElement('div');
+      el.className = 'modal fade';
+      el.tabIndex = -1;
+      el.innerHTML = `<div class="modal-dialog modal-lg modal-dialog-scrollable"><div class="modal-content">
+        <div class="modal-header"><h5 class="modal-title"><i class="bi bi-file-earmark-check me-2"></i>${S.termos_versao ? 'O termo de uso foi atualizado' : 'Antes de começar: termo de uso'}</h5></div>
+        <div class="modal-body">${this.texto(S.escritorio.nome)}</div>
+        <div class="modal-footer flex-column align-items-stretch">
+          <div class="form-check mb-2"><input class="form-check-input" type="checkbox" id="termos-li">
+            <label class="form-check-label" for="termos-li">Li e aceito este termo em nome de <b>${UI.esc(S.escritorio.nome)}</b>.</label></div>
+          <div class="d-flex justify-content-end gap-2">
+            <button class="btn btn-outline-secondary" data-sair>Sair do sistema</button>
+            <button class="btn btn-primary" data-aceitar disabled><i class="bi bi-check2 me-1"></i>Aceitar e continuar</button>
+          </div>
+        </div></div></div>`;
+      document.getElementById('modais').appendChild(el);
+      const m = new bootstrap.Modal(el, { backdrop: 'static', keyboard: false });
+      const btn = el.querySelector('[data-aceitar]');
+      el.querySelector('#termos-li').onchange = e => { btn.disabled = !e.target.checked; };
+      el.querySelector('[data-sair]').onclick = () => { m.hide(); App.sair(); resolve(false); };
+      btn.onclick = () => UI.ocupado(btn, async () => {
+        try {
+          const r = await Api.chamar('termos.aceitar', { versao: this.VERSAO });
+          S.termos_versao = r.termos_versao; S.termos_aceite = r.termos_aceite;
+          m.hide(); UI.toast('Termo aceito. Bom trabalho!'); resolve(true);
+        } catch (e) { UI.erro(e); }
+      });
+      el.addEventListener('hidden.bs.modal', () => el.remove());
+      m.show();
+    });
   }
 };
 
@@ -4657,7 +4787,8 @@ Modulos.ajuda = {
       id: 'suporte', icone: 'bi-whatsapp', titulo: 'Suporte', modulo: null, html: `
       <p>Dúvidas, erros ou sugestões: clique no botão verde do WhatsApp no canto inferior direito da tela.
       A mensagem já sai com a versão do sistema e a tela em que você está. Se possível, envie um print do erro.</p>
-      <p class="texto-2">Não envie senhas nem dados de clientes (CPF, laudos) pelo WhatsApp.</p>`
+      <p class="texto-2">Não envie senhas nem dados de clientes (CPF, laudos) pelo WhatsApp.</p>
+      <p><b>Responsabilidades:</b> os dados registrados são de responsabilidade do escritório; o funcionamento do sistema é de responsabilidade da DMA SYS. Leia o <a href="#" data-termos>Termo de uso e de responsabilidades</a>.</p>`
     }
   ],
 
