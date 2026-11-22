@@ -262,6 +262,32 @@ body.api-ocupada::before { opacity: 1; animation: barra-api 1.6s ease-in-out inf
   .ajuda-secao { break-inside: avoid; }
 }
 
+/* ---------- Lembrete da mensalidade do sistema ---------- */
+.faixa-licenca { display: flex; align-items: center; flex-wrap: wrap; gap: 8px 12px; padding: 9px 20px; font-size: 14px;
+  border-bottom: 1px solid transparent; animation: faixa-entrar .45s cubic-bezier(.2,.8,.2,1) both; position: relative; z-index: 1020; }
+.faixa-licenca .faixa-icone { font-size: 18px; }
+.faixa-licenca .faixa-texto { flex: 1; min-width: 200px; }
+.faixa-licenca .faixa-acoes { display: flex; align-items: center; gap: 8px; }
+.faixa-azul { background: #e8f1fd; color: #123d6f; border-color: #c9dcf6; }
+.faixa-azul .faixa-btn { background: #1d5fae; color: #fff; }
+.faixa-amarelo { background: #fff4d1; color: #5c4300; border-color: #f0d98a; }
+.faixa-amarelo .faixa-btn { background: #8a6400; color: #fff; }
+.faixa-vermelho { background: #fde4e1; color: #7a1410; border-color: #f3b6af; animation: faixa-entrar .45s cubic-bezier(.2,.8,.2,1) both, faixa-pulso 2.4s ease-in-out .6s infinite; }
+.faixa-vermelho .faixa-btn { background: #b42318; color: #fff; }
+.faixa-btn:hover { filter: brightness(1.1); color: #fff; }
+.faixa-btn-2 { background: transparent; border: 1px solid currentColor; color: inherit; }
+.faixa-btn-2:hover { background: rgba(0,0,0,.06); color: inherit; }
+.faixa-amarelo .faixa-icone, .faixa-vermelho .faixa-icone { animation: sino 3s ease-in-out .5s infinite; transform-origin: 50% 10%; display: inline-block; }
+[data-tema="noturno"] .faixa-azul { background: #14263e; color: #cfe2fb; border-color: #23426a; }
+[data-tema="noturno"] .faixa-amarelo { background: #3a2f0d; color: #f6e2a3; border-color: #5c4a14; }
+[data-tema="noturno"] .faixa-vermelho { background: #3d1513; color: #f8cfca; border-color: #6a2620; }
+.qr-pix { display: inline-flex; align-items: center; justify-content: center; width: 200px; height: 200px; background: #fff; border-radius: 8px; padding: 4px; }
+.qr-pix svg { width: 100%; height: 100%; }
+@keyframes faixa-entrar { from { opacity: 0; transform: translateY(-100%); } to { opacity: 1; transform: none; } }
+@keyframes faixa-pulso { 0%, 100% { box-shadow: inset 0 0 0 0 rgba(180,35,24,0); } 50% { box-shadow: inset 0 0 0 2px rgba(180,35,24,.45); } }
+@keyframes sino { 0%, 80%, 100% { transform: rotate(0); } 84% { transform: rotate(14deg); } 88% { transform: rotate(-12deg); } 92% { transform: rotate(8deg); } 96% { transform: rotate(-4deg); } }
+@media (prefers-reduced-motion: reduce) { .faixa-licenca, .faixa-licenca .faixa-icone { animation: none !important; } }
+
 </style>
 </head>
 <body>
@@ -881,6 +907,7 @@ const App = {
     this.montarMenu();
     this.mostrarTela('app');
     this.rotear();
+    Licenca.verificar();
     setTimeout(() => this.preCarregar(), 300);
   },
 
@@ -1094,6 +1121,7 @@ const App = {
   encerrarSessao(msg) {
     Api.limparToken();
     this.S = null;
+    Licenca.remover();
     this.mostrarTela('login');
     if (msg) {
       const erro = document.getElementById('login-erro');
@@ -1106,6 +1134,201 @@ const App = {
     try { await Api.chamar('auth.logout'); } catch (e) { /* sessão já pode ter expirado */ }
     this.encerrarSessao();
     location.hash = '';
+  }
+};
+
+</script>
+<script>
+/* ======== js/licenca.js ======== */
+/**
+ * Lembrete da mensalidade do sistema (fornecedor DMA SYS → escritório).
+ *
+ * Fonte da verdade: arquivo licenca.json no repositório do GitHub (só o fornecedor edita).
+ *  - pago_ate: "AAAA-MM" = último mês pago e confirmado pelo fornecedor.
+ * O master do escritório pode "informar pagamento" a partir do vencimento; fica gravado na planilha
+ * (Config.licenca_pago_informado) com auditoria e esconde o aviso daquele mês.
+ *
+ * Etapas (dias do mês, configuráveis no licenca.json):
+ *   dia_aviso (5)       → faixa azul   "vence em N dias"
+ *   dia_alerta (8)      → faixa amarela
+ *   dia_vencimento (10) → faixa vermelha "vence hoje" + janela ao entrar
+ *   depois              → vermelha "vencida há N dias"
+ * O sistema NUNCA é bloqueado por este módulo.
+ */
+const Licenca = {
+  QR_URL: 'https://cdn.jsdelivr.net/npm/qrcode-generator@1.4.4/qrcode.js',
+  QR_SRI: 'sha384-8FWZA6BGMXhsfO+BLtrJK0We6gg5o1JyO8xQm6peWDEUs17ACA5ziE/NIAkl9z2k',
+  MESES: ['janeiro', 'fevereiro', 'março', 'abril', 'maio', 'junho', 'julho', 'agosto', 'setembro', 'outubro', 'novembro', 'dezembro'],
+  cfg: null,
+  estado: null,
+
+  /** Chamado após o login. Silencioso se não houver licenca.json ou se o usuário não deve ver. */
+  async verificar() {
+    this.remover();
+    const S = App.S;
+    if (!S) return;
+    try {
+      const r = await fetch('licenca.json?t=' + Date.now(), { cache: 'no-store' });
+      if (!r.ok) return;
+      this.cfg = await r.json();
+    } catch (e) { return; }
+    const c = this.cfg;
+    if (!c || c.ativo === false) return;
+    if (c.somente_master !== false && !S.master) return;
+    this.estado = this.calcular(new Date(), c, S.licenca_informado || '');
+    if (!this.estado) return;
+    this.mostrarFaixa();
+    const chave = 'licenca_janela_' + this.estado.mes;
+    if (this.estado.nivel === 'vermelho' && !sessionStorage.getItem(chave)) {
+      sessionStorage.setItem(chave, '1');
+      setTimeout(() => this.abrirJanela(), 600);
+    }
+  },
+
+  /** Regra das etapas. Retorna null quando não há aviso. Exposta para teste. */
+  calcular(hoje, c, informado) {
+    const aviso = c.dia_aviso || 5, alerta = c.dia_alerta || 8, venc = c.dia_vencimento || 10;
+    const pago = [c.pago_ate || '', informado || ''].sort().pop();
+    // primeiro mês em aberto = mês seguinte ao último pago
+    let ano, mes;
+    if (pago) { const p = pago.split('-').map(Number); ano = p[0]; mes = p[1] + 1; if (mes > 12) { mes = 1; ano++; } }
+    else { ano = hoje.getFullYear(); mes = hoje.getMonth() + 1; }
+    const chaveMes = ano + '-' + String(mes).padStart(2, '0');
+    const atual = hoje.getFullYear() + '-' + String(hoje.getMonth() + 1).padStart(2, '0');
+    if (chaveMes > atual) return null;                                    // em dia
+    if (chaveMes === atual && hoje.getDate() < aviso) return null;        // ainda não é hora de avisar
+    const dVenc = new Date(ano, mes - 1, venc);
+    const h0 = new Date(hoje.getFullYear(), hoje.getMonth(), hoje.getDate());
+    const dias = Math.round((dVenc - h0) / 86400000);
+    let nivel, texto;
+    if (dias < 0) { nivel = 'vermelho'; texto = `Mensalidade do sistema vencida há ${-dias} dia${dias === -1 ? '' : 's'} (venceu em ${this.data(dVenc)}).`; }
+    else if (dias === 0) { nivel = 'vermelho'; texto = 'A mensalidade do sistema vence hoje.'; }
+    else if (chaveMes < atual || hoje.getDate() >= alerta) { nivel = 'amarelo'; texto = `A mensalidade do sistema vence em ${dias} dia${dias === 1 ? '' : 's'} (${this.data(dVenc)}).`; }
+    else { nivel = 'azul'; texto = `Lembrete: a mensalidade do sistema vence em ${this.data(dVenc)}.`; }
+    return { mes: chaveMes, vencimento: dVenc, dias, nivel, texto, podeInformar: dias <= 0, rotuloMes: this.MESES[mes - 1] + '/' + ano };
+  },
+
+  data(d) { return String(d.getDate()).padStart(2, '0') + '/' + String(d.getMonth() + 1).padStart(2, '0') + '/' + d.getFullYear(); },
+  valor() { const v = Number(this.cfg.valor || 0); return v > 0 ? v.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' }) : ''; },
+
+  remover() { document.querySelectorAll('.faixa-licenca').forEach(e => e.remove()); },
+
+  mostrarFaixa() {
+    const e = this.estado;
+    const icone = { azul: 'bi-bell', amarelo: 'bi-bell-fill', vermelho: 'bi-exclamation-octagon-fill' }[e.nivel];
+    const div = document.createElement('div');
+    div.className = 'faixa-licenca faixa-' + e.nivel + ' nao-imprimir';
+    div.setAttribute('role', e.nivel === 'vermelho' ? 'alert' : 'status');
+    div.innerHTML = `
+      <i class="bi ${icone} faixa-icone"></i>
+      <span class="faixa-texto">${UI.esc(e.texto)}${this.valor() ? ` <b>${this.valor()}</b>` : ''}</span>
+      <span class="faixa-acoes">
+        <button class="btn btn-sm faixa-btn" data-ver><i class="bi bi-qr-code me-1"></i>Dados de pagamento</button>
+        ${e.podeInformar ? '<button class="btn btn-sm faixa-btn-2" data-pago><i class="bi bi-check2-circle me-1"></i>Já paguei</button>' : ''}
+        ${e.nivel !== 'vermelho' ? '<button class="btn-close btn-close-sm" data-fechar aria-label="Ocultar até recarregar"></button>' : ''}
+      </span>`;
+    const topo = document.querySelector('.topo');
+    topo.insertAdjacentElement('afterend', div);
+    div.querySelector('[data-ver]').onclick = () => this.abrirJanela();
+    const p = div.querySelector('[data-pago]'); if (p) p.onclick = () => this.informar();
+    const f = div.querySelector('[data-fechar]'); if (f) f.onclick = () => div.remove();
+  },
+
+  async abrirJanela() {
+    const e = this.estado, c = this.cfg;
+    const payload = this.pixPayload();
+    const m = UI.modal({
+      titulo: `<i class="bi bi-receipt me-2"></i>Mensalidade DMA SYS ADV — ${UI.esc(e.rotuloMes)}`,
+      corpo: `
+        <div class="alert alert-${{ azul: 'info', amarelo: 'warning', vermelho: 'danger' }[e.nivel]} py-2 mb-3">${UI.esc(e.texto)}</div>
+        <div class="row g-3 align-items-center">
+          <div class="col-sm-5 text-center"><div data-qr class="qr-pix"><div class="spinner-border text-secondary"></div></div>
+            <div class="small texto-2 mt-1">Aponte a câmera do app do banco</div></div>
+          <div class="col-sm-7">
+            ${this.valor() ? `<div class="mb-2"><span class="texto-2 small">Valor</span><div class="fs-4 fw-semibold">${this.valor()}</div></div>` : ''}
+            <div class="mb-2"><span class="texto-2 small">Vencimento</span><div class="fw-semibold">${this.data(e.vencimento)}</div></div>
+            <div class="mb-2"><span class="texto-2 small">Chave PIX (${UI.esc(c.pix_tipo || 'celular')})</span>
+              <div class="input-group input-group-sm"><input class="form-control" readonly value="${UI.esc(c.pix_exibir || c.pix_chave)}">
+              <button class="btn btn-outline-secondary" data-copiar="${UI.esc(c.pix_chave)}"><i class="bi bi-clipboard"></i></button></div></div>
+            <div><span class="texto-2 small">PIX copia e cola</span>
+              <div class="input-group input-group-sm"><input class="form-control" readonly value="${UI.esc(payload)}">
+              <button class="btn btn-outline-secondary" data-copiar="${UI.esc(payload)}"><i class="bi bi-clipboard"></i></button></div></div>
+          </div>
+        </div>
+        <p class="small texto-2 mt-3 mb-0">Confira o nome do favorecido no app do banco antes de confirmar. Depois de pagar, envie o comprovante pelo WhatsApp${e.podeInformar ? ' e clique em <b>Já paguei</b>' : ''}.</p>`,
+      rodape: `<a class="btn btn-success" target="_blank" rel="noopener" href="${this.linkComprovante()}"><i class="bi bi-whatsapp me-1"></i>Enviar comprovante</a>
+        ${e.podeInformar ? '<button class="btn btn-primary" data-pago><i class="bi bi-check2-circle me-1"></i>Já paguei</button>' : ''}
+        <button class="btn btn-outline-secondary" data-bs-dismiss="modal">Fechar</button>`,
+      tamanho: 'modal-lg'
+    });
+    m.el.querySelectorAll('[data-copiar]').forEach(b => b.onclick = async () => {
+      try { await navigator.clipboard.writeText(b.dataset.copiar); b.innerHTML = '<i class="bi bi-check2"></i>'; UI.toast('Copiado.'); } catch (x) { UI.toast('Selecione e copie manualmente.', 'erro'); }
+    });
+    const p = m.el.querySelector('[data-pago]'); if (p) p.onclick = () => { m.fechar(); this.informar(); };
+    try {
+      await this.carregarQR();
+      const q = qrcode(0, 'M'); q.addData(payload); q.make();
+      m.el.querySelector('[data-qr]').innerHTML = q.createSvgTag({ cellSize: 5, margin: 2, scalable: true });
+    } catch (x) {
+      const box = m.el.querySelector('[data-qr]'); if (box) box.innerHTML = '<div class="small texto-2 p-3">QR Code indisponível. Use a chave ou o copia e cola.</div>';
+    }
+  },
+
+  async informar() {
+    const e = this.estado;
+    const ok = await UI.confirmar(`Confirma que o pagamento da mensalidade de ${e.rotuloMes} foi realizado? O aviso será ocultado e a DMA SYS vai conferir o recebimento.`, { titulo: 'Informar pagamento', botao: 'Sim, já paguei' });
+    if (!ok) return;
+    try {
+      const r = await Api.chamar('licenca.informar', { mes: e.mes });
+      App.S.licenca_informado = r.licenca_informado;
+      this.remover();
+      UI.toast('Pagamento informado. Obrigado!');
+      const env = await UI.confirmar('Deseja enviar o comprovante pelo WhatsApp agora?', { titulo: 'Comprovante', botao: 'Abrir WhatsApp' });
+      if (env) window.open(this.linkComprovante(true), '_blank', 'noopener');
+    } catch (x) { UI.erro(x); }
+  },
+
+  linkComprovante(informado) {
+    const e = this.estado, S = App.S;
+    const t = [`Olá! Segue o comprovante da mensalidade do DMA SYS ADV de ${e.rotuloMes}.`,
+      'Escritório: ' + (S.escritorio && S.escritorio.nome || '-'), 'Enviado por: ' + (S.usuario && S.usuario.nome || '-')];
+    if (informado) t.push('(Pagamento já informado no sistema.)');
+    return 'https://wa.me/' + SUPORTE.whatsapp + '?text=' + encodeURIComponent(t.join('\n'));
+  },
+
+  carregarQR() {
+    if (window.qrcode) return Promise.resolve();
+    if (this._qr) return this._qr;
+    this._qr = new Promise((ok, erro) => {
+      const s = document.createElement('script');
+      s.src = this.QR_URL; s.integrity = this.QR_SRI; s.crossOrigin = 'anonymous';
+      s.onload = ok; s.onerror = () => { this._qr = null; s.remove(); erro(new Error('QR indisponível')); };
+      document.head.appendChild(s);
+    });
+    return this._qr;
+  },
+
+  // ---------- PIX "copia e cola" (BR Code estático, padrão do Banco Central) ----------
+  pixPayload() {
+    const c = this.cfg;
+    const limpa = (t, n) => String(t || '').normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/[^A-Za-z0-9 ]/g, '').toUpperCase().trim().slice(0, n);
+    const tlv = (id, v) => id + String(v.length).padStart(2, '0') + v;
+    const conta = tlv('00', 'br.gov.bcb.pix') + tlv('01', String(c.pix_chave).trim());
+    const v = Number(c.valor || 0);
+    let p = tlv('00', '01') + tlv('26', conta) + tlv('52', '0000') + tlv('53', '986')
+      + (v > 0 ? tlv('54', v.toFixed(2)) : '') + tlv('58', 'BR')
+      + tlv('59', limpa(c.favorecido || 'DMA SYS', 25)) + tlv('60', limpa(c.cidade || 'SAO PAULO', 15))
+      + tlv('62', tlv('05', '***')) + '6304';
+    return p + this.crc16(p);
+  },
+
+  crc16(s) {
+    let crc = 0xFFFF;
+    for (let i = 0; i < s.length; i++) {
+      crc ^= s.charCodeAt(i) << 8;
+      for (let j = 0; j < 8; j++) crc = (crc & 0x8000) ? ((crc << 1) ^ 0x1021) & 0xFFFF : (crc << 1) & 0xFFFF;
+    }
+    return crc.toString(16).toUpperCase().padStart(4, '0');
   }
 };
 
@@ -1174,9 +1397,9 @@ Modulos.painel = {
               <div><div>${UI.esc(r.nome || 'Cliente')}</div><div class="small texto-2">${UI.esc(r.assunto)}</div></div></div>`).join('')
             : '<div class="texto-2 small">Nenhum retorno agendado.</div>'}
         </div></div>` : ''}
-        <div class="col-12"><div class="cartao small texto-2">
-          <i class="bi bi-info-circle me-1"></i>Relatórios e indicadores detalhados chegam na fase 5.
-        </div></div>
+        ${App.pode('relatorios') ? `<div class="col-12"><div class="cartao small texto-2">
+          <i class="bi bi-bar-chart me-1"></i>Indicadores detalhados por período, advogado e área em <a href="#/relatorios">Relatórios</a>.
+        </div></div>` : ''}
       </div>`;
   }
 };
